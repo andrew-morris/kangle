@@ -4,7 +4,7 @@
 #include "forwin32.h"
 #include "KStream.h"
 #ifndef _WIN32
-/////////[317]
+/////////[318]
 #define ULONG64	              unsigned long long
 #endif
 /*
@@ -46,7 +46,7 @@ public:
 #endif
 	//把该进程保存到文件，主进程意外退出时由安全进程杀掉
 	bool saveFile(const char *dir,const char *unix_file=NULL);
-/////////[318]
+/////////[319]
 	bool isKilled()
 	{
 		return killed;
@@ -61,7 +61,7 @@ public:
 	int sig;
 private:
 	void cleanFile();
-/////////[319]
+/////////[320]
 private:
 	pid_t pid;
 	bool killed;

@@ -42,7 +42,7 @@ KFetchObject *KPoolableRedirect::makeFetchObject(KHttpRequest *rq,
 	case Proto_fcgi:
 		return new KFastcgiFetchObject();
 	case Proto_http:
-/////////[343]
+/////////[344]
 		return new KHttpProxyFetchObject();
 	case Proto_ajp:
 		return new KAjpFetchObject();

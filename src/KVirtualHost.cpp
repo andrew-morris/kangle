@@ -720,7 +720,7 @@ void KVirtualHost::buildXML(std::stringstream &s) {
 	if (protocols) {
 		s << " protocols='" << protocols << "'";
 	}
-	/////////[324]
+	/////////[325]
 #endif
 	if(status != 0 || tvh){
 		s << " status='" << status << "'";
@@ -995,7 +995,7 @@ bool KVirtualHost::setSSLInfo(std::string certfile,std::string keyfile,std::stri
 					"dynamically to an OpenSSL library which has no tlsext support, "
 					"therefore SNI is not available");
 		}
-		/////////[325]
+		/////////[326]
 	}
 	if (ssl_ctx) {
 		if (this->cipher) {

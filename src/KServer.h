@@ -64,7 +64,7 @@ public:
 	SSL_CTX *ssl_ctx;
 	bool load_ssl();
 #endif
-/////////[320]
+/////////[321]
 public:
 	void clear();
 	inline bool isClosed()
@@ -89,6 +89,6 @@ public:
 private:
 	virtual ~KServer();
 	volatile bool closed;
-/////////[321]
+/////////[322]
 };
 #endif /* KSERVER_H_ */

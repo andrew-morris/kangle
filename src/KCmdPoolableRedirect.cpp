@@ -124,7 +124,7 @@ KUpstreamSelectable *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KLi
 		lockCommand();
 	}
 	int port2 = 0;
-	/////////[314]
+	/////////[315]
 	if (isSameRunning || preLoad(&ds)) {
 		KCmdEnv *env = makeEnv(&ds);
 		result = ::createProcess(st, token, arg, env, rdst);
@@ -160,7 +160,7 @@ KUpstreamSelectable *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KLi
 	#endif
 				}
 			} else {
-				/////////[315]
+				/////////[316]
 				port2 = port;
 			}	
 			if (port2==0) {

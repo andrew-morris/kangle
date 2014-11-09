@@ -11,7 +11,7 @@
 #include "global.h"
 #include "KXml.h"
 #include "KContentType.h"
-/////////[338]
+/////////[339]
 class KApiPipeStream;
 class KVirtualHost;
 class KHttpFilterManage;
@@ -219,7 +219,7 @@ public:
 	void getIndexFileEnv(const char *split,KStringBuf &s);
 	//void buildEnvXml(std::stringstream &s);
 	KMimeType *mimeType;
-	/////////[339]
+	/////////[340]
 #ifdef ENABLE_KSAPI_FILTER
 	KHttpFilterManage *hfm;
 #endif

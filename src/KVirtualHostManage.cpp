@@ -775,10 +775,7 @@ bool KVirtualHostManage::internalAddVirtualHost(KVirtualHost *vh,KVirtualHost *o
 #ifdef ENABLE_USER_ACCESS
 	vh->loadAccess(ov);
 #endif
-	if (vh->empty()) {
-		klog(KLOG_WARNING, "skip add empty virtualhost [%s].\n", vh->name.c_str());
-		return false;
-	}
+	/////////[310]
 	std::map<std::string, KVirtualHost *>::iterator it;
 	it = avh.find(vh->name);
 	if (it != avh.end()) {
@@ -1042,7 +1039,7 @@ void KVirtualHostManage::getVhDetail(std::stringstream &s, KVirtualHost *vh,bool
 	s << "<input name='fflow' type='checkbox' value='1'"
 			<< ((vh && vh->fflow) ? "checked" : "") << ">" << klang["flow"];
 #endif
-	/////////[310]
+	/////////[311]
 	s << "</td></tr>\n";
 #ifdef ENABLE_USER_ACCESS
 	s << "<tr><td>" << klang["access_file"]
@@ -1294,7 +1291,7 @@ void KVirtualHostManage::dumpFlow(KVirtualHostEvent *ctx,bool revers,const char 
 		}
 		s << "\n";
 	}
-	/////////[311]
+	/////////[312]
 	lock.Unlock();
 	ctx->add("flow",s.getString());
 	if (extend>0) {

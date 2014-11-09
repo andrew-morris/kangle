@@ -13,7 +13,7 @@
 #include "log.h"
 #include "utils.h"
 #include "malloc_debug.h"
-/////////[328]
+/////////[329]
 int numberCpu = 1;
 #ifdef SOLARIS
 int GetNumberOfProcessors()
@@ -38,7 +38,7 @@ int GetNumberOfProcessors()
 	}
 	return si.dwNumberOfProcessors;
 }
-/////////[329]
+/////////[330]
 #endif
 #ifdef BSD_OS
 #include <sys/types.h>
@@ -56,7 +56,7 @@ int GetNumberOfProcessors()
 	}
 	return 1;
 }
-/////////[330]
+/////////[331]
 #endif
 #ifdef LINUX
 int GetNumberOfProcessors()
@@ -80,7 +80,7 @@ int GetNumberOfProcessors()
 	}
 	return ncpus;
 }
-/////////[331]
+/////////[332]
 #endif
 
 KProcess::KProcess() {
@@ -91,7 +91,7 @@ KProcess::KProcess() {
 	pid = NULL;
 	sig = 0;
 #endif
-/////////[332]
+/////////[333]
 	killed = false;
 	file = NULL;
 	lastPoweron = time(NULL);
@@ -130,7 +130,7 @@ bool KProcess::saveFile(const char *dir,const char *unix_file)
 		return false;
 	}
 }
-/////////[333]
+/////////[334]
 int KProcess::getProcessId() {
 #ifdef _WIN32
 	return GetProcessId(pid);

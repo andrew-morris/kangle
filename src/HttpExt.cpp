@@ -45,7 +45,7 @@ BOOL setVariable(LPVOID lpvBuffe, LPDWORD lpdwSize, const char *val,
 	}
 
 	unsigned len = strlen(val);
-/////////[350]
+/////////[351]
 	if (*lpdwSize > len || buffer == NULL) {
 		*lpdwSize = len + 1;
 		if (buffer) {
@@ -57,7 +57,7 @@ BOOL setVariable(LPVOID lpvBuffe, LPDWORD lpdwSize, const char *val,
 		return FALSE;
 		
 	}
-/////////[351]
+/////////[352]
 	return TRUE;
 }
 BOOL WINAPI GetServerVariable(HCONN hConn, LPSTR lpszVariableName,
@@ -256,7 +256,7 @@ BOOL WINAPI ServerSupportFunction(HCONN hConn, DWORD dwHSERequest,
 		}
 		return true;
 	}
-/////////[352]
+/////////[353]
 	if (dwHSERequest == HSE_REQ_GET_IMPERSONATION_TOKEN) {
 		Token_t token = fo->getToken();
 		if (token) {

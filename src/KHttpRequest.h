@@ -64,11 +64,11 @@ class KHttpSpdyContext;
 #define FOLLOW_LINK_ALL  1
 #define FOLLOW_LINK_OWN  2
 #define FOLLOW_PATH_INFO 4
-/////////[344]
+/////////[345]
 #define AUTH_REQUEST_HEADER "Authorization"
 #define AUTH_RESPONSE_HEADER "WWW-Authenticate"
 #define AUTH_STATUS_CODE 401
-/////////[345]
+/////////[346]
 
 class KManageIP {
 public:
@@ -141,7 +141,7 @@ public:
 #ifdef ENABLE_INPUT_FILTER
 		if_ctx = NULL;
 #endif
-		/////////[346]
+		/////////[347]
 		ctx = new KContext;
 		slh = NULL;
 #ifdef ENABLE_TF_EXCHANGE
@@ -157,7 +157,7 @@ public:
 #ifdef ENABLE_KSAPI_FILTER
 		http_filter_ctx = NULL;
 #endif
-		/////////[347]
+		/////////[348]
 		this->c = c;
 		active_msec = kgl_current_msec;
 		request_msec = active_msec;
@@ -340,7 +340,7 @@ public:
 	inline bool needFilter() {
 		return of_ctx!=NULL;
 	}
-	/////////[348]
+	/////////[349]
 	int parseHeader(const char *attr, char *val,int &val_len, bool isFirst);
 	const char *getMethod();
 	void getCharset(KHttpHeader *header);
@@ -437,7 +437,7 @@ public:
 		helper->next = fh;
 		fh = helper;
 	}
-	/////////[349]
+	/////////[350]
 #ifdef ENABLE_REQUEST_QUEUE
 	KRequestQueue *queue;
 #endif

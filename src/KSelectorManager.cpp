@@ -26,7 +26,7 @@
 #include "KEpollSelector.h"
 #include "KKqueueSelector.h"
 #include "KPortSelector.h"
-/////////[360]
+/////////[361]
 #include "KVirtualHost.h"
 #include "time_utils.h"
 intmap m_ip;
@@ -101,7 +101,7 @@ KSelector *KSelectorManager::newSelector() {
 	return new KKqueueSelector();
 #elif HAVE_PORT_H
 	return new KPortSelector();
-	/////////[361]
+	/////////[362]
 #else
 	return NULL;
 #endif
@@ -115,14 +115,16 @@ KSelectorManager::KSelectorManager() {
 }
 void KSelectorManager::init(unsigned size)
 {
-/////////[362]
 	//保证listenIndex为2的n次方，最大为512.
 	for (int i=0;i<9;i++) {
 		count = (1<<i);
-		if(count>=(int)size){
+		if(count==(int)size){
 			break;
 		}
-		
+		if (count>size) {
+			count--;
+			break;
+		}
 	}
 	sizeHash = count - 1;
 	listenIndex = sizeHash;

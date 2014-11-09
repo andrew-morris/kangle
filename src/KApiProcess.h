@@ -48,7 +48,7 @@ public:
 		return true;
 	}
 	KUpstreamSelectable *poweron(KVirtualHost *vh, KExtendProgram *rd, bool &success);
-	/////////[326]
+	/////////[327]
 protected:
 	bool isProcessActive()
 	{

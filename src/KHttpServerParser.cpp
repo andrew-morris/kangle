@@ -432,7 +432,7 @@ bool KHttpServerParser::buildVirtualHost(KAttributeHelper *ah,
 	std::string keyfile;
 	std::string cipher;
 	std::string protocols;
-	/////////[312]
+	/////////[313]
 	if (!ah->getValue("certificate",certfile) && tm) {
 		certfile = tm->certfile;		
 	}
@@ -514,7 +514,7 @@ bool KHttpServerParser::buildVirtualHost(KAttributeHelper *ah,
 	}
 	virtualHost->initConnect(ov);
 #endif
-	/////////[313]
+	/////////[314]
 #ifdef ENABLE_VH_FLOW
 	if (ah->getValue("fflow", value)) {
 		virtualHost->setFlow(value=="1",ov);

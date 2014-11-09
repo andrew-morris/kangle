@@ -64,7 +64,7 @@ private:
 	bool sendXML(const char *buf,bool addXml=false);
 	//bool start_fetchobj();
 	bool xml;
-	/////////[327]
+	/////////[328]
 };
 bool changeAdminPassword(KUrlValue *url,std::string &errMsg);
 bool checkManageLogin(KHttpRequest *rq) ;
