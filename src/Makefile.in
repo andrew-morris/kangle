@@ -40,7 +40,7 @@ subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/config.h.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.in
+am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -49,6 +49,7 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
+am__dirstamp = $(am__leading_dot)dirstamp
 am_kangle_OBJECTS = cache.$(OBJEXT) KConfig.$(OBJEXT) \
 	forwin32.$(OBJEXT) garbage_c.$(OBJEXT) HttpCore.$(OBJEXT) \
 	KAccess.$(OBJEXT) KAcserver.$(OBJEXT) \
@@ -108,11 +109,10 @@ am_kangle_OBJECTS = cache.$(OBJEXT) KConfig.$(OBJEXT) \
 	KServiceProvider.$(OBJEXT) KISAPIServiceProvider.$(OBJEXT) \
 	directory.$(OBJEXT) KSSICommandExec.$(OBJEXT) \
 	KSSICommandConfig.$(OBJEXT) ssl_utils.$(OBJEXT) \
-	KApiPipeStream.$(OBJEXT) KPoolableSocket.$(OBJEXT) \
-	KPoolableSocketContainer.$(OBJEXT) KProcessManage.$(OBJEXT) \
-	KCmdPoolableRedirect.$(OBJEXT) KSubVirtualHost.$(OBJEXT) \
-	KIpVirtualHost.$(OBJEXT) KHttpPost.$(OBJEXT) \
-	KHtAccess.$(OBJEXT) KHtModule.$(OBJEXT) \
+	KApiPipeStream.$(OBJEXT) KPoolableSocketContainer.$(OBJEXT) \
+	KProcessManage.$(OBJEXT) KCmdPoolableRedirect.$(OBJEXT) \
+	KSubVirtualHost.$(OBJEXT) KIpVirtualHost.$(OBJEXT) \
+	KHttpPost.$(OBJEXT) KHtAccess.$(OBJEXT) KHtModule.$(OBJEXT) \
 	KHtRewriteModule.$(OBJEXT) KRewriteMarkEx.$(OBJEXT) \
 	EdcodeUtils.$(OBJEXT) KProcess.$(OBJEXT) KApiProcess.$(OBJEXT) \
 	KCmdProcess.$(OBJEXT) KVirtualHostProcess.$(OBJEXT) \
@@ -136,13 +136,31 @@ am_kangle_OBJECTS = cache.$(OBJEXT) KConfig.$(OBJEXT) \
 	KReplaceContentFilter.$(OBJEXT) KConcatFetchObject.$(OBJEXT) \
 	KIpSpeedLimitMark.$(OBJEXT) KDynamicListen.$(OBJEXT) \
 	KCache.$(OBJEXT) KPerIpAcl.$(OBJEXT) KDiskCacheIndex.$(OBJEXT) \
-	KSqliteDiskCacheIndex.$(OBJEXT) dllmain.$(OBJEXT) \
-	WhmCallMap.$(OBJEXT) WhmCommand.$(OBJEXT) WhmContext.$(OBJEXT) \
-	whm.$(OBJEXT) WhmLog.$(OBJEXT) WhmPackage.$(OBJEXT) \
-	WhmPackageManage.$(OBJEXT) KWhmService.$(OBJEXT) \
-	stdafx.$(OBJEXT) WhmDso.$(OBJEXT) WhmExtend.$(OBJEXT) \
-	WhmUrl.$(OBJEXT) WhmShell.$(OBJEXT) WhmShellProcess.$(OBJEXT) \
-	WhmShellSession.$(OBJEXT) core.$(OBJEXT)
+	KSqliteDiskCacheIndex.$(OBJEXT) \
+	../module/whm/dllmain.$(OBJEXT) \
+	../module/whm/WhmCallMap.$(OBJEXT) \
+	../module/whm/WhmCommand.$(OBJEXT) \
+	../module/whm/WhmContext.$(OBJEXT) ../module/whm/whm.$(OBJEXT) \
+	../module/whm/WhmLog.$(OBJEXT) \
+	../module/whm/WhmPackage.$(OBJEXT) \
+	../module/whm/WhmPackageManage.$(OBJEXT) \
+	../module/whm/KWhmService.$(OBJEXT) \
+	../module/whm/stdafx.$(OBJEXT) ../module/whm/WhmDso.$(OBJEXT) \
+	../module/whm/WhmExtend.$(OBJEXT) \
+	../module/whm/WhmUrl.$(OBJEXT) \
+	../module/whm/WhmShell.$(OBJEXT) \
+	../module/whm/WhmShellProcess.$(OBJEXT) \
+	../module/whm/WhmShellSession.$(OBJEXT) \
+	../module/whm/whmdso/core/core.$(OBJEXT) KTimer.$(OBJEXT) \
+	KUrlParser.$(OBJEXT) KHttpFilterContext.$(OBJEXT) \
+	KHttpFilterDso.$(OBJEXT) KHttpFilterDsoManage.$(OBJEXT) \
+	KHttpFilterHookCollectRequest.$(OBJEXT) \
+	KHttpFilterHook.$(OBJEXT) KHttpFilterManage.$(OBJEXT) \
+	KTempFileStream.$(OBJEXT) KHttpFilterStream.$(OBJEXT) \
+	KHttpFilterHookCollectResponse.$(OBJEXT) KAccessDso.$(OBJEXT) \
+	KConnectionSelectable.$(OBJEXT) KReadWriteBuffer.$(OBJEXT) \
+	KResponseContext.$(OBJEXT) KUpstreamSelectable.$(OBJEXT) \
+	KSimulateRequest.$(OBJEXT) KCloudIpAcl.$(OBJEXT)
 kangle_OBJECTS = $(am_kangle_OBJECTS)
 kangle_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -178,6 +196,10 @@ CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
 CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
+DEFAULT_EXT_DIR = @DEFAULT_EXT_DIR@
+DEFAULT_TMP_DIR = @DEFAULT_TMP_DIR@
+DEFAULT_VAR_DIR = @DEFAULT_VAR_DIR@
+DEFAULT_WEBADMIN_DIR = @DEFAULT_WEBADMIN_DIR@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
@@ -268,7 +290,8 @@ top_srcdir = @top_srcdir@
 #AM_CXXFLAGS=-I../module/access -DKSOCKET_SSL
 #AM_LDFLAGS=-rdynamic -lssl -lcrypto
 AM_CXXFLAGS = -I../module/access -I../module/whm
-AM_LDFLAGS = -rdynamic -L../lib 
+AM_LDFLAGS = -L../lib 
+AUTOMAKE_OPTIONS = subdir-objects
 kangle_SOURCES = \
 global.h\
 cache.cpp\
@@ -442,7 +465,7 @@ KEnvInterface.h KEnvInterface.cpp\
 KRedirect.h KRedirect.cpp KCgiRedirect.h KCgiRedirect.cpp KCgiFetchObject.cpp KCgiFetchObject.h KPipeStream.cpp KPipeStream.h KCgi.cpp KCgi.h KStream.h\
 KCgiEnv.cpp KCgiEnv.h KApiRedirect.cpp KApiRedirect.h KApiEnv.cpp KApiEnv.h HttpExt.cpp KApiFetchObject.cpp KApiFetchObject.h KHttpHeadPull.cpp KHttpHeadPull.h\
 KSockFastcgiFetchObject.cpp KSockFastcgiFetchObject.h KApiFastcgiFetchObject.cpp KApiFastcgiFetchObject.h\
-KPathRedirect.cpp KPathRedirect.h KWinCgiEnv.h httpext.h httpfilt.h ksapi.h fastcgi.h export.h KLogManage.h KLogManage.cpp KBaseVirtualHost.h KBaseVirtualHost.cpp\
+KPathRedirect.cpp KPathRedirect.h KWinCgiEnv.h httpext.h ksapi.h fastcgi.h export.h KLogManage.h KLogManage.cpp KBaseVirtualHost.h KBaseVirtualHost.cpp\
 process.cpp \
 KContentTransfer.h KContentTransfer.cpp KChunked.h KChunked.cpp KCacheStream.h KCacheStream.cpp KHttpField.h KHttpField.cpp KHttpDigestAuth.h KHttpDigestAuth.cpp KHttpAuth.h KHttpAuth.cpp KHttpBasicAuth.h KHttpBasicAuth.cpp KAuthMark.cpp\
 KObjectList.h KObjectList.cpp\
@@ -453,7 +476,7 @@ KSSICommandCondition.h    KSSICommandEcho.h    KSSICommandInclude.h     KSSIComm
 KSSICommand.cpp           KSSICommand.h        KSSICommandPrintEnv.cpp  KSSICommandSet.h       KSSIFetchObject.cpp  KSSIProcess.h\
 KServiceProvider.h KServiceProvider.cpp KISAPIServiceProvider.h KISAPIServiceProvider.cpp directory.cpp directory.h\
 KSSICommandExec.h KSSICommandExec.cpp KSSICommandConfig.h KSSICommandConfig.cpp ssl_utils.h ssl_utils.cpp\
- KApiPipeStream.cpp KApiPipeStream.h KPoolableSocket.cpp KPoolableSocket.h  KPoolableSocketContainer.cpp  KPoolableSocketContainer.h KProcessManage.cpp KProcessManage.h\
+ KApiPipeStream.cpp KApiPipeStream.h KPoolableSocketContainer.cpp  KPoolableSocketContainer.h KProcessManage.cpp KProcessManage.h\
 KCmdPoolableRedirect.cpp  KCmdPoolableRedirect.h\
 KSubVirtualHost.h KSubVirtualHost.cpp KIpVirtualHost.cpp KIpVirtualHost.h\
 KHttpPost.cpp KHttpPost.h KHtAccess.cpp KHtAccess.h KHtModule.cpp KHtModule.h KHtRewriteModule.h KHtRewriteModule.cpp KRewriteMarkEx.cpp KRewriteMarkEx.h\
@@ -498,7 +521,14 @@ KDiskCacheIndex.h KDiskCacheIndex.cpp KSqliteDiskCacheIndex.h KSqliteDiskCacheIn
 ../module/whm/WhmUrl.h ../module/whm/WhmUrl.cpp ../module/whm/WhmShellContext.h ../module/whm/WhmShell.cpp ../module/whm/WhmShell.h ../module/whm/WhmShellProcess.cpp ../module/whm/WhmShellProcess.h ../module/whm/WhmShellSession.cpp ../module/whm/WhmShellSession.h\
 ../module/whm/whmdso/core/core.cpp\
 KVaryMark.h KTimeoutMark.h KKeepConnectionAcl.h\
-KCounterMark.h KConnectionCloseMark.h KRandAcl.h
+KCounterMark.h KConnectionCloseMark.h\
+KTimer.cpp      KTimer.h KUrlParser.cpp  KUrlParser.h\
+KHttpFilterContext.cpp  KHttpFilterDso.cpp  KHttpFilterDsoManage.cpp  KHttpFilterHookCollectRequest.cpp  KHttpFilterHook.cpp  KHttpFilterManage.cpp\
+KHttpFilterContext.h    KHttpFilterDso.h    KHttpFilterDsoManage.h    KHttpFilterHookCollectRequest.h    KHttpFilterHook.h    KHttpFilterManage.h\
+KTempFileStream.cpp KHttpFilterStream.cpp KHttpFilterHookCollectResponse.cpp\
+KAccessDso.h KAccessDso.cpp KHttpStream.h KHttpFilterHookCollectResponse.h KHttpFilterStream.h KTempFileStream.h\
+KRandAcl.h KConnectionSelectable.cpp KConnectionSelectable.h KReadWriteBuffer.cpp KReadWriteBuffer.h KResponseContext.h KResponseContext.cpp\
+KUpstreamSelectable.h KUpstreamSelectable.cpp KRequestList.h KAsyncSelectable.h KSimulateRequest.cpp  KSimulateRequest.h KMinObjVerifiedMark.h KCloudIpAcl.cpp
 
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -589,20 +619,105 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+../module/whm/$(am__dirstamp):
+	@$(MKDIR_P) ../module/whm
+	@: > ../module/whm/$(am__dirstamp)
+../module/whm/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ../module/whm/$(DEPDIR)
+	@: > ../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/dllmain.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmCallMap.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmCommand.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmContext.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/whm.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmLog.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmPackage.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmPackageManage.$(OBJEXT):  \
+	../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/KWhmService.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/stdafx.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmDso.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmExtend.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmUrl.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmShell.$(OBJEXT): ../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmShellProcess.$(OBJEXT):  \
+	../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/WhmShellSession.$(OBJEXT):  \
+	../module/whm/$(am__dirstamp) \
+	../module/whm/$(DEPDIR)/$(am__dirstamp)
+../module/whm/whmdso/core/$(am__dirstamp):
+	@$(MKDIR_P) ../module/whm/whmdso/core
+	@: > ../module/whm/whmdso/core/$(am__dirstamp)
+../module/whm/whmdso/core/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ../module/whm/whmdso/core/$(DEPDIR)
+	@: > ../module/whm/whmdso/core/$(DEPDIR)/$(am__dirstamp)
+../module/whm/whmdso/core/core.$(OBJEXT):  \
+	../module/whm/whmdso/core/$(am__dirstamp) \
+	../module/whm/whmdso/core/$(DEPDIR)/$(am__dirstamp)
 kangle$(EXEEXT): $(kangle_OBJECTS) $(kangle_DEPENDENCIES) 
 	@rm -f kangle$(EXEEXT)
 	$(CXXLINK) $(kangle_OBJECTS) $(kangle_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f ../module/whm/KWhmService.$(OBJEXT)
+	-rm -f ../module/whm/WhmCallMap.$(OBJEXT)
+	-rm -f ../module/whm/WhmCommand.$(OBJEXT)
+	-rm -f ../module/whm/WhmContext.$(OBJEXT)
+	-rm -f ../module/whm/WhmDso.$(OBJEXT)
+	-rm -f ../module/whm/WhmExtend.$(OBJEXT)
+	-rm -f ../module/whm/WhmLog.$(OBJEXT)
+	-rm -f ../module/whm/WhmPackage.$(OBJEXT)
+	-rm -f ../module/whm/WhmPackageManage.$(OBJEXT)
+	-rm -f ../module/whm/WhmShell.$(OBJEXT)
+	-rm -f ../module/whm/WhmShellProcess.$(OBJEXT)
+	-rm -f ../module/whm/WhmShellSession.$(OBJEXT)
+	-rm -f ../module/whm/WhmUrl.$(OBJEXT)
+	-rm -f ../module/whm/dllmain.$(OBJEXT)
+	-rm -f ../module/whm/stdafx.$(OBJEXT)
+	-rm -f ../module/whm/whm.$(OBJEXT)
+	-rm -f ../module/whm/whmdso/core/core.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/KWhmService.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmCallMap.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmCommand.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmContext.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmDso.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmExtend.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmLog.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmPackage.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmPackageManage.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmShell.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmShellProcess.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmShellSession.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/WhmUrl.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/dllmain.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/stdafx.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/$(DEPDIR)/whm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../module/whm/whmdso/core/$(DEPDIR)/core.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/EdcodeUtils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/HttpCore.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/HttpExt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KAccess.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KAccessDso.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KAccessParser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KAcserver.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KAcserverManager.Po@am__quote@
@@ -633,12 +748,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KCgiRedirect.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KChain.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KChunked.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KCloudIpAcl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KCmdPoolableRedirect.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KCmdProcess.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KConcatFetchObject.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KConfig.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KConfigBuilder.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KConfigParser.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KConnectionSelectable.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KContentMark.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KContentTransfer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KContentType.Po@am__quote@
@@ -671,6 +788,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpDigestAuth.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpField.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFieldValue.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterContext.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterDso.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterDsoManage.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterHook.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterHookCollectRequest.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterHookCollectResponse.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterManage.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpFilterStream.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpHeadPull.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpKeyValue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KHttpManage.Po@am__quote@
@@ -707,17 +832,18 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KPerIpAcl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KPipeMessageFetchObject.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KPipeStream.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KPoolableSocket.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KPoolableSocketContainer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KPortSelector.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KProcess.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KProcessManage.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KReadWriteBuffer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KRedirect.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KRedirectMark.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KReg.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KReplaceContentFilter.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KReplaceContentMark.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KRequestQueue.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KResponseContext.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KRewriteMark.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KRewriteMarkEx.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KSSICommand.Po@am__quote@
@@ -741,6 +867,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KServer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KServerListen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KServiceProvider.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KSimulateRequest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KSingleAcserver.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KSingleProgram.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KSockFastcgiFetchObject.Po@am__quote@
@@ -756,9 +883,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KSyncFetchObject.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KTable.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KTempFile.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KTempFileStream.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KTempleteVirtualHost.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KThreadPool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KTimeMatch.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KTimer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KUpstreamSelectable.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KUrlParser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KUrlValue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KUwsgiFetchObject.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KVirtualHost.Po@am__quote@
@@ -766,29 +897,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KVirtualHostDatabase.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KVirtualHostManage.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KVirtualHostProcess.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KWhmService.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KWriteBack.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KWriteBackManager.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KXml.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KXmlContext.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KXmlException.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KXmlSupport.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmCallMap.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmCommand.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmContext.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmDso.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmExtend.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmLog.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmPackage.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmPackageManage.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmShell.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmShellProcess.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmShellSession.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/WhmUrl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cache.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/core.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/directory.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dllmain.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/forwin32.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/garbage_c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kmysql.Po@am__quote@
@@ -800,264 +916,26 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rbtree.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssl_utils.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stdafx.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/time_utils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utils.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/whm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/work.Po@am__quote@
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
-
-dllmain.o: ../module/whm/dllmain.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT dllmain.o -MD -MP -MF $(DEPDIR)/dllmain.Tpo -c -o dllmain.o `test -f '../module/whm/dllmain.cpp' || echo '$(srcdir)/'`../module/whm/dllmain.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/dllmain.Tpo $(DEPDIR)/dllmain.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/dllmain.cpp' object='dllmain.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o dllmain.o `test -f '../module/whm/dllmain.cpp' || echo '$(srcdir)/'`../module/whm/dllmain.cpp
-
-dllmain.obj: ../module/whm/dllmain.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT dllmain.obj -MD -MP -MF $(DEPDIR)/dllmain.Tpo -c -o dllmain.obj `if test -f '../module/whm/dllmain.cpp'; then $(CYGPATH_W) '../module/whm/dllmain.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/dllmain.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/dllmain.Tpo $(DEPDIR)/dllmain.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/dllmain.cpp' object='dllmain.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o dllmain.obj `if test -f '../module/whm/dllmain.cpp'; then $(CYGPATH_W) '../module/whm/dllmain.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/dllmain.cpp'; fi`
-
-WhmCallMap.o: ../module/whm/WhmCallMap.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmCallMap.o -MD -MP -MF $(DEPDIR)/WhmCallMap.Tpo -c -o WhmCallMap.o `test -f '../module/whm/WhmCallMap.cpp' || echo '$(srcdir)/'`../module/whm/WhmCallMap.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmCallMap.Tpo $(DEPDIR)/WhmCallMap.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmCallMap.cpp' object='WhmCallMap.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmCallMap.o `test -f '../module/whm/WhmCallMap.cpp' || echo '$(srcdir)/'`../module/whm/WhmCallMap.cpp
-
-WhmCallMap.obj: ../module/whm/WhmCallMap.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmCallMap.obj -MD -MP -MF $(DEPDIR)/WhmCallMap.Tpo -c -o WhmCallMap.obj `if test -f '../module/whm/WhmCallMap.cpp'; then $(CYGPATH_W) '../module/whm/WhmCallMap.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmCallMap.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmCallMap.Tpo $(DEPDIR)/WhmCallMap.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmCallMap.cpp' object='WhmCallMap.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmCallMap.obj `if test -f '../module/whm/WhmCallMap.cpp'; then $(CYGPATH_W) '../module/whm/WhmCallMap.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmCallMap.cpp'; fi`
-
-WhmCommand.o: ../module/whm/WhmCommand.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmCommand.o -MD -MP -MF $(DEPDIR)/WhmCommand.Tpo -c -o WhmCommand.o `test -f '../module/whm/WhmCommand.cpp' || echo '$(srcdir)/'`../module/whm/WhmCommand.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmCommand.Tpo $(DEPDIR)/WhmCommand.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmCommand.cpp' object='WhmCommand.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmCommand.o `test -f '../module/whm/WhmCommand.cpp' || echo '$(srcdir)/'`../module/whm/WhmCommand.cpp
-
-WhmCommand.obj: ../module/whm/WhmCommand.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmCommand.obj -MD -MP -MF $(DEPDIR)/WhmCommand.Tpo -c -o WhmCommand.obj `if test -f '../module/whm/WhmCommand.cpp'; then $(CYGPATH_W) '../module/whm/WhmCommand.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmCommand.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmCommand.Tpo $(DEPDIR)/WhmCommand.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmCommand.cpp' object='WhmCommand.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmCommand.obj `if test -f '../module/whm/WhmCommand.cpp'; then $(CYGPATH_W) '../module/whm/WhmCommand.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmCommand.cpp'; fi`
-
-WhmContext.o: ../module/whm/WhmContext.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmContext.o -MD -MP -MF $(DEPDIR)/WhmContext.Tpo -c -o WhmContext.o `test -f '../module/whm/WhmContext.cpp' || echo '$(srcdir)/'`../module/whm/WhmContext.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmContext.Tpo $(DEPDIR)/WhmContext.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmContext.cpp' object='WhmContext.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmContext.o `test -f '../module/whm/WhmContext.cpp' || echo '$(srcdir)/'`../module/whm/WhmContext.cpp
-
-WhmContext.obj: ../module/whm/WhmContext.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmContext.obj -MD -MP -MF $(DEPDIR)/WhmContext.Tpo -c -o WhmContext.obj `if test -f '../module/whm/WhmContext.cpp'; then $(CYGPATH_W) '../module/whm/WhmContext.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmContext.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmContext.Tpo $(DEPDIR)/WhmContext.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmContext.cpp' object='WhmContext.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmContext.obj `if test -f '../module/whm/WhmContext.cpp'; then $(CYGPATH_W) '../module/whm/WhmContext.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmContext.cpp'; fi`
-
-whm.o: ../module/whm/whm.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT whm.o -MD -MP -MF $(DEPDIR)/whm.Tpo -c -o whm.o `test -f '../module/whm/whm.cpp' || echo '$(srcdir)/'`../module/whm/whm.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/whm.Tpo $(DEPDIR)/whm.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/whm.cpp' object='whm.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o whm.o `test -f '../module/whm/whm.cpp' || echo '$(srcdir)/'`../module/whm/whm.cpp
-
-whm.obj: ../module/whm/whm.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT whm.obj -MD -MP -MF $(DEPDIR)/whm.Tpo -c -o whm.obj `if test -f '../module/whm/whm.cpp'; then $(CYGPATH_W) '../module/whm/whm.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/whm.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/whm.Tpo $(DEPDIR)/whm.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/whm.cpp' object='whm.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o whm.obj `if test -f '../module/whm/whm.cpp'; then $(CYGPATH_W) '../module/whm/whm.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/whm.cpp'; fi`
-
-WhmLog.o: ../module/whm/WhmLog.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmLog.o -MD -MP -MF $(DEPDIR)/WhmLog.Tpo -c -o WhmLog.o `test -f '../module/whm/WhmLog.cpp' || echo '$(srcdir)/'`../module/whm/WhmLog.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmLog.Tpo $(DEPDIR)/WhmLog.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmLog.cpp' object='WhmLog.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmLog.o `test -f '../module/whm/WhmLog.cpp' || echo '$(srcdir)/'`../module/whm/WhmLog.cpp
-
-WhmLog.obj: ../module/whm/WhmLog.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmLog.obj -MD -MP -MF $(DEPDIR)/WhmLog.Tpo -c -o WhmLog.obj `if test -f '../module/whm/WhmLog.cpp'; then $(CYGPATH_W) '../module/whm/WhmLog.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmLog.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmLog.Tpo $(DEPDIR)/WhmLog.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmLog.cpp' object='WhmLog.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmLog.obj `if test -f '../module/whm/WhmLog.cpp'; then $(CYGPATH_W) '../module/whm/WhmLog.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmLog.cpp'; fi`
-
-WhmPackage.o: ../module/whm/WhmPackage.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmPackage.o -MD -MP -MF $(DEPDIR)/WhmPackage.Tpo -c -o WhmPackage.o `test -f '../module/whm/WhmPackage.cpp' || echo '$(srcdir)/'`../module/whm/WhmPackage.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmPackage.Tpo $(DEPDIR)/WhmPackage.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmPackage.cpp' object='WhmPackage.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmPackage.o `test -f '../module/whm/WhmPackage.cpp' || echo '$(srcdir)/'`../module/whm/WhmPackage.cpp
-
-WhmPackage.obj: ../module/whm/WhmPackage.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmPackage.obj -MD -MP -MF $(DEPDIR)/WhmPackage.Tpo -c -o WhmPackage.obj `if test -f '../module/whm/WhmPackage.cpp'; then $(CYGPATH_W) '../module/whm/WhmPackage.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmPackage.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmPackage.Tpo $(DEPDIR)/WhmPackage.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmPackage.cpp' object='WhmPackage.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmPackage.obj `if test -f '../module/whm/WhmPackage.cpp'; then $(CYGPATH_W) '../module/whm/WhmPackage.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmPackage.cpp'; fi`
-
-WhmPackageManage.o: ../module/whm/WhmPackageManage.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmPackageManage.o -MD -MP -MF $(DEPDIR)/WhmPackageManage.Tpo -c -o WhmPackageManage.o `test -f '../module/whm/WhmPackageManage.cpp' || echo '$(srcdir)/'`../module/whm/WhmPackageManage.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmPackageManage.Tpo $(DEPDIR)/WhmPackageManage.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmPackageManage.cpp' object='WhmPackageManage.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmPackageManage.o `test -f '../module/whm/WhmPackageManage.cpp' || echo '$(srcdir)/'`../module/whm/WhmPackageManage.cpp
-
-WhmPackageManage.obj: ../module/whm/WhmPackageManage.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmPackageManage.obj -MD -MP -MF $(DEPDIR)/WhmPackageManage.Tpo -c -o WhmPackageManage.obj `if test -f '../module/whm/WhmPackageManage.cpp'; then $(CYGPATH_W) '../module/whm/WhmPackageManage.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmPackageManage.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmPackageManage.Tpo $(DEPDIR)/WhmPackageManage.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmPackageManage.cpp' object='WhmPackageManage.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmPackageManage.obj `if test -f '../module/whm/WhmPackageManage.cpp'; then $(CYGPATH_W) '../module/whm/WhmPackageManage.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmPackageManage.cpp'; fi`
-
-KWhmService.o: ../module/whm/KWhmService.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KWhmService.o -MD -MP -MF $(DEPDIR)/KWhmService.Tpo -c -o KWhmService.o `test -f '../module/whm/KWhmService.cpp' || echo '$(srcdir)/'`../module/whm/KWhmService.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KWhmService.Tpo $(DEPDIR)/KWhmService.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/KWhmService.cpp' object='KWhmService.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KWhmService.o `test -f '../module/whm/KWhmService.cpp' || echo '$(srcdir)/'`../module/whm/KWhmService.cpp
-
-KWhmService.obj: ../module/whm/KWhmService.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KWhmService.obj -MD -MP -MF $(DEPDIR)/KWhmService.Tpo -c -o KWhmService.obj `if test -f '../module/whm/KWhmService.cpp'; then $(CYGPATH_W) '../module/whm/KWhmService.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/KWhmService.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KWhmService.Tpo $(DEPDIR)/KWhmService.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/KWhmService.cpp' object='KWhmService.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KWhmService.obj `if test -f '../module/whm/KWhmService.cpp'; then $(CYGPATH_W) '../module/whm/KWhmService.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/KWhmService.cpp'; fi`
-
-stdafx.o: ../module/whm/stdafx.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT stdafx.o -MD -MP -MF $(DEPDIR)/stdafx.Tpo -c -o stdafx.o `test -f '../module/whm/stdafx.cpp' || echo '$(srcdir)/'`../module/whm/stdafx.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/stdafx.Tpo $(DEPDIR)/stdafx.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/stdafx.cpp' object='stdafx.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o stdafx.o `test -f '../module/whm/stdafx.cpp' || echo '$(srcdir)/'`../module/whm/stdafx.cpp
-
-stdafx.obj: ../module/whm/stdafx.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT stdafx.obj -MD -MP -MF $(DEPDIR)/stdafx.Tpo -c -o stdafx.obj `if test -f '../module/whm/stdafx.cpp'; then $(CYGPATH_W) '../module/whm/stdafx.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/stdafx.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/stdafx.Tpo $(DEPDIR)/stdafx.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/stdafx.cpp' object='stdafx.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o stdafx.obj `if test -f '../module/whm/stdafx.cpp'; then $(CYGPATH_W) '../module/whm/stdafx.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/stdafx.cpp'; fi`
-
-WhmDso.o: ../module/whm/WhmDso.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmDso.o -MD -MP -MF $(DEPDIR)/WhmDso.Tpo -c -o WhmDso.o `test -f '../module/whm/WhmDso.cpp' || echo '$(srcdir)/'`../module/whm/WhmDso.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmDso.Tpo $(DEPDIR)/WhmDso.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmDso.cpp' object='WhmDso.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmDso.o `test -f '../module/whm/WhmDso.cpp' || echo '$(srcdir)/'`../module/whm/WhmDso.cpp
-
-WhmDso.obj: ../module/whm/WhmDso.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmDso.obj -MD -MP -MF $(DEPDIR)/WhmDso.Tpo -c -o WhmDso.obj `if test -f '../module/whm/WhmDso.cpp'; then $(CYGPATH_W) '../module/whm/WhmDso.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmDso.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmDso.Tpo $(DEPDIR)/WhmDso.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmDso.cpp' object='WhmDso.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmDso.obj `if test -f '../module/whm/WhmDso.cpp'; then $(CYGPATH_W) '../module/whm/WhmDso.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmDso.cpp'; fi`
-
-WhmExtend.o: ../module/whm/WhmExtend.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmExtend.o -MD -MP -MF $(DEPDIR)/WhmExtend.Tpo -c -o WhmExtend.o `test -f '../module/whm/WhmExtend.cpp' || echo '$(srcdir)/'`../module/whm/WhmExtend.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmExtend.Tpo $(DEPDIR)/WhmExtend.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmExtend.cpp' object='WhmExtend.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmExtend.o `test -f '../module/whm/WhmExtend.cpp' || echo '$(srcdir)/'`../module/whm/WhmExtend.cpp
-
-WhmExtend.obj: ../module/whm/WhmExtend.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmExtend.obj -MD -MP -MF $(DEPDIR)/WhmExtend.Tpo -c -o WhmExtend.obj `if test -f '../module/whm/WhmExtend.cpp'; then $(CYGPATH_W) '../module/whm/WhmExtend.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmExtend.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmExtend.Tpo $(DEPDIR)/WhmExtend.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmExtend.cpp' object='WhmExtend.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmExtend.obj `if test -f '../module/whm/WhmExtend.cpp'; then $(CYGPATH_W) '../module/whm/WhmExtend.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmExtend.cpp'; fi`
-
-WhmUrl.o: ../module/whm/WhmUrl.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmUrl.o -MD -MP -MF $(DEPDIR)/WhmUrl.Tpo -c -o WhmUrl.o `test -f '../module/whm/WhmUrl.cpp' || echo '$(srcdir)/'`../module/whm/WhmUrl.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmUrl.Tpo $(DEPDIR)/WhmUrl.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmUrl.cpp' object='WhmUrl.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmUrl.o `test -f '../module/whm/WhmUrl.cpp' || echo '$(srcdir)/'`../module/whm/WhmUrl.cpp
-
-WhmUrl.obj: ../module/whm/WhmUrl.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmUrl.obj -MD -MP -MF $(DEPDIR)/WhmUrl.Tpo -c -o WhmUrl.obj `if test -f '../module/whm/WhmUrl.cpp'; then $(CYGPATH_W) '../module/whm/WhmUrl.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmUrl.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmUrl.Tpo $(DEPDIR)/WhmUrl.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmUrl.cpp' object='WhmUrl.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmUrl.obj `if test -f '../module/whm/WhmUrl.cpp'; then $(CYGPATH_W) '../module/whm/WhmUrl.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmUrl.cpp'; fi`
-
-WhmShell.o: ../module/whm/WhmShell.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmShell.o -MD -MP -MF $(DEPDIR)/WhmShell.Tpo -c -o WhmShell.o `test -f '../module/whm/WhmShell.cpp' || echo '$(srcdir)/'`../module/whm/WhmShell.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmShell.Tpo $(DEPDIR)/WhmShell.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmShell.cpp' object='WhmShell.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmShell.o `test -f '../module/whm/WhmShell.cpp' || echo '$(srcdir)/'`../module/whm/WhmShell.cpp
-
-WhmShell.obj: ../module/whm/WhmShell.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmShell.obj -MD -MP -MF $(DEPDIR)/WhmShell.Tpo -c -o WhmShell.obj `if test -f '../module/whm/WhmShell.cpp'; then $(CYGPATH_W) '../module/whm/WhmShell.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmShell.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmShell.Tpo $(DEPDIR)/WhmShell.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmShell.cpp' object='WhmShell.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmShell.obj `if test -f '../module/whm/WhmShell.cpp'; then $(CYGPATH_W) '../module/whm/WhmShell.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmShell.cpp'; fi`
-
-WhmShellProcess.o: ../module/whm/WhmShellProcess.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmShellProcess.o -MD -MP -MF $(DEPDIR)/WhmShellProcess.Tpo -c -o WhmShellProcess.o `test -f '../module/whm/WhmShellProcess.cpp' || echo '$(srcdir)/'`../module/whm/WhmShellProcess.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmShellProcess.Tpo $(DEPDIR)/WhmShellProcess.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmShellProcess.cpp' object='WhmShellProcess.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmShellProcess.o `test -f '../module/whm/WhmShellProcess.cpp' || echo '$(srcdir)/'`../module/whm/WhmShellProcess.cpp
-
-WhmShellProcess.obj: ../module/whm/WhmShellProcess.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmShellProcess.obj -MD -MP -MF $(DEPDIR)/WhmShellProcess.Tpo -c -o WhmShellProcess.obj `if test -f '../module/whm/WhmShellProcess.cpp'; then $(CYGPATH_W) '../module/whm/WhmShellProcess.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmShellProcess.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmShellProcess.Tpo $(DEPDIR)/WhmShellProcess.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmShellProcess.cpp' object='WhmShellProcess.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmShellProcess.obj `if test -f '../module/whm/WhmShellProcess.cpp'; then $(CYGPATH_W) '../module/whm/WhmShellProcess.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmShellProcess.cpp'; fi`
-
-WhmShellSession.o: ../module/whm/WhmShellSession.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmShellSession.o -MD -MP -MF $(DEPDIR)/WhmShellSession.Tpo -c -o WhmShellSession.o `test -f '../module/whm/WhmShellSession.cpp' || echo '$(srcdir)/'`../module/whm/WhmShellSession.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmShellSession.Tpo $(DEPDIR)/WhmShellSession.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmShellSession.cpp' object='WhmShellSession.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmShellSession.o `test -f '../module/whm/WhmShellSession.cpp' || echo '$(srcdir)/'`../module/whm/WhmShellSession.cpp
-
-WhmShellSession.obj: ../module/whm/WhmShellSession.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT WhmShellSession.obj -MD -MP -MF $(DEPDIR)/WhmShellSession.Tpo -c -o WhmShellSession.obj `if test -f '../module/whm/WhmShellSession.cpp'; then $(CYGPATH_W) '../module/whm/WhmShellSession.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmShellSession.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/WhmShellSession.Tpo $(DEPDIR)/WhmShellSession.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/WhmShellSession.cpp' object='WhmShellSession.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o WhmShellSession.obj `if test -f '../module/whm/WhmShellSession.cpp'; then $(CYGPATH_W) '../module/whm/WhmShellSession.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/WhmShellSession.cpp'; fi`
-
-core.o: ../module/whm/whmdso/core/core.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT core.o -MD -MP -MF $(DEPDIR)/core.Tpo -c -o core.o `test -f '../module/whm/whmdso/core/core.cpp' || echo '$(srcdir)/'`../module/whm/whmdso/core/core.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/core.Tpo $(DEPDIR)/core.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/whmdso/core/core.cpp' object='core.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o core.o `test -f '../module/whm/whmdso/core/core.cpp' || echo '$(srcdir)/'`../module/whm/whmdso/core/core.cpp
-
-core.obj: ../module/whm/whmdso/core/core.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT core.obj -MD -MP -MF $(DEPDIR)/core.Tpo -c -o core.obj `if test -f '../module/whm/whmdso/core/core.cpp'; then $(CYGPATH_W) '../module/whm/whmdso/core/core.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/whmdso/core/core.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/core.Tpo $(DEPDIR)/core.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../module/whm/whmdso/core/core.cpp' object='core.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o core.obj `if test -f '../module/whm/whmdso/core/core.cpp'; then $(CYGPATH_W) '../module/whm/whmdso/core/core.cpp'; else $(CYGPATH_W) '$(srcdir)/../module/whm/whmdso/core/core.cpp'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -1169,6 +1047,10 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f ../module/whm/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ../module/whm/$(am__dirstamp)
+	-rm -f ../module/whm/whmdso/core/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ../module/whm/whmdso/core/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -1178,7 +1060,7 @@ clean: clean-am
 clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ../module/whm/$(DEPDIR) ../module/whm/whmdso/core/$(DEPDIR) ./$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -1224,7 +1106,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ../module/whm/$(DEPDIR) ../module/whm/whmdso/core/$(DEPDIR) ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

@@ -17,14 +17,14 @@
  */
 #ifndef for_win32_include_skdjfskdfkjsdfj
 #define for_win32_include_skdjfskdfkjsdfj
-/////////[217]
+/////////[275]
 #define PID_LIKE(x)  (x>0)
 #define PTHREAD_CREATE_SUCCESSED(x) (x==0)
 #define FUNC_CALL
 typedef void * FUNC_TYPE;
 #define filecmp		strcmp
 #define filencmp 	strncmp
-#define LoadLibrary(x) dlopen(x,RTLD_NOW|RTLD_GLOBAL|RTLD_LOCAL)
+#define LoadLibrary(x) dlopen(x,RTLD_NOW|RTLD_LOCAL)
 #define GetProcAddress dlsym
 #define FreeLibrary	dlclose
 #define SetDllDirectory(x)
@@ -34,21 +34,20 @@ typedef void * FUNC_TYPE;
 typedef struct iovec   WSABUF;
 typedef struct iovec * LPWSABUF;
 #define PATH_SPLIT_CHAR		'/'
-/////////[218]
+/////////[276]
 #ifndef WIN32
 #include <sys/types.h>
 #endif
-	typedef char				int8;
-	typedef unsigned char		uint8;
-	typedef short				int16;
-	typedef unsigned short		uint16;
-	typedef int					int32;
-	typedef unsigned int		uint32;
-#ifdef WIN32
-	typedef __int64				int64;
-	typedef unsigned __int64	uint64;
+
+#ifdef _WIN32
+typedef HANDLE Token_t;
 #else
-	typedef int64_t				int64;
-	typedef u_int64_t			uint64;
+typedef int * Token_t;
 #endif
+// 禁止使用拷贝构造函数和 operator= 赋值操作的宏
+// 应该类的 private: 中使用
+
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+            TypeName(const TypeName&); \
+            void operator=(const TypeName&)
 #endif

@@ -39,7 +39,7 @@ bin_PROGRAMS = extworker$(EXEEXT)
 subdir = extworker
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.in
+am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -48,14 +48,17 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
+am__dirstamp = $(am__leading_dot)dirstamp
 am_extworker_OBJECTS = api_child.$(OBJEXT) KChildApiService.$(OBJEXT) \
-	KChildListen.$(OBJEXT) main.$(OBJEXT) EdcodeUtils.$(OBJEXT) \
-	HttpExt.$(OBJEXT) KApiDso.$(OBJEXT) KApiEnv.$(OBJEXT) \
-	KBuffer.$(OBJEXT) KEnvInterface.$(OBJEXT) \
-	KFastcgiUtils.$(OBJEXT) KPipeStream.$(OBJEXT) \
-	KSocket.$(OBJEXT) KProcess.$(OBJEXT) KStream.$(OBJEXT) \
-	KString.$(OBJEXT) KThreadPool.$(OBJEXT) KCgiEnv.$(OBJEXT) \
-	process.$(OBJEXT) malloc_debug.$(OBJEXT)
+	KChildListen.$(OBJEXT) main.$(OBJEXT) \
+	../src/EdcodeUtils.$(OBJEXT) ../src/HttpExt.$(OBJEXT) \
+	../src/KApiDso.$(OBJEXT) ../src/KApiEnv.$(OBJEXT) \
+	../src/KBuffer.$(OBJEXT) ../src/KEnvInterface.$(OBJEXT) \
+	../src/KFastcgiUtils.$(OBJEXT) ../src/KPipeStream.$(OBJEXT) \
+	../src/KSocket.$(OBJEXT) ../src/KProcess.$(OBJEXT) \
+	../src/KStream.$(OBJEXT) ../src/KString.$(OBJEXT) \
+	../src/KThreadPool.$(OBJEXT) ../src/KCgiEnv.$(OBJEXT) \
+	../src/process.$(OBJEXT) ../src/malloc_debug.$(OBJEXT)
 extworker_OBJECTS = $(am_extworker_OBJECTS)
 extworker_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
@@ -91,6 +94,10 @@ CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
 CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
+DEFAULT_EXT_DIR = @DEFAULT_EXT_DIR@
+DEFAULT_TMP_DIR = @DEFAULT_TMP_DIR@
+DEFAULT_VAR_DIR = @DEFAULT_VAR_DIR@
+DEFAULT_WEBADMIN_DIR = @DEFAULT_WEBADMIN_DIR@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
@@ -177,8 +184,9 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CXXFLAGS = -I../src
+AM_CXXFLAGS = -I../src -I../src/xdelta
 AM_LDFLAGS = -L../lib 
+AUTOMAKE_OPTIONS = subdir-objects
 extworker_SOURCES = api_child.cpp  extworker.h  KChildApiService.cpp  KChildApiService.h  KChildListen.cpp  KChildListen.h  main.cpp\
 ../src/EdcodeUtils.cpp ../src/HttpExt.cpp ../src/KApiDso.cpp ../src/KApiEnv.cpp ../src/KBuffer.cpp ../src/KEnvInterface.cpp ../src/KFastcgiUtils.cpp ../src/KPipeStream.cpp ../src/KSocket.cpp ../src/KProcess.cpp ../src/KStream.cpp ../src/KString.cpp ../src/KThreadPool.cpp ../src/KCgiEnv.cpp ../src/process.cpp ../src/malloc_debug.cpp
 
@@ -253,274 +261,106 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+../src/$(am__dirstamp):
+	@$(MKDIR_P) ../src
+	@: > ../src/$(am__dirstamp)
+../src/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ../src/$(DEPDIR)
+	@: > ../src/$(DEPDIR)/$(am__dirstamp)
+../src/EdcodeUtils.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/HttpExt.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KApiDso.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KApiEnv.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KBuffer.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KEnvInterface.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KFastcgiUtils.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KPipeStream.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KSocket.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KProcess.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KStream.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KString.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KThreadPool.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/KCgiEnv.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/process.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
+../src/malloc_debug.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
 extworker$(EXEEXT): $(extworker_OBJECTS) $(extworker_DEPENDENCIES) 
 	@rm -f extworker$(EXEEXT)
 	$(CXXLINK) $(extworker_OBJECTS) $(extworker_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f ../src/EdcodeUtils.$(OBJEXT)
+	-rm -f ../src/HttpExt.$(OBJEXT)
+	-rm -f ../src/KApiDso.$(OBJEXT)
+	-rm -f ../src/KApiEnv.$(OBJEXT)
+	-rm -f ../src/KBuffer.$(OBJEXT)
+	-rm -f ../src/KCgiEnv.$(OBJEXT)
+	-rm -f ../src/KEnvInterface.$(OBJEXT)
+	-rm -f ../src/KFastcgiUtils.$(OBJEXT)
+	-rm -f ../src/KPipeStream.$(OBJEXT)
+	-rm -f ../src/KProcess.$(OBJEXT)
+	-rm -f ../src/KSocket.$(OBJEXT)
+	-rm -f ../src/KStream.$(OBJEXT)
+	-rm -f ../src/KString.$(OBJEXT)
+	-rm -f ../src/KThreadPool.$(OBJEXT)
+	-rm -f ../src/malloc_debug.$(OBJEXT)
+	-rm -f ../src/process.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/EdcodeUtils.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/HttpExt.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KApiDso.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KApiEnv.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KBuffer.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KCgiEnv.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/EdcodeUtils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/HttpExt.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KApiDso.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KApiEnv.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KBuffer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KCgiEnv.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KEnvInterface.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KFastcgiUtils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KPipeStream.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KProcess.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KSocket.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KStream.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KString.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/KThreadPool.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/malloc_debug.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/process.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KChildApiService.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KChildListen.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KEnvInterface.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KFastcgiUtils.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KPipeStream.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KProcess.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KSocket.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KStream.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KString.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/KThreadPool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/api_child.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/malloc_debug.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process.Po@am__quote@
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
-
-EdcodeUtils.o: ../src/EdcodeUtils.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT EdcodeUtils.o -MD -MP -MF $(DEPDIR)/EdcodeUtils.Tpo -c -o EdcodeUtils.o `test -f '../src/EdcodeUtils.cpp' || echo '$(srcdir)/'`../src/EdcodeUtils.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/EdcodeUtils.Tpo $(DEPDIR)/EdcodeUtils.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/EdcodeUtils.cpp' object='EdcodeUtils.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o EdcodeUtils.o `test -f '../src/EdcodeUtils.cpp' || echo '$(srcdir)/'`../src/EdcodeUtils.cpp
-
-EdcodeUtils.obj: ../src/EdcodeUtils.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT EdcodeUtils.obj -MD -MP -MF $(DEPDIR)/EdcodeUtils.Tpo -c -o EdcodeUtils.obj `if test -f '../src/EdcodeUtils.cpp'; then $(CYGPATH_W) '../src/EdcodeUtils.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/EdcodeUtils.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/EdcodeUtils.Tpo $(DEPDIR)/EdcodeUtils.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/EdcodeUtils.cpp' object='EdcodeUtils.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o EdcodeUtils.obj `if test -f '../src/EdcodeUtils.cpp'; then $(CYGPATH_W) '../src/EdcodeUtils.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/EdcodeUtils.cpp'; fi`
-
-HttpExt.o: ../src/HttpExt.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT HttpExt.o -MD -MP -MF $(DEPDIR)/HttpExt.Tpo -c -o HttpExt.o `test -f '../src/HttpExt.cpp' || echo '$(srcdir)/'`../src/HttpExt.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/HttpExt.Tpo $(DEPDIR)/HttpExt.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/HttpExt.cpp' object='HttpExt.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o HttpExt.o `test -f '../src/HttpExt.cpp' || echo '$(srcdir)/'`../src/HttpExt.cpp
-
-HttpExt.obj: ../src/HttpExt.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT HttpExt.obj -MD -MP -MF $(DEPDIR)/HttpExt.Tpo -c -o HttpExt.obj `if test -f '../src/HttpExt.cpp'; then $(CYGPATH_W) '../src/HttpExt.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/HttpExt.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/HttpExt.Tpo $(DEPDIR)/HttpExt.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/HttpExt.cpp' object='HttpExt.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o HttpExt.obj `if test -f '../src/HttpExt.cpp'; then $(CYGPATH_W) '../src/HttpExt.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/HttpExt.cpp'; fi`
-
-KApiDso.o: ../src/KApiDso.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KApiDso.o -MD -MP -MF $(DEPDIR)/KApiDso.Tpo -c -o KApiDso.o `test -f '../src/KApiDso.cpp' || echo '$(srcdir)/'`../src/KApiDso.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KApiDso.Tpo $(DEPDIR)/KApiDso.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KApiDso.cpp' object='KApiDso.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KApiDso.o `test -f '../src/KApiDso.cpp' || echo '$(srcdir)/'`../src/KApiDso.cpp
-
-KApiDso.obj: ../src/KApiDso.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KApiDso.obj -MD -MP -MF $(DEPDIR)/KApiDso.Tpo -c -o KApiDso.obj `if test -f '../src/KApiDso.cpp'; then $(CYGPATH_W) '../src/KApiDso.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KApiDso.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KApiDso.Tpo $(DEPDIR)/KApiDso.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KApiDso.cpp' object='KApiDso.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KApiDso.obj `if test -f '../src/KApiDso.cpp'; then $(CYGPATH_W) '../src/KApiDso.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KApiDso.cpp'; fi`
-
-KApiEnv.o: ../src/KApiEnv.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KApiEnv.o -MD -MP -MF $(DEPDIR)/KApiEnv.Tpo -c -o KApiEnv.o `test -f '../src/KApiEnv.cpp' || echo '$(srcdir)/'`../src/KApiEnv.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KApiEnv.Tpo $(DEPDIR)/KApiEnv.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KApiEnv.cpp' object='KApiEnv.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KApiEnv.o `test -f '../src/KApiEnv.cpp' || echo '$(srcdir)/'`../src/KApiEnv.cpp
-
-KApiEnv.obj: ../src/KApiEnv.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KApiEnv.obj -MD -MP -MF $(DEPDIR)/KApiEnv.Tpo -c -o KApiEnv.obj `if test -f '../src/KApiEnv.cpp'; then $(CYGPATH_W) '../src/KApiEnv.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KApiEnv.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KApiEnv.Tpo $(DEPDIR)/KApiEnv.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KApiEnv.cpp' object='KApiEnv.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KApiEnv.obj `if test -f '../src/KApiEnv.cpp'; then $(CYGPATH_W) '../src/KApiEnv.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KApiEnv.cpp'; fi`
-
-KBuffer.o: ../src/KBuffer.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KBuffer.o -MD -MP -MF $(DEPDIR)/KBuffer.Tpo -c -o KBuffer.o `test -f '../src/KBuffer.cpp' || echo '$(srcdir)/'`../src/KBuffer.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KBuffer.Tpo $(DEPDIR)/KBuffer.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KBuffer.cpp' object='KBuffer.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KBuffer.o `test -f '../src/KBuffer.cpp' || echo '$(srcdir)/'`../src/KBuffer.cpp
-
-KBuffer.obj: ../src/KBuffer.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KBuffer.obj -MD -MP -MF $(DEPDIR)/KBuffer.Tpo -c -o KBuffer.obj `if test -f '../src/KBuffer.cpp'; then $(CYGPATH_W) '../src/KBuffer.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KBuffer.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KBuffer.Tpo $(DEPDIR)/KBuffer.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KBuffer.cpp' object='KBuffer.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KBuffer.obj `if test -f '../src/KBuffer.cpp'; then $(CYGPATH_W) '../src/KBuffer.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KBuffer.cpp'; fi`
-
-KEnvInterface.o: ../src/KEnvInterface.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KEnvInterface.o -MD -MP -MF $(DEPDIR)/KEnvInterface.Tpo -c -o KEnvInterface.o `test -f '../src/KEnvInterface.cpp' || echo '$(srcdir)/'`../src/KEnvInterface.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KEnvInterface.Tpo $(DEPDIR)/KEnvInterface.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KEnvInterface.cpp' object='KEnvInterface.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KEnvInterface.o `test -f '../src/KEnvInterface.cpp' || echo '$(srcdir)/'`../src/KEnvInterface.cpp
-
-KEnvInterface.obj: ../src/KEnvInterface.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KEnvInterface.obj -MD -MP -MF $(DEPDIR)/KEnvInterface.Tpo -c -o KEnvInterface.obj `if test -f '../src/KEnvInterface.cpp'; then $(CYGPATH_W) '../src/KEnvInterface.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KEnvInterface.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KEnvInterface.Tpo $(DEPDIR)/KEnvInterface.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KEnvInterface.cpp' object='KEnvInterface.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KEnvInterface.obj `if test -f '../src/KEnvInterface.cpp'; then $(CYGPATH_W) '../src/KEnvInterface.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KEnvInterface.cpp'; fi`
-
-KFastcgiUtils.o: ../src/KFastcgiUtils.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KFastcgiUtils.o -MD -MP -MF $(DEPDIR)/KFastcgiUtils.Tpo -c -o KFastcgiUtils.o `test -f '../src/KFastcgiUtils.cpp' || echo '$(srcdir)/'`../src/KFastcgiUtils.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KFastcgiUtils.Tpo $(DEPDIR)/KFastcgiUtils.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KFastcgiUtils.cpp' object='KFastcgiUtils.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KFastcgiUtils.o `test -f '../src/KFastcgiUtils.cpp' || echo '$(srcdir)/'`../src/KFastcgiUtils.cpp
-
-KFastcgiUtils.obj: ../src/KFastcgiUtils.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KFastcgiUtils.obj -MD -MP -MF $(DEPDIR)/KFastcgiUtils.Tpo -c -o KFastcgiUtils.obj `if test -f '../src/KFastcgiUtils.cpp'; then $(CYGPATH_W) '../src/KFastcgiUtils.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KFastcgiUtils.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KFastcgiUtils.Tpo $(DEPDIR)/KFastcgiUtils.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KFastcgiUtils.cpp' object='KFastcgiUtils.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KFastcgiUtils.obj `if test -f '../src/KFastcgiUtils.cpp'; then $(CYGPATH_W) '../src/KFastcgiUtils.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KFastcgiUtils.cpp'; fi`
-
-KPipeStream.o: ../src/KPipeStream.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KPipeStream.o -MD -MP -MF $(DEPDIR)/KPipeStream.Tpo -c -o KPipeStream.o `test -f '../src/KPipeStream.cpp' || echo '$(srcdir)/'`../src/KPipeStream.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KPipeStream.Tpo $(DEPDIR)/KPipeStream.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KPipeStream.cpp' object='KPipeStream.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KPipeStream.o `test -f '../src/KPipeStream.cpp' || echo '$(srcdir)/'`../src/KPipeStream.cpp
-
-KPipeStream.obj: ../src/KPipeStream.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KPipeStream.obj -MD -MP -MF $(DEPDIR)/KPipeStream.Tpo -c -o KPipeStream.obj `if test -f '../src/KPipeStream.cpp'; then $(CYGPATH_W) '../src/KPipeStream.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KPipeStream.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KPipeStream.Tpo $(DEPDIR)/KPipeStream.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KPipeStream.cpp' object='KPipeStream.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KPipeStream.obj `if test -f '../src/KPipeStream.cpp'; then $(CYGPATH_W) '../src/KPipeStream.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KPipeStream.cpp'; fi`
-
-KSocket.o: ../src/KSocket.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KSocket.o -MD -MP -MF $(DEPDIR)/KSocket.Tpo -c -o KSocket.o `test -f '../src/KSocket.cpp' || echo '$(srcdir)/'`../src/KSocket.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KSocket.Tpo $(DEPDIR)/KSocket.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KSocket.cpp' object='KSocket.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KSocket.o `test -f '../src/KSocket.cpp' || echo '$(srcdir)/'`../src/KSocket.cpp
-
-KSocket.obj: ../src/KSocket.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KSocket.obj -MD -MP -MF $(DEPDIR)/KSocket.Tpo -c -o KSocket.obj `if test -f '../src/KSocket.cpp'; then $(CYGPATH_W) '../src/KSocket.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KSocket.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KSocket.Tpo $(DEPDIR)/KSocket.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KSocket.cpp' object='KSocket.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KSocket.obj `if test -f '../src/KSocket.cpp'; then $(CYGPATH_W) '../src/KSocket.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KSocket.cpp'; fi`
-
-KProcess.o: ../src/KProcess.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KProcess.o -MD -MP -MF $(DEPDIR)/KProcess.Tpo -c -o KProcess.o `test -f '../src/KProcess.cpp' || echo '$(srcdir)/'`../src/KProcess.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KProcess.Tpo $(DEPDIR)/KProcess.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KProcess.cpp' object='KProcess.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KProcess.o `test -f '../src/KProcess.cpp' || echo '$(srcdir)/'`../src/KProcess.cpp
-
-KProcess.obj: ../src/KProcess.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KProcess.obj -MD -MP -MF $(DEPDIR)/KProcess.Tpo -c -o KProcess.obj `if test -f '../src/KProcess.cpp'; then $(CYGPATH_W) '../src/KProcess.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KProcess.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KProcess.Tpo $(DEPDIR)/KProcess.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KProcess.cpp' object='KProcess.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KProcess.obj `if test -f '../src/KProcess.cpp'; then $(CYGPATH_W) '../src/KProcess.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KProcess.cpp'; fi`
-
-KStream.o: ../src/KStream.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KStream.o -MD -MP -MF $(DEPDIR)/KStream.Tpo -c -o KStream.o `test -f '../src/KStream.cpp' || echo '$(srcdir)/'`../src/KStream.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KStream.Tpo $(DEPDIR)/KStream.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KStream.cpp' object='KStream.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KStream.o `test -f '../src/KStream.cpp' || echo '$(srcdir)/'`../src/KStream.cpp
-
-KStream.obj: ../src/KStream.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KStream.obj -MD -MP -MF $(DEPDIR)/KStream.Tpo -c -o KStream.obj `if test -f '../src/KStream.cpp'; then $(CYGPATH_W) '../src/KStream.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KStream.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KStream.Tpo $(DEPDIR)/KStream.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KStream.cpp' object='KStream.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KStream.obj `if test -f '../src/KStream.cpp'; then $(CYGPATH_W) '../src/KStream.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KStream.cpp'; fi`
-
-KString.o: ../src/KString.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KString.o -MD -MP -MF $(DEPDIR)/KString.Tpo -c -o KString.o `test -f '../src/KString.cpp' || echo '$(srcdir)/'`../src/KString.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KString.Tpo $(DEPDIR)/KString.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KString.cpp' object='KString.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KString.o `test -f '../src/KString.cpp' || echo '$(srcdir)/'`../src/KString.cpp
-
-KString.obj: ../src/KString.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KString.obj -MD -MP -MF $(DEPDIR)/KString.Tpo -c -o KString.obj `if test -f '../src/KString.cpp'; then $(CYGPATH_W) '../src/KString.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KString.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KString.Tpo $(DEPDIR)/KString.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KString.cpp' object='KString.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KString.obj `if test -f '../src/KString.cpp'; then $(CYGPATH_W) '../src/KString.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KString.cpp'; fi`
-
-KThreadPool.o: ../src/KThreadPool.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KThreadPool.o -MD -MP -MF $(DEPDIR)/KThreadPool.Tpo -c -o KThreadPool.o `test -f '../src/KThreadPool.cpp' || echo '$(srcdir)/'`../src/KThreadPool.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KThreadPool.Tpo $(DEPDIR)/KThreadPool.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KThreadPool.cpp' object='KThreadPool.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KThreadPool.o `test -f '../src/KThreadPool.cpp' || echo '$(srcdir)/'`../src/KThreadPool.cpp
-
-KThreadPool.obj: ../src/KThreadPool.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KThreadPool.obj -MD -MP -MF $(DEPDIR)/KThreadPool.Tpo -c -o KThreadPool.obj `if test -f '../src/KThreadPool.cpp'; then $(CYGPATH_W) '../src/KThreadPool.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KThreadPool.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KThreadPool.Tpo $(DEPDIR)/KThreadPool.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KThreadPool.cpp' object='KThreadPool.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KThreadPool.obj `if test -f '../src/KThreadPool.cpp'; then $(CYGPATH_W) '../src/KThreadPool.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KThreadPool.cpp'; fi`
-
-KCgiEnv.o: ../src/KCgiEnv.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KCgiEnv.o -MD -MP -MF $(DEPDIR)/KCgiEnv.Tpo -c -o KCgiEnv.o `test -f '../src/KCgiEnv.cpp' || echo '$(srcdir)/'`../src/KCgiEnv.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KCgiEnv.Tpo $(DEPDIR)/KCgiEnv.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KCgiEnv.cpp' object='KCgiEnv.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KCgiEnv.o `test -f '../src/KCgiEnv.cpp' || echo '$(srcdir)/'`../src/KCgiEnv.cpp
-
-KCgiEnv.obj: ../src/KCgiEnv.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT KCgiEnv.obj -MD -MP -MF $(DEPDIR)/KCgiEnv.Tpo -c -o KCgiEnv.obj `if test -f '../src/KCgiEnv.cpp'; then $(CYGPATH_W) '../src/KCgiEnv.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KCgiEnv.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/KCgiEnv.Tpo $(DEPDIR)/KCgiEnv.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/KCgiEnv.cpp' object='KCgiEnv.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o KCgiEnv.obj `if test -f '../src/KCgiEnv.cpp'; then $(CYGPATH_W) '../src/KCgiEnv.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/KCgiEnv.cpp'; fi`
-
-process.o: ../src/process.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT process.o -MD -MP -MF $(DEPDIR)/process.Tpo -c -o process.o `test -f '../src/process.cpp' || echo '$(srcdir)/'`../src/process.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/process.Tpo $(DEPDIR)/process.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/process.cpp' object='process.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o process.o `test -f '../src/process.cpp' || echo '$(srcdir)/'`../src/process.cpp
-
-process.obj: ../src/process.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT process.obj -MD -MP -MF $(DEPDIR)/process.Tpo -c -o process.obj `if test -f '../src/process.cpp'; then $(CYGPATH_W) '../src/process.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/process.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/process.Tpo $(DEPDIR)/process.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/process.cpp' object='process.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o process.obj `if test -f '../src/process.cpp'; then $(CYGPATH_W) '../src/process.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/process.cpp'; fi`
-
-malloc_debug.o: ../src/malloc_debug.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT malloc_debug.o -MD -MP -MF $(DEPDIR)/malloc_debug.Tpo -c -o malloc_debug.o `test -f '../src/malloc_debug.cpp' || echo '$(srcdir)/'`../src/malloc_debug.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/malloc_debug.Tpo $(DEPDIR)/malloc_debug.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/malloc_debug.cpp' object='malloc_debug.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o malloc_debug.o `test -f '../src/malloc_debug.cpp' || echo '$(srcdir)/'`../src/malloc_debug.cpp
-
-malloc_debug.obj: ../src/malloc_debug.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT malloc_debug.obj -MD -MP -MF $(DEPDIR)/malloc_debug.Tpo -c -o malloc_debug.obj `if test -f '../src/malloc_debug.cpp'; then $(CYGPATH_W) '../src/malloc_debug.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/malloc_debug.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/malloc_debug.Tpo $(DEPDIR)/malloc_debug.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='../src/malloc_debug.cpp' object='malloc_debug.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o malloc_debug.obj `if test -f '../src/malloc_debug.cpp'; then $(CYGPATH_W) '../src/malloc_debug.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/malloc_debug.cpp'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -632,6 +472,8 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f ../src/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ../src/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -641,7 +483,7 @@ clean: clean-am
 clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ../src/$(DEPDIR) ./$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -687,7 +529,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ../src/$(DEPDIR) ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

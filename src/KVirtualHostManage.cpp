@@ -35,7 +35,7 @@
 #include "KHtAccess.h"
 #include "KConfigBuilder.h"
 #include "KDynamicListen.h"
-
+#include "KHttpFilterManage.h"
 using namespace std;
 
 std::string convertInt(int type)
@@ -46,7 +46,7 @@ std::string convertInt(int type)
 }
 KVirtualHostManage::KVirtualHostManage() {
 	curInstanceId = 1;
-	/////////[245]
+	/////////[309]
 }
 KVirtualHostManage::~KVirtualHostManage() {
 	std::map<std::string, KVirtualHost *>::iterator it4;
@@ -74,32 +74,6 @@ void KVirtualHostManage::copy(KVirtualHostManage *vm)
 	internalBindAllVirtualHost();
 	lock.Unlock();
 }
-#if 0
-void KVirtualHostManage::load(bool firstLoad) {
-#ifndef HTTP_PROXY
-	KHttpServerParser parser;
-	string configFile = conf.path;
-	configFile += VH_CONFIG_FILE;
-	cur_config_vh_db = false;
-	parser.parse(configFile);
-	configFile = conf.path + "etc/vh.d/";
-	cur_config_vh_db = true;
-	list_dir(configFile.c_str(),virtualhost_config_handle,(void *)&parser);	
-	/////////[246]
-	if (vhd.isLoad()) {
-		string errMsg;
-		if (!vhd.loadVirtualHost(errMsg)) {
-			klog(KLOG_ERR, "Cann't load VirtualHost[%s]\n", errMsg.c_str());
-			//db server failed.then skip delete exsit vh
-			//lock.Unlock();
-			cur_config_vh_db = false;
-			return;
-		}
-	}
-	cur_config_vh_db = false;
-#endif
-}
-#endif
 void KVirtualHostManage::getAllGroupTemplete(std::list<std::string> &vhs)
 {
 	lock.Lock();
@@ -279,6 +253,11 @@ void KVirtualHostManage::getMenuHtml(std::stringstream &s,KVirtualHost *v,std::s
 			<< "</a>] ";
 	s << "[<a href='/vhlist?" << url.str() << "id=8'>" << klang["mime_type"]
 			<< "</a>] ";
+#ifdef ENABLE_KSAPI_FILTER
+	if (vh->hfm) {
+		s << "[<a href='/vhlist?" << url.str() << "id=9'>" << klang["http_filter"] << "</a>] ";
+	}
+#endif
 #ifndef HTTP_PROXY
 	if(t==0 && v && v->user_access.size()>0){
 		s << "[<a href='/vhlist?" << url.str() << "id=6'>" << klang["lang_requestAccess"] << "</a>]";
@@ -344,6 +323,12 @@ void KVirtualHostManage::getHtml(std::stringstream &s,std::string name, int id,K
 			}
 		} else if (id==8) {
 			vh->getMimeTypeHtml(url.str(),s);
+		} else if (id==9) {
+#ifdef ENABLE_KSAPI_FILTER
+			if (vh->hfm) {
+				vh->hfm->html(s);
+			}
+#endif
 		}
 		vh->lock.Unlock();
 	}
@@ -613,21 +598,7 @@ bool KVirtualHostManage::vhAction(KVirtualHost *ov,KTempleteVirtualHost *tm,
 		if (line == NULL) {
 			break;
 		}
-		char *dir = strchr(line, '|');
-		if (dir) {
-			*dir = '\0';
-			dir++;
-		}	
-		if (*line=='*' && strcmp(line,"*")!=0) {
-			line++;
-		}
 		std::list<KSubVirtualHost *>::iterator it;
-		u_short port = 0;
-		char *p = strchr(line,':');
-		if (p) {
-			port = atoi(p+1);
-			*p = '\0';
-		}
 		for (it = vh->hosts.begin(); it != vh->hosts.end(); it++) {
 			if (strcasecmp((*it)->host, line) == 0) {
 				delete (*it);
@@ -637,8 +608,8 @@ bool KVirtualHostManage::vhAction(KVirtualHost *ov,KTempleteVirtualHost *tm,
 		}
 		if (addFlag) {
 			KSubVirtualHost *svh = new KSubVirtualHost(vh);
-			svh->host = xstrdup(line);
-			svh->setDocRoot(vh->doc_root.c_str(), dir);
+			svh->setHost(line);
+			svh->setDocRoot(vh->doc_root.c_str(), NULL);
 			vh->hosts.push_back(svh);
 		}
 		//hosts.push_back(svh);
@@ -698,50 +669,10 @@ bool KVirtualHostManage::vhAction(KVirtualHost *ov,KTempleteVirtualHost *tm,
 		}
 		lock.Unlock();
 	}
-	//if (ov && (ov->db || ov->ext)) {
-	//	errMsg = "Warning! The virtualhost is managed by external file(extend file or database),it will not save to vh.xml file.";
-	//	return false;
-	//}
 	return result;
 }
 bool KVirtualHostManage::saveConfig(std::string &errMsg) {
 	return KConfigBuilder::saveConfig();
-	/*
-	build(s);
-	s << "\r\n" << CONFIG_FILE_SIGN;
-	KFile fp ;
-	if (!fp.open(tmpfile.c_str(),fileWrite)) {
-		fprintf(stderr, "cann't open configfile[%s] for write\n", tmpfile.c_str());
-		errMsg = "cann't open vh.xml for write";
-		return false;
-	}
-	if (conf.worker>1) {
-		need_reboot_flag = true;
-	}
-	bool result = false;
-	if (s.str().size() == fp.write(s.str().c_str(), s.str().size())) {
-		result = true;
-	}
-	fp.close();
-	if (!result) {
-		errMsg = "cann't write sign string\n";
-		fprintf(stderr,"cann't write sign string\n");
-		return false;
-	}
-	unlink(lstfile.c_str());
-	rename(file.c_str(),lstfile.c_str());
-	rename(tmpfile.c_str(),file.c_str());
-	if (conf.mergeFiles.size()>0) {
-                //remove the merge config files.
-                std::list<std::string>::iterator it;
-                for(it=conf.mergeFiles.begin();it!=conf.mergeFiles.end();it++){
-                        unlink((*it).c_str());
-                }
-                conf.mergeFiles.clear();
-		KConfigBuilder::saveConfig();
-        }
-	return true;
-	*/
 }
 void KVirtualHostManage::build(stringstream &s) {
 	//s << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
@@ -844,6 +775,10 @@ bool KVirtualHostManage::internalAddVirtualHost(KVirtualHost *vh,KVirtualHost *o
 #ifdef ENABLE_USER_ACCESS
 	vh->loadAccess(ov);
 #endif
+	if (vh->empty()) {
+		klog(KLOG_WARNING, "skip add empty virtualhost [%s].\n", vh->name.c_str());
+		return false;
+	}
 	std::map<std::string, KVirtualHost *>::iterator it;
 	it = avh.find(vh->name);
 	if (it != avh.end()) {
@@ -902,17 +837,23 @@ bool KVirtualHostManage::internalRemoveVirtualHost(KVirtualHost *vh,
 /*
  * 查找虚拟主机并绑定在rq上。
  */
-query_vh_result KVirtualHostManage::queryVirtualHost(KHttpRequest *rq,const char *site) {
-	SET(rq->flags,RQ_VH_QUERIED);
+query_vh_result KVirtualHostManage::queryVirtualHost(KServer *ls,KSubVirtualHost **rq_svh,const char *site,int site_len) {
+	//SET(rq->flags,RQ_VH_QUERIED);
 	query_vh_result result = query_vh_host_not_found;
+	if (site_len==0) {
+		site_len = strlen(site);
+	}
+	char *bind_site = (char *)malloc(site_len+2);
+	revert_string(site,site_len,bind_site);
 	lock.Lock();
-	if (rq->ls->vhc) {
-		result = rq->ls->vhc->parseVirtualHost(rq,site);
+	if (ls && ls->vhc) {
+		result = ls->vhc->parseVirtualHost(rq_svh,bind_site);
 	}
 	if (result == query_vh_host_not_found) {
-		result = KServer::parseVirtualHost(rq,site);
+		result = KServer::parseVirtualHost(rq_svh,bind_site);
 	}
 	lock.Unlock();
+	xfree(bind_site);
 	return result;
 }
 
@@ -992,7 +933,7 @@ void KVirtualHostManage::getVhDetail(std::stringstream &s, KVirtualHost *vh,bool
 			if ((*it)->fromTemplete) {
 				continue;
 			}
-			if (*(*it)->host=='.') {
+			if ((*it)->wide) {
 				s << "*";
 			}
 			s << (*it)->host;
@@ -1101,6 +1042,7 @@ void KVirtualHostManage::getVhDetail(std::stringstream &s, KVirtualHost *vh,bool
 	s << "<input name='fflow' type='checkbox' value='1'"
 			<< ((vh && vh->fflow) ? "checked" : "") << ">" << klang["flow"];
 #endif
+	/////////[310]
 	s << "</td></tr>\n";
 #ifdef ENABLE_USER_ACCESS
 	s << "<tr><td>" << klang["access_file"]
@@ -1162,6 +1104,18 @@ void KVirtualHostManage::getVhDetail(std::stringstream &s, KVirtualHost *vh,bool
 	s << "<input name='certificate_key' value='";
 	if(vh){
 		s << vh->keyfile;
+	}
+	s << "'></td></tr>\n";
+	s << "<tr><td>cipher</td><td>";
+	s << "<input name='cipher' value='";
+	if (vh && vh->cipher) {
+		s << vh->cipher;
+	}
+	s << "'></td></tr>\n";
+	s << "<tr><td>protocols</td><td>";
+	s << "<input name='protocols' value='";
+	if (vh && vh->protocols) {
+		s << vh->protocols;
 	}
 	s << "'></td></tr>\n";
 #endif
@@ -1233,24 +1187,18 @@ void KVirtualHostManage::getVhIndex(std::stringstream &s,KVirtualHost *vh,int id
 			if (!(*it2)->allSuccess) {
 				s << "FAILED ";
 			}
-			bool href = true;
-			if ( *(*it2)->host=='.'
-				|| strcasecmp((*it2)->host, "*") == 0 
-				|| strcasecmp((*it2)->host,"default") == 0) {
-				href = false;
-			}
-			if (href) {
+			if (!(*it2)->wide) {
 				s << "<a href='http://" << (*it2)->host;
 				if (bind_port != 80) {
 					s << ":" << bind_port;
 				}
 				s << "/' target=_blank>";
 			}
-			if (*(*it2)->host=='.') {
+			if ((*it2)->wide) {
 				s << "*";
 			}
 			s << (*it2)->host;
-			if (href) {
+			if (!(*it2)->wide) {
 				s << "</a>";
 			}
 			if (strcmp((*it2)->dir, "/") != 0) {
@@ -1291,8 +1239,14 @@ void KVirtualHostManage::getVhIndex(std::stringstream &s,KVirtualHost *vh,int id
 		s << vh->getSpeed(false) << "/";
 #endif
 		s << vh->speed_limit << "</td>";
-#endif
-		/////////[247]
+#endif		
+#ifdef ENABLE_VH_FLOW
+		s << "<td>";
+		if (vh->flow) {
+			s << vh->flow->flow << " " << (vh->flow->flow>0?(vh->flow->cache * 100) / vh->flow->flow :0)<< "%";
+		}
+		s << "</td>";
+#endif	
 #ifdef ENABLE_VH_QUEUE
 		s << "<td >";
 		if (vh->queue) {
@@ -1317,7 +1271,80 @@ void KVirtualHostManage::getVhIndex(std::stringstream &s,KVirtualHost *vh,int id
 		s << "</tr>\n";
 		vh->lock.Unlock();
 }
-/////////[248]
+#ifdef ENABLE_VH_FLOW
+void KVirtualHostManage::dumpFlow(KVirtualHostEvent *ctx,bool revers,const char *prefix,int prefix_len,int extend)
+{
+	char buf[64];
+	KStringBuf s;
+	KStringBuf s2;
+	lock.Lock();
+	std::map<std::string, KVirtualHost *>::iterator it;
+	for (it=avh.begin();it!=avh.end();it++) {
+		KVirtualHost *vh = (*it).second;
+		if (!vh->fflow || vh->flow==NULL || vh->flow->flow==0) {
+			continue;
+		}
+		if (prefix && revers == (strncmp(vh->name.c_str(),prefix,prefix_len)==0)) {
+			continue;			
+		}
+		int len = vh->flow->dump(buf,sizeof(buf));
+		s << vh->name.c_str() << "\t";
+		if (len>0) {
+			s.write_all(buf,len);
+		}
+		s << "\n";
+	}
+	/////////[311]
+	lock.Unlock();
+	ctx->add("flow",s.getString());
+	if (extend>0) {
+		ctx->add("stat",s2.getString());
+	}
+}
+void KVirtualHostManage::dumpFlow()
+{
+#ifdef _WIN32
+    const char *formatString="%s\t%I64d\t%I64d\n";
+#else
+    const char *formatString = "%s\t%lld\t%lld";
+#endif
+	void *cn = vhd.createConnection();
+	FILE *fp = NULL;
+	std::string flow_file = conf.path;
+	flow_file += "etc/flow.log";
+	lock.Lock();
+	std::map<std::string, KVirtualHost *>::iterator it;
+	for (it=avh.begin();it!=avh.end();it++) {
+		//todo: dump vh flow
+		KVirtualHost *vh = (*it).second;
+		if (!vh->fflow || vh->flow==NULL) {
+			continue;
+		}
+		if (vh->db) {
+			if (cn) {
+				vhd.saveFlow(vh,cn);
+			}
+		} else {
+			if (fp==NULL) {
+				fp = fopen(flow_file.c_str(),"a+");
+				if (fp) {
+					fprintf(fp,"#flow auto writed\n");
+				}
+			}
+			if (fp) {
+				fprintf(fp,formatString,vh->name.c_str(),vh->flow->flow,vh->flow->cache);
+			}
+		}
+	}
+	lock.Unlock();
+	if (cn) {
+		vhd.freeConnection(cn);
+	}
+	if (fp) {
+		fclose(fp);
+	}
+}
+#endif
 void KVirtualHostManage::getAllVhHtml(std::stringstream &s,int t) {
 	map<string, KVirtualHost *>::iterator it;
 	s << "<script language='javascript'>\r\n"
@@ -1348,7 +1375,9 @@ void KVirtualHostManage::getAllVhHtml(std::stringstream &s,int t) {
 	s << "<td>" << klang["connect"] << "/" << klang["limit"] << "</td>";
 	s << "<td>" << klang["speed"] << "/" << klang["limit"] << "</td>";
 #endif
-	/////////[249]
+#ifdef ENABLE_VH_FLOW
+	s << "<td>" << klang["flow"] << "</td>";
+#endif
 #ifdef ENABLE_VH_QUEUE
 	s << "<td>" << klang["worker"] << "</td>";
 	s << "<td>" << klang["queue"]  << "</td>";
@@ -1359,20 +1388,6 @@ void KVirtualHostManage::getAllVhHtml(std::stringstream &s,int t) {
 	 取得系统成功侦听的http端口
 	 */
 	u_short default_http_port = 80;
-	/*
-	std::vector<KServer *>::iterator it_server;
-	for (it_server = servers.begin(); it_server != servers.end(); it_server++) {
-		if ((*it_server)->model == 0) {
-			default_http_port = (*it_server)->server.get_self_port();
-			if (default_http_port == 80) {
-				break;
-			}
-		}
-	}
-	if (default_http_port == 0) {
-		default_http_port = 80;
-	}
-	*/
 	int id=0;
 	if(t==1){
 		std::map<std::string, KGTempleteVirtualHost *>::iterator it2;
@@ -1391,39 +1406,6 @@ void KVirtualHostManage::getAllVhHtml(std::stringstream &s,int t) {
 	s << "</table>";
 	s << "[<a href='/vhlist?id=4&t=" << t << "'>" << (t?klang["new_tvh"]:klang["new_vh"])  << "</a>]";
 }
-/*
-void KVirtualHostManage::updateAllVirtualHost() {
-	lock.Lock();
-	std::map<std::string, KVirtualHost *>::iterator it;
-	for (it = avh.begin(); it != avh.end(); it++) {
-		if ((*it).second->ext) {
-			continue;
-		}
-		(*it).second->updatedFlag = false;
-	}
-	lock.Unlock();
-}
-void KVirtualHostManage::checkAllVirtualHost() {
-	lock.Lock();
-	std::map<std::string, KVirtualHost *>::iterator it, it_next;
-	for (it = avh.begin(); it != avh.end();) {
-		if (!(*it).second->updatedFlag) {
-#ifdef ENABLE_VH_RUN_AS
-			for(size_t i=0;i<(*it).second->apps.size();i++){
-				conf.gam->killCmdProcess((*it).second->apps[i]);
-			}
-#endif
-			internalRemoveVirtualHost((*it).second, false);
-			it_next = it;
-			it++;
-			avh.erase(it_next);
-		} else {
-			it++;
-		}
-	}
-	lock.Unlock();
-}
-*/
 void KVirtualHostManage::startStaticListen(std::vector<KListenHost *> &services,bool start)
 {
 	lock.Lock();

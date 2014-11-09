@@ -65,10 +65,8 @@ struct lessf {
 	}
 };
 #ifdef _WIN32
-typedef HANDLE Token_t;
 typedef KWinCgiEnv KCmdEnv;
 #else
-typedef int * Token_t;
 typedef KCgiEnv KCmdEnv;
 #endif
 //#ifdef _WIN32
@@ -130,7 +128,7 @@ rdstd = 2 ²»Á¬½Ó
 */
 bool createProcess(KPipeStream *st,Token_t token, char * args[], KCmdEnv *envs, int rdstd);
 bool createProcess(Token_t token, char * args[],KCmdEnv *envs,char *cur_dir,PIPE_T in,PIPE_T out,PIPE_T err,pid_t &pid);
-pid_t createProcess(Token_t token,const char *cmd,KCmdEnv *envs,const char *curdir,kgl_process_std_t *std);
+pid_t createProcess(Token_t token,const char *cmd,KCmdEnv *envs,const char *curdir,kgl_process_std *std);
 bool killProcess(KVirtualHost *vh);
 #ifdef _WIN32
 extern KMutex closeExecLock;
@@ -317,7 +315,16 @@ inline char *rand_password(int len)
     }
     return strdup(s.str().c_str());
 }
-/////////[319]
-bool open_process_std(kgl_process_std_t *std,KFile *file);
+inline char *revert_string(const char *name,int name_len,char *dst)
+{
+        const char *hot = name + name_len - 1;
+        while (hot>=name) {
+                *dst++ = toupper(*hot--);
+        }
+        *dst = '\0';
+        return dst;
+}
+/////////[390]
+bool open_process_std(kgl_process_std *std,KFile *file);
 void closeAllFile(int start_fd);
 #endif

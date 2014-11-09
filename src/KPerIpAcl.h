@@ -29,7 +29,7 @@ struct KPerIpCallBackData
 	char *ip;
 	KPerIpAcl *mark;
 };
-void per_ip_mark_call_back(KHttpRequest *rq,void *data);
+void WINAPI per_ip_mark_call_back(void *data);
 class KPerIpAcl: public KAcl {
 public:
 	KPerIpAcl() {
@@ -92,7 +92,7 @@ public:
 		s << "><input type=text name=max value='" << (mark ? mark->max_per_ip : 0) << "'>";
 		return s.str();
 	}
-	void callBack(KHttpRequest *rq,KPerIpCallBackData *data);
+	void callBack(KPerIpCallBackData *data);
 	KAcl *newInstance() {
 		return new KPerIpAcl();
 	}

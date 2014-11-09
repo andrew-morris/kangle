@@ -25,7 +25,7 @@ struct ThreadInfo
 	pthread_t pid;
 	unsigned runCount;
 	time_t end_time;
-/////////[10]
+/////////[9]
 };
 
 typedef std::list<ThreadInfo *> ThreadInfoList;

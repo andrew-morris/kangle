@@ -1,8 +1,8 @@
 #ifndef KFOOTERFILTER_H
 #define KFOOTERFILTER_H
-#include "KStream.h"
+#include "KHttpStream.h"
 
-class KFooterFilter : public KWUpStream
+class KFooterFilter : public KHttpStream
 {
 public:
 	StreamState write_all(const char *buf, int len) 
@@ -12,19 +12,19 @@ public:
 		}
 		if (head && !added && footer.size()>0) {
 			added = true;
-			if(KWUpStream::write_all(footer.c_str(),footer.size())==STREAM_WRITE_FAILED) {
+			if(KHttpStream::write_all(footer.c_str(),footer.size())==STREAM_WRITE_FAILED) {
 				return STREAM_WRITE_FAILED;
 			}
 		}
-		return KWUpStream::write_all(buf,len);
+		return KHttpStream::write_all(buf,len);
 	}
 	StreamState write_end() {
 		if (footer.size()>0 && (!head||replace)) {
-			if (KWUpStream::write_all(footer.c_str(),footer.size())==STREAM_WRITE_FAILED) {
+			if (KHttpStream::write_all(footer.c_str(),footer.size())==STREAM_WRITE_FAILED) {
 				return STREAM_WRITE_FAILED;
 			}
 		}
-		return KWUpStream::write_end();
+		return KHttpStream::write_end();
 	}
 	std::string footer;
 	bool head;

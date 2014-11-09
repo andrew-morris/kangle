@@ -10,9 +10,8 @@
 
 #include "KAcserver.h"
 #include "KSockPoolHelper.h"
-#include "KListNode.h"
 
-class KSingleAcserver: public KPoolableRedirect,public KListNode {
+class KSingleAcserver: public KPoolableRedirect {
 public:
 	KSingleAcserver();
 	virtual ~KSingleAcserver();
@@ -30,7 +29,5 @@ public:
 	void buildXML(std::stringstream &s);
 	friend class KAcserverManager;
 	KSockPoolHelper *sockHelper;
-	time_t lastActive;
-
 };
 #endif /* KSingleAcserver_H_ */

@@ -65,6 +65,8 @@ class KAcserverManager;
 class KVirtualHostManage;
 class KVirtualHost;
 struct KPerIpConnect;
+class KHttpFilterDsoManage;
+class KHttpFilterManage;
 class KListenHost {
 public:
 	KListenHost()
@@ -80,8 +82,11 @@ public:
 	bool event_driven;
 #ifdef KSOCKET_SSL
 	bool sni;
+	bool spdy;
 	std::string certificate;
 	std::string certificate_key;
+	std::string cipher;
+	std::string protocols;
 #endif
 };
 struct WorkerProcess
@@ -114,6 +119,7 @@ public:
 	unsigned int per_ip_deny;
 	unsigned min_free_thread;
 	unsigned time_out;
+	unsigned connect_time_out;
 	unsigned keep_alive;
 	char hostname[32];
 	int log_level;
@@ -152,7 +158,7 @@ public:
 	int auth_type;
 	int passwd_crypt;
 	//int configVersion;
-	int anti_fatboy;
+	//int anti_fatboy;
 	//白名单时间
 	int wl_time;
 #ifdef ENABLE_ADPP
@@ -168,9 +174,8 @@ public:
 	INT64 logs_size;
 	int autoupdate;
 	int autoupdate_time;
-	unsigned buffer;
+	//unsigned buffer;
 #ifdef ENABLE_TF_EXCHANGE
-	int tmpfile;
 	INT64 max_post_size;
 #endif
 #ifdef KSOCKET_UNIX	
@@ -184,14 +189,14 @@ public:
 #endif
 	char lang[8];
 	char disk_cache_dir2[512];
-	/////////[314]
+	/////////[385]
 	char log_rotate[32];
 	char access_log[128];
 	char logHandle[512];
 	char cookie_stick_name[16];
 	char server_software[32];
 	char disk_work_time[32];
-	/////////[315]
+	/////////[386]
 };
 class KConfig : public KConfigBase
 {
@@ -217,8 +222,15 @@ public:
 	char disk_cache_dir[512];
 	KPerIpConnect *per_ip_head;
 	KPerIpConnect *per_ip_last;
-	/////////[316]
+	/////////[387]
 	void copy(KConfig *c);
+	void set_connect_time_out(unsigned val)
+	{
+		connect_time_out = val;
+		if (connect_time_out > 0 && connect_time_out<2) {
+			connect_time_out = 2;
+		}
+	}
 	void set_time_out(unsigned val)
 	{
 		time_out = val;
@@ -266,11 +278,12 @@ public:
 		//kangle程序所在的盘符
 	std::string diskName;
 #endif
-	/////////[317]
+	/////////[388]
 	KAcserverManager *gam;
 	KVirtualHostManage *gvm;
 	//3311的内置虚拟主机
 	KVirtualHost *sysHost;
+	KHttpFilterDsoManage *hfdm;
 };
 extern KGlobalConfig conf;
 extern int m_debug;
@@ -291,10 +304,6 @@ INT64 get_size(const char *size);
 std::string get_size(INT64 size);
 #define CONFIG_FILE_SIGN  "<!--configfileisok-->"
 #ifndef CONFIG_FILE
-#ifndef _WIN32
-#define CONFIG_FILE "/etc/config.xml"
-#else
-#define CONFIG_FILE "\\etc\\config.xml"
-#endif
+#define CONFIG_FILE "/config.xml"
 #endif
 #endif

@@ -187,7 +187,7 @@ bool KRewriteRule::mark(KHttpRequest *rq, KHttpObject *obj,
 			if (internal_flag) {
 				rq->rewriteUrl(u,0,(rewriteBase?rewriteBase:prefix.c_str()));
 			} else {
-				send_redirect(rq,u,code,rq->buffer);
+				send_redirect(rq,u,strlen(u),code);
 				jumpType = JUMP_DENY;
 			}
 		}
@@ -376,7 +376,7 @@ void KRewriteMarkEx::getEnv(KHttpRequest *rq, char *env, KStringBuf &s) {
 		return;
 	}
 	if (strcasecmp(env, "SERVER_PORT") == 0) {
-		s << rq->server->get_self_port();
+		s << rq->c->socket->get_self_port();
 		return;
 	}
 	if (strcasecmp(env, "SERVER_PROTOCOL") == 0) {
@@ -397,7 +397,7 @@ void KRewriteMarkEx::getEnv(KHttpRequest *rq, char *env, KStringBuf &s) {
 		return;
 	}
 	if (strcasecmp(env, "REMOTE_PORT") == 0) {
-		s << rq->server->get_remote_port();
+		s << rq->c->socket->get_remote_port();
 		return;
 	}
 	if (strcasecmp(env, "REQUEST_METHOD") == 0) {
@@ -456,7 +456,7 @@ void KRewriteMarkEx::getEnv(KHttpRequest *rq, char *env, KStringBuf &s) {
 }
 void KRewriteMarkEx::getString(const char *prefix, const char *str,KHttpRequest *rq, KRegSubString *s1, KRegSubString *s2,KStringBuf *s)
 {
-	KExtendProgramString ds(NULL,(rq->svh?rq->svh->vh:NULL));	
+	KExtendProgramString ds(NULL,(rq && rq->svh?rq->svh->vh:NULL));	
 	char *buf = xstrdup(str);
 	char *hot = buf;
 	if (prefix) {

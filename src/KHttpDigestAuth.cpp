@@ -64,7 +64,7 @@ bool KHttpDigestSession::verify_rq(KHttpRequest *rq) {
 	}
 	return result;
 	*/
-	if(addr == rq->server->addr){
+	if(addr == rq->c->socket->addr){
 		lastActive = time(NULL);
 		return true;
 	}
@@ -294,6 +294,18 @@ bool KHttpDigestAuth::verify(KHttpRequest *rq, const char *password,
 	//			hresponse);
 	return false;
 }
+void KHttpDigestAuth::insertHeader(KHttpRequest *rq)
+{
+	if (realm == NULL || nonce == NULL) {
+		return;
+	}
+	KStringBuf s;
+	s << "Digest ";
+	s << "realm=\"" << realm << "\"";
+	s << ", qop=\"auth\"";
+	s << ", nonce=\"" << nonce << "\"";
+	rq->responseHeader(kgl_expand_string(AUTH_RESPONSE_HEADER),s.getBuf(),s.getSize());
+}
 void KHttpDigestAuth::insertHeader(KWStream &s) {
 	if (realm == NULL || nonce == NULL) {
 		return;
@@ -327,7 +339,7 @@ void KHttpDigestAuth::init(KHttpRequest *rq,const char *realm) {
 	s.add(rand(), "%x");
 	this->nonce = s.stealString();
 	KHttpDigestSession *session = new KHttpDigestSession(realm);
-	memcpy(&session->addr,&rq->server->addr,sizeof(sockaddr_i));
+	memcpy(&session->addr,&rq->c->socket->addr,sizeof(sockaddr_i));
 	lock.Lock();
 	//debug("add nonce[%s] to session\n",this->nonce);
 	sessions.insert(pair<char *, KHttpDigestSession *> (

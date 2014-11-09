@@ -9,7 +9,7 @@
 #define KPOOLABLESTREAMCONTAINER_H_
 #include <list>
 #include "global.h"
-#include "KPoolableSocket.h"
+#include "KUpstreamSelectable.h"
 #include "KString.h"
 #include "KMutex.h"
 #include "KCountable.h"
@@ -21,15 +21,15 @@ class KPoolableSocketContainer: public KCountableEx {
 public:
 	KPoolableSocketContainer();
 	virtual ~KPoolableSocketContainer();
-	KPoolableSocket *getPoolSocket();
+	KUpstreamSelectable *getPoolSocket();
 	/*
 	回收连接
 	close,是否关闭
 	lifeTime 连接时间
 	*/
-	virtual void gcSocket(KPoolableSocket *st,int lifeTime);
-	void bind(KPoolableSocket *st);
-	void unbind(KPoolableSocket *st);
+	virtual void gcSocket(KUpstreamSelectable *st,int lifeTime);
+	void bind(KUpstreamSelectable *st);
+	void unbind(KUpstreamSelectable *st);
 	int getLifeTime() {
 		return lifeTime;
 	}
@@ -55,10 +55,10 @@ public:
 		return size;
 	}
 	//isBad,isGood用于监控连接情况
-	virtual void isBad(KPoolableSocket *st,BadStage stage)
+	virtual void isBad(KUpstreamSelectable *st,BadStage stage)
 	{
 	}
-	virtual void isGood(KPoolableSocket *st)
+	virtual void isGood(KUpstreamSelectable *st)
 	{
 	}
 #ifdef HTTP_PROXY
@@ -70,7 +70,7 @@ protected:
 	/*
 	 * 把连接真正放入池中
 	 */
-	void putPoolSocket(KPoolableSocket *st);
+	void putPoolSocket(KUpstreamSelectable *st);
 	/*
 		通知事件.
 		ev = 0 关闭
@@ -81,19 +81,19 @@ protected:
 
 	//}
 
-	KPoolableSocket *internalGetPoolSocket();
+	KUpstreamSelectable *internalGetPoolSocket();
 	int lifeTime;
-	std::list<KPoolableSocket *> pools;
+	std::list<KUpstreamSelectable *> pools;
 	KMutex lock;
 private:
-	void refreshPool(std::list<KPoolableSocket *> *pools)
+	void refreshPool(std::list<KUpstreamSelectable *> *pools)
 	{
-		std::list<KPoolableSocket *>::iterator it2;
+		std::list<KUpstreamSelectable *>::iterator it2;
 		for (it2 = pools->end(); it2 != pools->begin();) {
 			it2--;
 			if ((*it2)->expireTime <= kgl_current_msec) {
 				assert((*it2)->container == NULL);
-				delete (*it2);
+				(*it2)->destroy();
 				it2 = pools->erase(it2);
 			} else {
 				break;

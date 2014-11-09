@@ -71,11 +71,13 @@ void KConfig::copy(KConfig *c)
 	conf.admin_lock.Unlock();	
 	this->run_user = c->run_user;
 	this->run_group = c->run_group;
-	/////////[358]
+	/////////[432]
 	ipLock.Lock();
+	//swap per_ip_head
 	KPerIpConnect *tp = per_ip_head;
 	per_ip_head = c->per_ip_head;
 	c->per_ip_head = tp;
+	//swap per_ip_last
 	tp = per_ip_last;
 	per_ip_last = c->per_ip_last;
 	c->per_ip_last = tp;
@@ -98,10 +100,11 @@ KConfig::~KConfig()
 }
 KGlobalConfig::KGlobalConfig()
 {
-	/////////[359]
+	/////////[433]
 	gam = new KAcserverManager;
 	gvm = new KVirtualHostManage;
 	sysHost = new KVirtualHost;
+	hfdm = NULL;
 }
 class KExtConfigDynamicString : public KDynamicString
 {
@@ -238,15 +241,14 @@ void init_config(KConfig *conf)
 	conf->log_level = 2;
 	conf->path_info = true;
 	conf->passwd_crypt = CRYPT_TYPE_PLAIN;
-/////////[360]
-	SAFE_STRCPY(conf->access_log ,"var/access.log");
+/////////[434]
+	SAFE_STRCPY(conf->access_log ,"access.log");
 	conf->maxLogHandle = 2;
 	conf->autoupdate = AUTOUPDATE_ON;
 #ifdef ENABLE_TF_EXCHANGE
-	conf->tmpfile = 1;
 	conf->max_post_size = 8388608;
 #endif	
-	conf->buffer = 32768;
+	//conf->buffer = 32768;
 	conf->worker = 1;
 	conf->worker_io = 10;
 	conf->worker_dns = 20;
@@ -260,12 +262,16 @@ void LoadDefaultConfig() {
 #ifdef ENABLE_DISK_CACHE
 	conf.diskWorkTime.set(NULL);
 #endif
+#ifdef KANGLE_WEBADMIN_DIR
+	conf.sysHost->doc_root = KANGLE_WEBADMIN_DIR;
+#else
 	conf.sysHost->doc_root = conf.path;
 	conf.sysHost->doc_root += "webadmin";
+#endif
 	conf.sysHost->browse = false;
 	KSubVirtualHost *svh = new KSubVirtualHost(conf.sysHost);
 	svh->setDocRoot(conf.sysHost->doc_root.c_str(), "/");
-	/////////[361]
+	/////////[435]
 	conf.sysHost->hosts.push_back(svh);
 	conf.sysHost->addRef();
 }
@@ -438,14 +444,14 @@ int handleExtConfigFile(const char *file, void *param) {
 }
 void loadExtConfigFile()
 {
-	char *path = KFileName::concatDir(conf.path.c_str(),"ext");
-	if(path==NULL){
-		return;
-	}
-	list_dir(path,handleExtConfigFile,path);
+#ifdef KANGLE_EXT_DIR
+	std::string ext_path = KANGLE_EXT_DIR;
+#else
+	std::string ext_path = conf.path + "/ext";
+#endif
+	list_dir(ext_path.c_str(),handleExtConfigFile,(void *)ext_path.c_str());
 	string configFile = conf.path + "etc/vh.d/";
 	list_dir(configFile.c_str(),handleExtConfigFile,(void *)configFile.c_str());
-	free(path);
 }
 bool saveConfig() {
 	if (conf.worker>1) {
@@ -453,16 +459,13 @@ bool saveConfig() {
 	}
 	return KConfigBuilder::saveConfig();
 }
-void load_listen_config()
-{
-	string configFile = conf.path;
-	configFile += CONFIG_FILE;
-	printf(klang["LANG_READ_CONFIG_FILE"], configFile.c_str());
-	KConfigParser parser;
-}
 void load_main_config(KConfig *cconf,KXml &xmlParser,bool firstload)
 {
-	string configFile = conf.path;
+#ifdef KANGLE_ETC_DIR
+	string configFile = KANGLE_ETC_DIR;
+#else
+	string configFile = conf.path + "/etc";
+#endif
 	configFile += CONFIG_FILE;
 	printf(klang["LANG_READ_CONFIG_FILE"], configFile.c_str());
 	
@@ -488,7 +491,13 @@ void load_main_config(KConfig *cconf,KXml &xmlParser,bool firstload)
 		fprintf(stderr, "%s\n", e.what());
 	}
 	try {
-		klang.load(conf.path + "/etc/lang.xml");
+#ifdef KANGLE_WEBADMIN_DIR
+		configFile = KANGLE_WEBADMIN_DIR;
+#else
+		configFile = conf.path + "/webadmin";
+#endif
+		configFile += "/lang.xml";
+		klang.load(configFile.c_str());
 	} catch (KXmlException &e) {
 		fprintf(stderr, "%s\n", e.what());
 	}
@@ -640,7 +649,7 @@ void load_config(KConfig *cconf,bool firstTime)
 	if(!main_config_loaded){
 		load_main_config(cconf,xmlParser,firstTime);
 	}
-	/////////[362]
+	/////////[436]
 	if (!firstTime) {
 		conf.gam->copy(am);
 		writeBackManager.copy(wm);
@@ -715,7 +724,7 @@ void parse_config(bool firstTime)
 		selectorManager.setTimeOut();
 	}
 	cache.init(firstTime);
-	/////////[363]
+	/////////[437]
 	::logHandle.setLogHandle(conf.logHandle);
 	//BOOL result = SetProcessWorkingSetSize(GetCurrentProcess(),-2,-2);
 }

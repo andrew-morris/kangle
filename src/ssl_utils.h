@@ -38,5 +38,6 @@
 bool make_ssl_env(KEnvInterface *env, SSL *ssl);
 char *ssl_var_lookup_ssl(SSL *ssl, const char *var);
 void load_ssl_library();
+
 #endif
 #endif /* SSL_UTILS_H_ */

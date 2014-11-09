@@ -63,7 +63,7 @@ struct index_scan_state_t
 	time_t last_scan_time;
 };
 bool skipString(char **hot,int &hotlen);
-char *readString(char **hot,int &hotlen,bool &result);
+char *readString(char **hot,int &hotlen,int &len);
 bool skipString(KFile *file);
 int writeString(KFile *fp,const char *str,int len=0);
 char *getCacheIndexFile();

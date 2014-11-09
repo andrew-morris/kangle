@@ -12,7 +12,7 @@ class KCacheFetchObject : public KFetchObject
 public:
 	void open(KHttpRequest *rq)
 	{
-		assert(TEST(rq->workModel,WORK_MODEL_INTERNAL));
+		KFetchObject::open(rq);
 		KHttpObject *obj = rq->ctx->obj;
 		if (TEST(rq->filter_flags,RQ_SWAP_OLD_OBJ)) {
 			obj = rq->ctx->old_obj;
@@ -26,9 +26,17 @@ public:
 	}
 	void readBody(KHttpRequest *rq)
 	{
-		assert(hot_buffer);
-		assert(rq->sr && rq->sr->ctx->st);
-		KWStream *st = rq->sr->ctx->st;
+		if (hot_buffer == NULL) {
+			stage_rdata_end(rq, STREAM_WRITE_END);
+			return;
+		}
+		KWStream *st = NULL;
+		if (rq->sr) {
+			st = rq->sr->ctx->st;
+		} else {
+			st = rq->ctx->st;
+		}
+		assert(st);
 		while (hot_buffer && hot_buffer->used>0) {
 			buff *buf = hot_buffer;
 			hot_buffer = hot_buffer->next;
@@ -37,11 +45,11 @@ public:
 				SET(rq->flags,RQ_CONNECTION_CLOSE);
 				break;
 			}
-			if (try_send_request(rq,true)) {
+			if (try_send_request(rq)) {
 				return;
 			}
 		}
-		stageEndRequest(rq);
+		stage_rdata_end(rq, STREAM_WRITE_END);
 	}
 private:
 	buff *hot_buffer;

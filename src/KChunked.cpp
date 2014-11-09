@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "KChunked.h"
 #include "malloc_debug.h"
-KChunked::KChunked(KWStream *st,bool autoDelete) : KWUpStream(st,autoDelete)
+KChunked::KChunked(KWStream *st,bool autoDelete) : KHttpStream(st,autoDelete)
 {
 	firstPackage = true;
 }
@@ -32,9 +32,9 @@ StreamState KChunked::write_all(const char *buf,int size)
 StreamState KChunked::write_end()
 {
 	if (firstPackage) {
-		KWUpStream::write_all("0\r\n\r\n",5);
+		KHttpStream::write_all("0\r\n\r\n",5);
 	} else {
-		KWUpStream::write_all("\r\n0\r\n\r\n",7);
+		KHttpStream::write_all("\r\n0\r\n\r\n",7);
 	}
-	return KWUpStream::write_end();
+	return KHttpStream::write_end();
 }

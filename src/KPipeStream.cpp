@@ -28,7 +28,7 @@ KPipeStream::KPipeStream() {
 void KPipeStream::waitClose()
 {
 #ifdef _WIN32
-	/////////[364]
+	/////////[438]
 #else
 	char buf[32];
 	for(;;){
@@ -108,30 +108,30 @@ bool KPipeStream::create() {
 	return create(fd2);
 }
 void KPipeStream::setTimeOut(int tmo) {
-	/////////[365]
+	/////////[439]
 	this->tmo = tmo;
-/////////[366]
+/////////[440]
 }
 bool KPipeStream::create(PIPE_T *fd) {
-	/////////[367]
+	/////////[441]
 	return pipe(fd) == 0;
-/////////[368]
+/////////[442]
 }
 int KPipeStream::read(char *buf, int len) {
-/////////[369]
+/////////[443]
 	if (!waitForRW(fd[READ_PIPE], false, tmo)) {
 		killChild();
 	}
 	return ::read(fd[READ_PIPE], buf, len);
-/////////[370]
+/////////[444]
 }
 int KPipeStream::write(const char *buf, int len) {
-	/////////[371]
+	/////////[445]
 	if (!waitForRW(fd[WRITE_PIPE], true, tmo)) {
 		killChild();
 	}
 	return ::write(fd[WRITE_PIPE], buf, len);
-/////////[372]
+/////////[446]
 }
 void KPipeStream::killChild() {
 	process.kill();
@@ -181,10 +181,10 @@ int KPipeStream::readInt(bool &result) {
 	return value;
 }
 bool KPipeStream::create_name(const char *read_pipe, const char *write_pipe) {
-/////////[373]
+/////////[447]
 	return true;
 }
 bool KPipeStream::connect_name(const char *read_pipe, const char *write_pipe) {
-/////////[374]
+/////////[448]
 	return (fd[WRITE_PIPE] != INVALIDE_PIPE);
 }

@@ -48,6 +48,9 @@ bool KListenConfigParser::startElement(std::string &context, std::string &qName,
 		m_host->certificate = attribute["certificate"];
 		m_host->certificate_key = attribute["certificate_key"];
 		m_host->sni = attribute["sni"]=="1";
+		m_host->spdy = attribute["spdy"]=="1";
+		m_host->cipher = attribute["cipher"];
+		m_host->protocols = attribute["protocols"];
 #endif
 		if (!parseWorkModel(attribute["type"].c_str(),m_host->model)) {
 			delete m_host;

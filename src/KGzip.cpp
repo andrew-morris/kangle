@@ -26,11 +26,11 @@
 #include "KHttpTransfer.h"
 #include "malloc_debug.h"
 
-KGzipCompress::KGzipCompress(KWStream *st,bool autoDelete) : KWUpStream(st,autoDelete)
+KGzipCompress::KGzipCompress(bool use_deflate,KWStream *st,bool autoDelete) : KHttpStream(st,autoDelete)
 {
 	fast = false;
 	isSuccess = false;
-
+	this->use_deflate = use_deflate;
 	memset(&strm,0,sizeof(strm));
 	if (deflateInit2(&strm, conf.gzip_level,
 		Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY) != Z_OK)
@@ -40,10 +40,12 @@ KGzipCompress::KGzipCompress(KWStream *st,bool autoDelete) : KWUpStream(st,autoD
 		klog(KLOG_ERR, "no memory to alloc\n");
 		return;
 	}
-	sprintf(out, "%c%c%c%c%c%c%c%c%c%c", 0x1f, 0x8b, Z_DEFLATED, 0 /*flags*/,
-			0, 0, 0, 0 /*time*/, 0 /*xflags*/, 0);
-	used = 10;
-	crc = crc32(0L, Z_NULL, 0);
+	if (!use_deflate) {
+		sprintf(out, "%c%c%c%c%c%c%c%c%c%c", 0x1f, 0x8b, Z_DEFLATED, 0 /*flags*/,
+				0, 0, 0, 0 /*time*/, 0 /*xflags*/, 0);
+		used = 10;
+		crc = crc32(0L, Z_NULL, 0);
+	}
 	isSuccess = true;
 }
 KGzipCompress::~KGzipCompress()
@@ -57,7 +59,9 @@ StreamState KGzipCompress::write_all(const char *str,int len)
 {
 	strm.avail_in = len;
 	strm.next_in = (unsigned char *) str;
-	crc = crc32(crc, (unsigned char *) str, len);
+	if (!use_deflate) {
+		crc = crc32(crc, (unsigned char *) str, len);
+	}
 	if(compress(Z_NO_FLUSH)){
 		return STREAM_WRITE_SUCCESS;
 	}
@@ -77,24 +81,26 @@ StreamState KGzipCompress::write_end()
 		xfree(out);
 		out = buf;
 	}
-	int n;
-	for (n = 0; n < 4; n++) {
-		out[used + n] = (crc & 0xff);
-		crc >>= 8;
+	if (!use_deflate) {
+		int n;
+		for (n = 0; n < 4; n++) {
+			out[used + n] = (crc & 0xff);
+			crc >>= 8;
+		}
+		used += 4;
+		unsigned totalLen2 = strm.total_in;
+		for (n = 0; n < 4; n++) {
+			out[used + n] = (totalLen2 & 0xff);
+			totalLen2 >>= 8;
+		}
+		used += 4;
 	}
-	used += 4;
-	unsigned totalLen2 = strm.total_in;
-	for (n = 0; n < 4; n++) {
-		out[used + n] = (totalLen2 & 0xff);
-		totalLen2 >>= 8;
-	}
-	used += 4;
 	StreamState result = st->write_direct(out, used);
 	out = NULL;
 	if(result!=STREAM_WRITE_SUCCESS){
 		return result;
 	}
-	return KWUpStream::write_end();
+	return KHttpStream::write_end();
 }
 StreamState KGzipCompress::compress(int flush_flag)
 {
@@ -132,7 +138,7 @@ StreamState KGzipCompress::compress(int flush_flag)
 	} while (strm.avail_out == 0);
 	return STREAM_WRITE_SUCCESS;
 }
-KGzipDecompress::KGzipDecompress(KWStream *st,bool autoDelete) : KWUpStream(st,autoDelete)
+KGzipDecompress::KGzipDecompress(KWStream *st,bool autoDelete) : KHttpStream(st,autoDelete)
 {
 	isSuccess = false;
 	memset(&strm,0,sizeof(strm));
@@ -194,7 +200,7 @@ StreamState KGzipDecompress::write_end()
 			return result;
 		}
 	}
-	return KWUpStream::write_end();
+	return KHttpStream::write_end();
 }
 StreamState KGzipDecompress::write_all(const char *str,int len)
 {

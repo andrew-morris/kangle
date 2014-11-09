@@ -77,7 +77,8 @@ private:
 	std::string name;
 	KAcl *curacl;
 	KMark *curmark;
-	time_t expire;
+	KChain *next;
+	KChain *prev;
 };
 
 #endif /*KCHAIN_H_*/

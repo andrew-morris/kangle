@@ -26,7 +26,14 @@ KHttpBasicAuth::~KHttpBasicAuth() {
 		xfree(realm);
 	}
 }
-void KHttpBasicAuth::insertHeader(KWStream &s) {
+void KHttpBasicAuth::insertHeader(KHttpRequest *rq)
+{
+	KStringBuf s;
+	s << "Basic realm=\"" << realm << "\"";
+	rq->responseHeader(kgl_expand_string(AUTH_RESPONSE_HEADER),s.getBuf(),s.getSize());
+}
+void KHttpBasicAuth::insertHeader(KWStream &s)
+{
 	s << AUTH_RESPONSE_HEADER << ": Basic realm=\"" << realm << "\"\r\n";
 }
 bool KHttpBasicAuth::parse(KHttpRequest *rq, const char *str) {

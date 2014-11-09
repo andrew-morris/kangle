@@ -28,10 +28,6 @@ KKqueueSelector::KKqueueSelector() {
 KKqueueSelector::~KKqueueSelector() {
 	close(kdpfd);
 }
-bool KKqueueSelector::addListenSocket(KSelectable *st) {
-	addSocket(st,STAGE_OP_LISTEN);
-	return true;
-}
 void KKqueueSelector::select() {
 	struct kevent events[MAXEVENT]; 
 	struct timespec tm;
@@ -42,146 +38,113 @@ void KKqueueSelector::select() {
 		int ret = kevent(kdpfd, NULL, 0, events, MAXEVENT, &tm);
 		if(utm){
 			updateTime();
-        }
-		if (ret == -1) {
-			continue;
 		}
 		for (int n = 0; n < ret; ++n) {
 			KSelectable *st = (KSelectable *) events[n].udata;
 #ifndef NDEBUG
-            st->hs.clear();
+			klog(KLOG_DEBUG,"select st=%p,st_flags=%d,events=%d at %p\n",st,st->st_flags,events[n].filter,pthread_self());
+			assert(TEST(st->st_flags,STF_READ|STF_WRITE)>0);
 #endif
-			st->handler(st,0);
+			if (events[n].filter==EVFILT_READ) {
+				st->eventRead(st->e[OP_READ].arg,st->e[OP_READ].result,st->e[OP_READ].buffer);
+			} else if (events[n].filter==EVFILT_WRITE) {
+				st->eventWrite(st->e[OP_WRITE].arg,st->e[OP_WRITE].result,st->e[OP_WRITE].buffer);
+			} else {
+				assert(false);
+			}		
 		}
 	}
 
 }
-
-bool KKqueueSelector::addSocket(KSelectable *st,int op) {
-	struct kevent changes[1]; 
+void KKqueueSelector::removeSocket(KSelectable *st) {
+	if (TEST(st->st_flags,STF_EV)==0) {
+		return;
+	}
+#ifndef NDEBUG
+	klog(KLOG_DEBUG,"remove socket st=%p\n",st);
+#endif
+	SOCKET sockfd = st->getSocket()->get_socket();
 	int ev = 0;
-        SOCKET sockfd = -1;
-        switch(op){
-        case STAGE_OP_LISTEN:
-        case STAGE_OP_READ:
-        case STAGE_OP_READ_POST:
-	case STAGE_OP_TF_READ:
-                if (st->client_read) {
-                        return true;
-                }
-                if (st->client_op) {
-                        assert(st->upstream_op==0);
-                        st->client_write = 0;
-                } else if(st->upstream_op) {
-                        removeSocket(st);
-                        assert(st->sockop==0);
-                }
-                sockfd = st->getSockfd();
-                st->client_read = 1;
-                ev = EVFILT_READ;
-                break;
-        case STAGE_OP_WRITE:
-	case STAGE_OP_TF_WRITE:
-        case STAGE_OP_NEXT:
-                if (st->client_write) {
-                        assert(st->client_read==0);
-                        assert(st->upstream_op==0);
-                        return true;
-                }
-                if (st->client_op) {
-                        st->client_read = 0;
-                } else if (st->upstream_op) {
-                        removeSocket(st);
-                        assert(st->sockop==0);
-                }
-                sockfd = st->getSockfd();
-                st->client_write = 1;
-                ev = EVFILT_WRITE;
-                break;
-        case STAGE_OP_UPSTREAM_CONNECT:
-        case STAGE_OP_UPSTREAM_WHEAD:
-        case STAGE_OP_WRITE_POST:
-		case STAGE_OP_UPSTREAM_SSLW:
-                if (st->upstream_write) {
-                        assert(st->upstream_read==0);
-                        assert(st->client_op == 0);
-                        return true;
-                }
-		if (st->upstream_op) {
-                        st->upstream_read = 0;
-                } else if (st->client_op) {
-                        removeSocket(st);
-                        assert(st->sockop==0);
-                }
-                sockfd = (static_cast<KUpstreamFetchObject *>(static_cast<KHttpRequest *>(st)->fetchObj)->getSocket())->get_socket();
-                st->upstream_write = 1;
-                ev = EVFILT_WRITE;
-                break;
-        case STAGE_OP_UPSTREAM_RHEAD:
-        case STAGE_OP_UPSTREAM_READ:
-		case STAGE_OP_UPSTREAM_SSLR:
-                if (st->upstream_read) {
-                        assert(st->upstream_write==0);
-                        assert(st->client_op == 0);
-                        return true;
-                }
-                if (st->upstream_op) {
-                        st->upstream_write = 0;
-                } else if (st->client_op) {
-                        removeSocket(st);
-                        assert(st->sockop==0);
-                }
-                sockfd = (static_cast<KUpstreamFetchObject *>(static_cast<KHttpRequest *>(st)->fetchObj)->getSocket())->get_socket();
-                st->upstream_read = 1;
-                ev = EVFILT_READ;
-                break;
-/////////[353]
-	default:
-                assert(false);
-                klog(KLOG_ERR,"BUG!!I cann't handle the op = %d\n",op);
-        }
-	
-	EV_SET(&changes[0], sockfd, ev, EV_ADD, 0, 0, (kqueue_udata_t)st); 
-      	if(kevent(kdpfd, changes, 1, NULL, 0, NULL)==-1){
-		klog(KLOG_ERR,"cann't addSocket sockfd=%d,ev=%d\n",sockfd,ev);
+	if (TEST(st->st_flags,STF_READ)) {
+		SET(ev ,EVFILT_READ);
+	}
+	if (TEST(st->st_flags,STF_WRITE)) {
+		SET(ev,EVFILT_WRITE);
+	}
+	struct kevent changes[1]; 
+	EV_SET(&changes[0], sockfd, ev, EV_DELETE, 0, 0, NULL); 
+      	kevent(kdpfd, changes, 1, NULL, 0, NULL);
+	CLR(st->st_flags,STF_EV|STF_READ|STF_WRITE|STF_ONE_SHOT);
+}
+bool KKqueueSelector::read(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg)
+{
+#ifndef NDEBUG
+	klog(KLOG_DEBUG,"read st=%p\n",st);
+#endif
+	struct kevent changes[2];
+	int ev_count = 0;
+	st->e[OP_READ].arg = arg;
+	st->e[OP_READ].result = result;
+	st->e[OP_READ].buffer = buffer;
+	st->e[OP_WRITE].result = NULL;
+	SOCKET sockfd = st->getSocket()->get_socket();
+	if (TEST(st->st_flags,STF_READ)==0) {
+		EV_SET(&changes[ev_count++], sockfd, EVFILT_READ, EV_ADD, 0, 0, (kqueue_udata_t)st); 
+		SET(st->st_flags,STF_READ|STF_EV);
+	}
+	if (TEST(st->st_flags,STF_WRITE)) {
+		EV_SET(&changes[ev_count++], sockfd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+		CLR(st->st_flags,STF_WRITE);
+	}
+	if (ev_count==0) {
+		return true;
+	}
+      	if(kevent(kdpfd, changes, ev_count, NULL, 0, NULL)==-1){
+		klog(KLOG_ERR,"cann't addSocket sockfd=%d for read\n",sockfd);
 		return false;
 	}
 	return true;
 }
-void KKqueueSelector::removeSocket(KSelectable *st) {
-        if (st->sockop==0) {
-                return;
+bool KKqueueSelector::write(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg)
+{
+#ifndef NDEBUG
+        klog(KLOG_DEBUG,"write st=%p\n",st);
+#endif
+        struct kevent changes[2];
+	int ev_count = 0;
+        st->e[OP_WRITE].arg = arg;
+        st->e[OP_WRITE].result = result;
+        st->e[OP_WRITE].buffer = buffer;
+        st->e[OP_READ].result = NULL;
+	SOCKET sockfd = st->getSocket()->get_socket();
+	if (TEST(st->st_flags,STF_WRITE)==0) {
+		EV_SET(&changes[ev_count++], sockfd, EVFILT_WRITE, EV_ADD, 0, 0, (kqueue_udata_t)st);
+		SET(st->st_flags,STF_WRITE|STF_EV);
+	}
+	if (TEST(st->st_flags,STF_READ)) {
+                EV_SET(&changes[ev_count++], sockfd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
+                CLR(st->st_flags,STF_READ);
         }
-        SOCKET sockfd;
-	int ev = 0;
-        if(st->client_op){
-                assert(st->upstream_op==0);
-                sockfd = st->getSockfd();
-		if(st->client_read){
-			SET(ev ,EVFILT_READ);
-		}
-		if(st->client_write){
-			SET(ev,EVFILT_WRITE);
-		}
-        } else {
-                assert(st->client_op==0);
-                KUpstreamFetchObject *fo = static_cast<KUpstreamFetchObject *>(static_cast<KHttpRequest *>(st)->fetchObj);
-                if (fo==NULL) {
-                        st->sockop = 0;
-                        return;
-                }
-                sockfd = fo->getSocket()->get_socket();
-		if(st->upstream_read){
-			SET(ev,EVFILT_READ);
-		}
-		if(st->upstream_write){
-			SET(ev,EVFILT_WRITE);
-		}
+        if (ev_count==0) {
+                return true;
         }
-        st->sockop = 0;
-	struct kevent changes[1]; 
-	EV_SET(&changes[0], sockfd, ev, EV_DELETE, 0, 0, NULL); 
-      	kevent(kdpfd, changes, 1, NULL, 0, NULL);
-	st->sockop = 0;
+        if(kevent(kdpfd, changes, ev_count, NULL, 0, NULL)==-1){
+                klog(KLOG_ERR,"cann't addSocket sockfd=%d for write\n",sockfd);
+                return false;
+        }
+        return true;
+
+}
+bool KKqueueSelector::listen(KServer *st,resultEvent result)
+{
+	return read(st,result,NULL,st);
+}
+bool KKqueueSelector::connect(KSelectable *st,resultEvent result,void *arg)
+{
+	return write(st,result,NULL,arg);
+}
+bool KKqueueSelector::next(KSelectable *st,resultEvent result,void *arg)
+{
+	return write(st,result,NULL,arg);
 }
 #endif

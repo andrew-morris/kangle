@@ -21,7 +21,7 @@ void KSSIFetchObject::open(KHttpRequest *rq)
 	//处理content-type
 	if (!stageContentType(rq,obj)) {
 		//默认的content-type
-		obj->insertHttpHeader2(strdup("Content-Type"), strdup("text/html"));
+		obj->insertHttpHeader(kgl_expand_string("Content-Type"), kgl_expand_string("text/html"));
 	}
 	if (obj->index.max_age==0) {
 		SET(obj->index.flags,ANSW_NO_CACHE);

@@ -23,7 +23,7 @@ class KSrcAcl : public KIpAclBase {
 public:
 	bool match(KHttpRequest *rq, KHttpObject *obj) {
 		ip_addr addr;
-		rq->server->get_remote_addr(&addr);
+		rq->c->socket->get_remote_addr(&addr);
 		return matchIP(addr);
 	}
 	;

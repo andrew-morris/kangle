@@ -18,7 +18,7 @@ class KCmdProcess: public KVirtualHostProcess {
 public:
 	KCmdProcess();
 	~KCmdProcess();
-	KPoolableSocket *poweron(KVirtualHost *vh,KExtendProgram *rd,bool &success);
+	KUpstreamSelectable *poweron(KVirtualHost *vh,KExtendProgram *rd,bool &success);
 	void getProcessInfo(const USER_T &user, const std::string &name,
 			std::stringstream &s,int &count)
 	{
@@ -39,7 +39,7 @@ public:
 		stLock.Unlock();
 		return true;
 	}
-	/////////[242]
+	/////////[305]
 protected:
 	bool isProcessActive()
 	{
@@ -63,13 +63,13 @@ public:
 	void handleRequest(KHttpRequest *rq,KExtendProgram *rd);
 	void getProcessInfo(const USER_T &user, const std::string &name,std::stringstream &s,int &count);
 	bool killProcess(int pid);
-	KPoolableSocket *poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success);
+	KUpstreamSelectable *poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success);
 	void gcProcess(KSingleListenPipeStream *st);
 	bool isMultiProcess()
 	{
 		return true;
 	}
-	/////////[243]
+	/////////[306]
 	bool canDestroy(time_t nowTime);
 private:
 	std::list<KSingleListenPipeStream *> freeProcess;
@@ -87,22 +87,23 @@ public:
 	~KSingleListenPipeStream()
 	{
 		if (socket) {
-			delete socket;
+			socket->destroy();
 		}
 		unlink_unix();
 	}
-	KPoolableSocket *getPoolSocket(bool &isHalf)
+	KUpstreamSelectable *getPoolSocket(bool &isHalf)
 	{
 		lastActive = kgl_current_sec;
-		KPoolableSocket *st = socket;
+		KUpstreamSelectable *st = socket;
 		if(socket == NULL) {
-			st = new KPoolableSocket;
+			st = new KUpstreamSelectable();
+			st->socket = new KClientSocket;
 #ifdef KSOCKET_UNIX
 			if(unix_path.size()>0){
-					st->halfconnect(unix_path.c_str());
+					st->socket->halfconnect(unix_path.c_str());
 			} else 
 #endif
-				st->halfconnect(addr);
+				st->socket->halfconnect(addr);
 			isHalf = true;
 		}else {	
 			isHalf = false;
@@ -113,11 +114,11 @@ public:
 		}
 		return st;
 	}
-	void gcSocket(KPoolableSocket *st,int lifeTime)
+	void gcSocket(KUpstreamSelectable *st,int lifeTime)
 	{
 		
 	//	if(close || socket){
-		delete st;
+		st->destroy();
 		kassert(vprocess!=NULL);
 		vprocess->gcProcess(this);
 		/*
@@ -134,7 +135,7 @@ public:
 		}
 		*/
 	}
-	void isBad(KPoolableSocket *st,BadStage stage)
+	void isBad(KUpstreamSelectable *st,BadStage stage)
 	{
 		process.kill();
 	}
@@ -144,7 +145,7 @@ public:
 	}
 	friend class KMPCmdProcess;
 private:
-	KPoolableSocket *socket;
+	KUpstreamSelectable *socket;
 	KMPCmdProcess *vprocess;
 	sockaddr_i addr;
 	time_t lastActive;

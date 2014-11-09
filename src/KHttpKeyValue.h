@@ -8,6 +8,7 @@
 #ifndef KHTTPKEYVALUE_H_
 #define KHTTPKEYVALUE_H_
 #include "global.h"
+#include "KHttpHeader.h"
 #define METH_UNSET      0
 #define METH_OPTIONS    1
 #define METH_GET        2
@@ -54,18 +55,60 @@ public:
 	static const char *getStatus(int status);
 
 };
-inline const char *buildProto(int proto)
+inline void getRequestLine(int status,kgl_str_t *ret)
 {
-	switch(proto){
-case PROTO_HTTP:
-	return "http";
-case PROTO_HTTPS:
-	return "https";
-case PROTO_FTP:
-	return "ftp";
+	switch (status) {	
+		case 100:kgl_str_set(ret, "HTTP/1.1 100 Continue\r\n");return;
+		case 101:kgl_str_set(ret, "HTTP/1.1 101 Switching Protocols\r\n");return;
+		case 102:kgl_str_set(ret, "HTTP/1.1 102 Processing\r\n");return; /* WebDAV */
+		case 200:kgl_str_set(ret, "HTTP/1.1 200 OK\r\n");return;
+		case 201:kgl_str_set(ret, "HTTP/1.1 201 Created\r\n");return;
+		case 202:kgl_str_set(ret, "HTTP/1.1 202 Accepted\r\n");return;
+		case 203:kgl_str_set(ret, "HTTP/1.1 203 Non-Authoritative Information\r\n");return;
+		case 204:kgl_str_set(ret, "HTTP/1.1 204 No Content\r\n");return;
+		case 205:kgl_str_set(ret, "HTTP/1.1 205 Reset Content\r\n");return;
+		case 206:kgl_str_set(ret, "HTTP/1.1 206 Partial Content\r\n");return;
+		case 207:kgl_str_set(ret, "HTTP/1.1 207 Multi-status\r\n");return; /* WebDAV */
+		case 300:kgl_str_set(ret, "HTTP/1.1 300 Multiple Choices\r\n");return;
+		case 301:kgl_str_set(ret, "HTTP/1.1 301 Moved Permanently\r\n");return;
+		case 302:kgl_str_set(ret, "HTTP/1.1 302 Found\r\n");return;
+		case 303:kgl_str_set(ret, "HTTP/1.1 303 See Other\r\n");return;
+		case 304:kgl_str_set(ret, "HTTP/1.1 304 Not Modified\r\n");return;
+		case 305:kgl_str_set(ret, "HTTP/1.1 305 Use Proxy\r\n");return;
+		case 306:kgl_str_set(ret, "HTTP/1.1 306 (Unused)\r\n");return;
+		case 307:kgl_str_set(ret, "HTTP/1.1 307 Temporary Redirect\r\n");return;
+		case 400:kgl_str_set(ret, "HTTP/1.1 400 Bad Request\r\n");return;
+		case 401:kgl_str_set(ret, "HTTP/1.1 401 Unauthorized\r\n");return;
+		case 402:kgl_str_set(ret, "HTTP/1.1 402 Payment Required\r\n");return;
+		case 403:kgl_str_set(ret, "HTTP/1.1 403 Forbidden\r\n");return;
+		case 404:kgl_str_set(ret, "HTTP/1.1 404 Not Found\r\n");return;
+		case 405:kgl_str_set(ret, "HTTP/1.1 405 Method Not Allowed\r\n");return;
+		case 406:kgl_str_set(ret, "HTTP/1.1 406 Not Acceptable\r\n");return;
+		case 407:kgl_str_set(ret, "HTTP/1.1 407 Proxy Authentication Required\r\n");return;
+		case 408:kgl_str_set(ret, "HTTP/1.1 408 Request Timeout\r\n");return;
+		case 409:kgl_str_set(ret, "HTTP/1.1 409 Conflict\r\n");return;
+		case 410:kgl_str_set(ret, "HTTP/1.1 410 Gone\r\n");return;
+		case 411:kgl_str_set(ret, "HTTP/1.1 411 Length Required\r\n");return;
+		case 412:kgl_str_set(ret, "HTTP/1.1 412 Precondition Failed\r\n");return;
+		case 413:kgl_str_set(ret, "HTTP/1.1 413 Request Entity Too Large\r\n");return;
+		case 414:kgl_str_set(ret, "HTTP/1.1 414 Request-URI Too Long\r\n");return;
+		case 415:kgl_str_set(ret, "HTTP/1.1 415 Unsupported Media Type\r\n");return;
+		case 416:kgl_str_set(ret, "HTTP/1.1 416 Requested Range Not Satisfiable\r\n");return;
+		case 417:kgl_str_set(ret, "HTTP/1.1 417 Expectation Failed\r\n");return;
+		case 422:kgl_str_set(ret, "HTTP/1.1 422 Unprocessable Entity\r\n");return; /* WebDAV */
+		case 423:kgl_str_set(ret, "HTTP/1.1 423 Locked\r\n");return; /* WebDAV */
+		case 424:kgl_str_set(ret, "HTTP/1.1 424 Failed Dependency\r\n");return; /* WebDAV */
+		case 426:kgl_str_set(ret, "HTTP/1.1 426 Upgrade Required\r\n");return; /* TLS */
+		case 500:kgl_str_set(ret, "HTTP/1.1 500 Internal Server Error\r\n");return;
+		case 501:kgl_str_set(ret, "HTTP/1.1 501 Not Implemented\r\n");return;
+		case 502:kgl_str_set(ret, "HTTP/1.1 502 Bad Gateway\r\n");return;
+		case 503:kgl_str_set(ret, "HTTP/1.1 503 Service Not Available\r\n");return;
+		case 504:kgl_str_set(ret, "HTTP/1.1 504 Gateway Timeout\r\n");return;
+		case 505:kgl_str_set(ret, "HTTP/1.1 505 HTTP Version Not Supported\r\n");return;
+		case 507:kgl_str_set(ret, "HTTP/1.1 507 Insufficient Storage\r\n");return; /* WebDAV */
+		default: kgl_str_set(ret, "HTTP/1.1 999 unknow\r\n");return;
 	}
-	return "http";
-}	
+}
 inline const char *getRequestLine(int status)
 {
 	switch(status){	

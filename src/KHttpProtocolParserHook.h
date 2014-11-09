@@ -18,7 +18,7 @@ public:
 	 * ¼ì²éheader
 	 * ·µ»Ø: 0=failed,1=add headers,2=do not insert headers
 	 */
-	virtual int parseHeader(const char *attr,char *val,bool isFirst)=0;
+	virtual int parseHeader(const char *attr,char *val,int &val_len,bool isFirst)=0;
 	virtual void startParse()
 	{
 	}

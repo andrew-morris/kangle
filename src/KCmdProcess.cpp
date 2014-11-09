@@ -9,15 +9,15 @@
 #include "lang.h"
 #include "KCmdPoolableRedirect.h"
 #include "KAsyncFetchObject.h"
-/////////[237]
+/////////[295]
 #ifdef ENABLE_VH_RUN_AS
 //启动进程工作线程
 FUNC_TYPE FUNC_CALL MPVProcessPowerWorker(void *param)
 {
         MPVProcessPowerParam *vpp = (MPVProcessPowerParam *)param;
         bool success;
-        KPoolableSocket *socket = vpp->process->poweron(vpp->rq->svh->vh,vpp->rd,success);
-	/////////[238]
+        KUpstreamSelectable *socket = vpp->process->poweron(vpp->rq->svh->vh,vpp->rd,success);
+	/////////[296]
         static_cast<KAsyncFetchObject *>(vpp->rq->fetchObj)->connectCallBack(vpp->rq,socket,false);
         vpp->process->release();
         delete vpp;
@@ -31,11 +31,11 @@ KCmdProcess::~KCmdProcess() {
 		delete st;
 	}
 }
-KPoolableSocket *KCmdProcess::poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success)
+KUpstreamSelectable *KCmdProcess::poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success)
 {
 	int port = 0;
 	KCmdPoolableRedirect *rd = static_cast<KCmdPoolableRedirect *> (erd);
-	KPoolableSocket *socket = NULL;
+	KUpstreamSelectable *socket = NULL;
 	KListenPipeStream *st2 = new KListenPipeStream;
 	socket = rd->createPipeStream(vh,st2,unix_path,false);
 	if (socket == NULL) {
@@ -90,7 +90,7 @@ void KMPCmdProcess::handleRequest(KHttpRequest *rq,KExtendProgram *rd)
         if (sp) {
 		addRef();
                 bool isHalf;
-                KPoolableSocket *socket = sp->getPoolSocket(isHalf);
+                KUpstreamSelectable *socket = sp->getPoolSocket(isHalf);
                 if (socket==NULL) {
                         sp->killChild();
                         gcProcess(sp);
@@ -99,7 +99,7 @@ void KMPCmdProcess::handleRequest(KHttpRequest *rq,KExtendProgram *rd)
                 return;
         }
         if (sp==NULL) {
-                rq->selector->removeRequest(rq);
+                rq->c->removeRequest(rq);
                 MPVProcessPowerParam *param = new MPVProcessPowerParam;
                 param->rq = rq;
                 param->rd = rd;
@@ -112,10 +112,10 @@ void KMPCmdProcess::handleRequest(KHttpRequest *rq,KExtendProgram *rd)
                 }
         }
 }
-KPoolableSocket *KMPCmdProcess::poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success)
+KUpstreamSelectable *KMPCmdProcess::poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success)
 {
 	KCmdPoolableRedirect *rd = static_cast<KCmdPoolableRedirect *> (erd);
-	KPoolableSocket *socket = NULL;
+	KUpstreamSelectable *socket = NULL;
 	KSingleListenPipeStream *st = new KSingleListenPipeStream;
 #ifdef KSOCKET_UNIX
 	if (conf.unix_socket) {
@@ -145,7 +145,7 @@ KPoolableSocket *KMPCmdProcess::poweron(KVirtualHost *vh,KExtendProgram *erd,boo
 	}
 #if 0
 
-	/////////[239]
+	/////////[297]
 #endif
 	stLock.Lock();
         push_back(st);
@@ -175,7 +175,7 @@ void KMPCmdProcess::gcProcess(KSingleListenPipeStream *st)
 	}
 	release();
 }
-/////////[240]
+/////////[298]
 void KMPCmdProcess::getProcessInfo(const USER_T &user, const std::string &name,std::stringstream &s,int &count)
 {
 	stLock.Lock();

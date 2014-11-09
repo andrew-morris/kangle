@@ -5,22 +5,26 @@ void KSyncFetchObject::open(KHttpRequest *rq)
 {
 	assert(rq->list==KGL_LIST_SYNC);
 	kassert(TEST(rq->flags,RQ_SYNC));
-	rq->server->set_time(conf.time_out);
+	/////////[29]
+		rq->c->socket->set_time(conf.time_out);
 #ifndef _WIN32
-	rq->server->setblock();
+		rq->c->socket->setblock();
 #else
-	if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-		rq->server->setblock();
-	}
+		if (TEST(rq->workModel, WORK_MODEL_SSL)) {
+			rq->c->socket->setblock();
+		}
 #endif
+		/////////[30]
 	process(rq);
+	/////////[31]
 #ifndef _WIN32
-	rq->server->setnoblock();
+		rq->c->socket->setnoblock();
 #else
-	if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-		rq->server->setnoblock();
-	}
+		if (TEST(rq->workModel,WORK_MODEL_SSL)) {
+			rq->c->socket->setnoblock();
+		}
 #endif
+	/////////[32]
 	CLR(rq->flags,RQ_SYNC);
 	stageEndRequest(rq);
 }

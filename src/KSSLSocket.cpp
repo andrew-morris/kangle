@@ -2,8 +2,31 @@
 #include "KHttpRequest.h"
 #include "KSelector.h"
 #include "ssl_utils.h"
+/////////[373]
+#ifdef ENABLE_TCMALLOC
+#include "google/heap-checker.h"
+#endif
 #ifdef KSOCKET_SSL
 static KMutex *ssl_lock = NULL;
+int kangle_ssl_conntion_index;
+int kangle_ssl_ctx_index;
+typedef struct {
+	kgl_str_t                 name;
+	int                       mask;
+} kgl_string_bitmask_t;
+#define KGL_SSL_SSLv2    0x0002
+#define KGL_SSL_SSLv3    0x0004
+#define KGL_SSL_TLSv1    0x0008
+#define KGL_SSL_TLSv1_1  0x0010
+#define KGL_SSL_TLSv1_2  0x0020
+static kgl_string_bitmask_t  kgl_ssl_protocols[] = {
+	{ kgl_string("SSLv2"), KGL_SSL_SSLv2 },
+	{ kgl_string("SSLv3"), KGL_SSL_SSLv3 },
+	{ kgl_string("TLSv1"), KGL_SSL_TLSv1 },
+	{ kgl_string("TLSv1.1"), KGL_SSL_TLSv1_1 },
+	{ kgl_string("TLSv1.2"), KGL_SSL_TLSv1_2 },
+	{ kgl_null_string, 0 }
+};
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 #include "KVirtualHostManage.h"
 //sni lookup server name
@@ -13,34 +36,24 @@ int httpSSLServerName(SSL *ssl,int *ad,void *arg)
 	if (servername==NULL) {
 		return SSL_TLSEXT_ERR_NOACK;
 	}
-	KHttpRequest *rq = (KHttpRequest *)SSL_get_ex_data(ssl,kangle_ssl_conntion_index);
-	if (rq==NULL) {
+	KConnectionSelectable *c = (KConnectionSelectable *)SSL_get_ex_data(ssl,kangle_ssl_conntion_index);
+	if (c==NULL) {
 		return SSL_TLSEXT_ERR_NOACK;
 	}
-	//manage request skip SNI
-	if (TEST(rq->workModel,WORK_MODEL_MANAGE)) {
+	if (c->sni) {
 		return SSL_TLSEXT_ERR_OK;
 	}
-	if (rq->svh==NULL && query_vh_success != conf.gvm->queryVirtualHost(rq,servername)) {
+	c->sni = new KSSLSniContext;
+	if (query_vh_success != conf.gvm->queryVirtualHost(c->ls,&c->sni->svh,servername)) {
 		return SSL_TLSEXT_ERR_OK;
 	}
-	if (rq->svh->vh && rq->svh->vh->ssl_ctx) {
-		SSL_set_SSL_CTX(ssl,rq->svh->vh->ssl_ctx);
+	if (c->sni->svh->vh && c->sni->svh->vh->ssl_ctx) {
+		SSL_set_SSL_CTX(ssl,c->sni->svh->vh->ssl_ctx);
 	}
 	return SSL_TLSEXT_ERR_OK;
 }
 #endif
-//ssl关闭要调用SSL_shutdown
-void stageSSLShutdown(KHttpRequest *rq)
-{
-	KSSLSocket *ssl_socket = static_cast<KSSLSocket *>(rq->server);
-	SSL *ssl = ssl_socket->getSSL();
-	if (ssl) {
-		SSL_shutdown(ssl);
-		//TODO:这里要处理错误SSL_ERROR_WANT_READ,还是SSL_ERROR_WANT_WRITE
-	}
-	delete rq;
-}
+/////////[374]
 static unsigned long __get_thread_id (void)
 {
 	return (unsigned long) pthread_self();
@@ -55,6 +68,9 @@ static void __lock_thread (int mode, int n, const char *file, int line)
 }
 void init_ssl()
 {
+#ifdef ENABLE_TCMALLOC
+	HeapLeakChecker::Disabler disabler;
+#endif
 	load_ssl_library();
 	if ((CRYPTO_get_id_callback()      == NULL) &&
 	    (CRYPTO_get_locking_callback() == NULL))
@@ -68,30 +84,30 @@ void init_ssl()
 		ssl_lock = new KMutex[locks_num];	
 	}
 }
-void handleSSLAccept(KSelectable *st,int got)
+void resultSSLAccept(void *arg,int got)
 {
 
-	KHttpRequest *rq = static_cast<KHttpRequest *>(st);
+	KHttpRequest *rq = (KHttpRequest *)arg;
 	assert(TEST(rq->workModel,WORK_MODEL_SSL));
 	if (got<0) {
 		delete rq;
 		return;
 	}
-	KSSLSocket *socket = static_cast<KSSLSocket *>(rq->server);
-	switch(socket->ssl_accept()){
+	KSSLSocket *socket = static_cast<KSSLSocket *>(rq->c->socket);
+	switch(socket->handshake()){
 	case ret_ok:
 		{
+/////////[375]
 			rq->init();
-			SET(rq->raw_url.proto,PROTO_HTTPS);
-			rq->handler = handleRequestRead;
-			handleRequestRead(rq,0);
+			SET(rq->raw_url.flags,KGL_URL_SSL);
+			rq->c->read(rq,resultRequestRead,bufferRequestRead);
 			return;
 		}
 	case ret_want_read:
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_READ);
+		rq->c->read(rq,resultSSLAccept,NULL);
 		return;
 	case ret_want_write:
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_WRITE);
+		rq->c->write(rq,resultSSLAccept,NULL);
 		return;
 	default:
 		delete rq;
@@ -106,6 +122,12 @@ KSSLSocket::~KSSLSocket() {
 	if (ssl) {
 		SSL_free(ssl);
 	}
+}
+void KSSLSocket::get_next_proto_negotiated(const unsigned char **data,unsigned *len)
+{
+#ifdef TLSEXT_TYPE_next_proto_neg
+	SSL_get0_next_proto_negotiated(ssl,data,len);
+#endif
 }
 SSL_CTX * KSSLSocket::init_server(const char *cert_file, const char *key_file,
 		const char *verified_file) {
@@ -178,6 +200,38 @@ SSL_CTX * KSSLSocket::init_ctx(bool server) {
 		fprintf(stderr, "ssl_ctx_new function error\n");
 		return NULL;
 	}
+	  /* client side options */
+
+    SSL_CTX_set_options(ctx, SSL_OP_MICROSOFT_SESS_ID_BUG);
+    SSL_CTX_set_options(ctx, SSL_OP_NETSCAPE_CHALLENGE_BUG);
+
+    /* server side options */
+
+    SSL_CTX_set_options(ctx, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
+    SSL_CTX_set_options(ctx, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
+
+#ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
+    /* this option allow a potential SSL 2.0 rollback (CAN-2005-2969) */
+    SSL_CTX_set_options(ctx, SSL_OP_MSIE_SSLV2_RSA_PADDING);
+#endif
+
+    SSL_CTX_set_options(ctx, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
+    SSL_CTX_set_options(ctx, SSL_OP_TLS_D5_BUG);
+    SSL_CTX_set_options(ctx, SSL_OP_TLS_BLOCK_PADDING_BUG);
+
+    SSL_CTX_set_options(ctx, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
+
+    SSL_CTX_set_options(ctx, SSL_OP_SINGLE_DH_USE);
+#ifdef SSL_OP_NO_COMPRESSION
+    SSL_CTX_set_options(ctx, SSL_OP_NO_COMPRESSION);
+#endif
+
+#ifdef SSL_MODE_RELEASE_BUFFERS
+    SSL_CTX_set_mode(ctx, SSL_MODE_RELEASE_BUFFERS);
+#endif
+	SSL_CTX_set_mode(ctx,SSL_MODE_ENABLE_PARTIAL_WRITE);
+
+	SSL_CTX_set_options(ctx, SSL_OP_CIPHER_SERVER_PREFERENCE);
 	return ctx;
 }
 SSL_CTX * KSSLSocket::init_client(const char *path, const char *file) {
@@ -226,14 +280,68 @@ bool KSSLSocket::bind_fd()
 	if (ssl==NULL) {
 		return false;
 	}
-	//SSL_set_session_id_context(ssl, (const unsigned char *) PROGRAM_NAME,strlen(PROGRAM_NAME));
 	if (SSL_set_fd(ssl, sockfd)!=1) {
 		return false;
 	}
 	SSL_set_accept_state(ssl);
 	return true;
 }
-ssl_status KSSLSocket::ssl_accept() {
+void KSSLSocket::set_ssl_protocols(SSL_CTX *ctx, const char *protocols)
+{	
+	char *buf = strdup(protocols);
+	char *hot = buf;
+	int mask = 0;
+	for (;;) {
+		while (*hot && isspace((unsigned char)*hot)) {
+			hot++;
+		}
+		char *p = hot;
+		while (*p && !isspace((unsigned char)*p)) {
+			p++;
+		}		
+		if (p == hot) {
+			break;
+		}	
+		if (*p) {		
+			*p = '\0';
+			p++;
+		}
+		kgl_string_bitmask_t *h = kgl_ssl_protocols;
+		while (h->name.data) {
+			if (strcasecmp(h->name.data, hot) == 0) {
+				SET(mask, h->mask);
+			}
+			h++;
+		}
+		if (*p == '\0') {
+			break;
+		}
+		hot = p;
+	}
+	xfree(buf);
+	if (mask > 0) {
+		if (!(mask & KGL_SSL_SSLv2)) {
+			SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
+		}
+		if (!(mask & KGL_SSL_SSLv3)) {
+			SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3);
+		}
+		if (!(mask & KGL_SSL_TLSv1)) {
+			SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1);
+		}
+#ifdef SSL_OP_NO_TLSv1_1
+		if (!(mask & KGL_SSL_TLSv1_1)) {
+			SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_1);
+		}
+#endif
+#ifdef SSL_OP_NO_TLSv1_2
+		if (!(mask & KGL_SSL_TLSv1_2)) {
+			SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2);
+		}
+#endif
+	}	
+}
+ssl_status KSSLSocket::handshake() {
 	int err;
 	assert(ssl);
 	int re = SSL_do_handshake(ssl);
@@ -268,24 +376,27 @@ ssl_status KSSLSocket::ssl_accept() {
 	return ret_ok;
 }
 bool KSSLSocket::ssl_connect() {
-	int err;
 	assert(ssl==NULL);
+	assert(ctx);
 	if ((ssl = SSL_new(ctx)) == NULL) {
-		err = ERR_get_error();
+		int err = ERR_get_error();
 		fprintf(stderr, "SSL: Error allocating handle: %s\n", ERR_error_string(
 				err, NULL));
 		return false;
 	}
-	SSL_set_fd(ssl, sockfd);
-	SSL_set_connect_state(ssl);
-	if (SSL_connect(ssl) <= 0) {
-		err = ERR_get_error();
-		fprintf(stderr, "SSL: Error conencting socket: %s\n", ERR_error_string(
-				err, NULL));
+	if (SSL_set_fd(ssl, sockfd)!=1) {
 		return false;
 	}
-	fprintf(stderr, "SSL: negotiated cipher: %s\n", SSL_get_cipher(ssl));
+	SSL_set_connect_state(ssl);
 	return true;
 }
-
+bool KSSLSocket::setHostName(const char *hostname)
+{
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+	SSL_set_tlsext_host_name(ssl,hostname);
+	return true;
+#else
+	return false;
+#endif
+}
 #endif

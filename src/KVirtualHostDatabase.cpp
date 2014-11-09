@@ -516,4 +516,30 @@ bool KVirtualHostDatabase::updateVirtualHost(KVirtualHostEvent *ctx,std::map<std
 	vhm.freeConnection(cn);
 	return flushVirtualHost(attribute["name"].c_str(),attribute["init"]=="1",ctx);
 }
-/////////[321]
+#ifdef ENABLE_VH_FLOW
+bool KVirtualHostDatabase::saveFlow(KVirtualHost *vh,void *cn)
+{	
+	if (vhm.setFlow) {
+		std::map<std::string,std::string> attribute;
+		std::stringstream s;
+		if (vh->flow==NULL) {
+			return false;
+		}
+		s << vh->flow->flow;
+		attribute["flow"] = s.str();
+		s.str("");
+		s << vh->flow->cache;
+		attribute["hcount"] = s.str();
+		attribute["name"] = vh->name;
+		vh_data vd;
+		init_vh_data(&vd,&attribute);
+		int result = vhm.setFlow(cn,&vd)>0;
+		if (result) {
+			vh->flow->flow = 0;
+			vh->flow->cache = 0;
+			return true;
+		}
+	}
+	return false;
+}
+#endif

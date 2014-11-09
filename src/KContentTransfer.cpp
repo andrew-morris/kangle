@@ -17,5 +17,5 @@ StreamState KContentTransfer::write_all(const char *str,int len)
 		SET(rq->flags,RQ_CONNECTION_CLOSE);
 		return STREAM_WRITE_FAILED;
 	}
-	return KWUpStream::write_all(str,len);
+	return KHttpStream::write_all(str,len);
 }

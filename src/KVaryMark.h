@@ -29,7 +29,7 @@ public:
 							np << rq->url->param;
 							free(rq->url->param);
 						}
-						if (TEST(rq->flags,RQ_URL_VARIED) && strrchr(np.getString(),VARY_URL_KEY)) {
+						if (TEST(rq->url->flags,KGL_URL_VARIED) && strrchr(np.getString(),VARY_URL_KEY)) {
 							//已经设置过vary,则附加上去
 							np << "|";
 						} else {
@@ -42,7 +42,7 @@ public:
 							np << sub->getString(i);
 						}
 						rq->url->param = np.stealString();
-						SET(rq->flags,RQ_URL_VARIED);
+						SET(rq->url->flags,KGL_URL_VARIED);
 					}
 					delete sub;
 					result = true;

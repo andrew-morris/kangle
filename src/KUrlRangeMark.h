@@ -45,8 +45,9 @@ public:
 				if (rq->range_to>=0) {
 					v << rq->range_to;
 				}
-				SET(rq->flags,RQ_HAVE_RANGE|RQ_URL_RANGED);
-				rq->parser.insertHeader("Range",v.getString());
+				SET(rq->flags,RQ_HAVE_RANGE);
+				SET(rq->raw_url.flags,KGL_URL_RANGED);
+				rq->parser.insertHeader(kgl_expand_string("Range"),v.getString(),v.getSize());
 				result = true;
 			}
 			delete s;

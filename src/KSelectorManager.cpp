@@ -26,7 +26,7 @@
 #include "KEpollSelector.h"
 #include "KKqueueSelector.h"
 #include "KPortSelector.h"
-/////////[297]
+/////////[360]
 #include "KVirtualHost.h"
 #include "time_utils.h"
 intmap m_ip;
@@ -35,6 +35,10 @@ std::map<KHttpRequest *,bool> all_request;
 unsigned total_connect = 0;
 KSelectorManager selectorManager;
 using namespace std;
+void adjustTime(INT64 diffTime)
+{
+	selectorManager.adjustTime(diffTime);
+}
 string get_connect_per_ip() {
 
 	stringstream s;
@@ -97,7 +101,7 @@ KSelector *KSelectorManager::newSelector() {
 	return new KKqueueSelector();
 #elif HAVE_PORT_H
 	return new KPortSelector();
-	/////////[298]
+	/////////[361]
 #else
 	return NULL;
 #endif
@@ -107,10 +111,11 @@ KSelectorManager::KSelectorManager() {
 	listenIndex = 0;
 	unusedRequest = NULL;
 	sizeHash = 0;
+	onReadyList = NULL;
 }
 void KSelectorManager::init(unsigned size)
 {
-/////////[299]
+/////////[362]
 	//保证listenIndex为2的n次方，最大为512.
 	for (int i=0;i<9;i++) {
 		count = (1<<i);
@@ -134,9 +139,13 @@ void KSelectorManager::init(unsigned size)
 		selectors[i]->sid = i;
 	}
 	setTimeOut();
-	//for(int i=0;i<count;i++){
-	//	selectors[i]->startSelect();
-	//}
+	//call onReadyList
+	while (onReadyList) {
+		onReadyList->call_back(onReadyList->arg);
+		KOnReadyItem *n = onReadyList->next;
+		delete onReadyList;
+		onReadyList = n;
+	}
 }
 void KSelectorManager::start()
 {
@@ -146,11 +155,14 @@ void KSelectorManager::start()
 }
 void KSelectorManager::setTimeOut()
 {
-	for(int i=0; i<count; i++){
+	if (conf.connect_time_out <= 0) {
+		conf.connect_time_out = conf.time_out;
+	}
+	for (int i=0; i<count; i++) {
 		//设置超时时间
 		selectors[i]->timeout[KGL_LIST_KA] = (conf.keep_alive>0?conf.keep_alive:conf.time_out) * 1000;
 		selectors[i]->timeout[KGL_LIST_RW] = conf.time_out * 1000;
-		selectors[i]->timeout[KGL_LIST_CONNECT] = selectors[i]->timeout[KGL_LIST_RW];
+		selectors[i]->timeout[KGL_LIST_CONNECT] = conf.connect_time_out * 1000;
 		selectors[i]->tmo_msec = 100;
 	}
 	selectors[listenIndex]->utm = true;
@@ -171,15 +183,17 @@ void KSelectorManager::destroy() {
 		selectors[i]->closeFlag = true;
 	}
 	sleep(1);
+	xfree(selectors);
 #endif
 }
 void KSelectorManager::flush(time_t nowTime) {
-/////////[300]
+/////////[363]
 }
 
-bool KSelectorManager::addListenSocket(KServer *st) {
+bool KSelectorManager::listen(KServer *st,resultEvent result)
+{
 	st->selector = selectors[listenIndex];
-	return	selectors[listenIndex]->addListenSocket(st);
+	return selectors[listenIndex]->listen(st,result);
 }
 std::string KSelectorManager::getConnectionInfo(int &totalCount, int debug,const char *vh_name,bool translate) {
 	time_t now_time = kgl_current_sec;
@@ -232,14 +246,16 @@ std::string KSelectorManager::getConnectionInfo(int &totalCount, int debug,const
 			while (node) {
 				KBlockRequest *brq = (KBlockRequest *)node->data;
 				KHttpRequest *rq = brq->rq;
-				/////////[301]
-					if (vh_name == NULL || (rq->svh && strcmp(rq->svh->vh->name.c_str(),vh_name)==0)){
-						s << "rqs.push(new Array(";
-						getConnectionTr(rq,s,now_time,translate);
-						s << "));\n";
-						totalCount++;
-					}	
-/////////[302]
+				if (rq) {
+				/////////[364]
+						if (vh_name == NULL || (rq->svh && strcmp(rq->svh->vh->name.c_str(),vh_name)==0)){
+							s << "rqs.push(new Array(";
+							getConnectionTr(rq,s,now_time,translate);
+							s << "));\n";
+							totalCount++;
+						}	
+/////////[365]
+				}
 				node = rb_next(node);
 			}			
 			selector->listLock.Unlock();
@@ -248,49 +264,13 @@ std::string KSelectorManager::getConnectionInfo(int &totalCount, int debug,const
 
 	return s.str();
 }
-/*
-void KSelectorManager::sortRequest(KHttpRequest *rq,
-		list<KHttpRequest *> &sortRequest, int sortby) {
-	bool have_insert = false;
-	string url = rq->getInfo();
-	list<KHttpRequest *>::iterator it2;
-	for (it2 = sortRequest.begin(); it2 != sortRequest.end(); it2++) {
-
-		string listUrl = (*it2)->getInfo();
-		ip_addr server_addr;
-		ip_addr it_addr;
-		if (!rq->getPeerAddr(&server_addr)) {
-			continue;
-		}
-		(*it2)->getPeerAddr(&it_addr);
-		if ((sortby == 1 && rq->request_time > (*it2)->request_time) || (sortby
-				== 0 && server_addr < it_addr)
-				|| (sortby == 2 && url > listUrl)) {
-			sortRequest.insert(it2, rq);
-			have_insert = true;
-			break;
-		}
-	}
-	if (!have_insert) {
-		sortRequest.push_back(rq);
-	}
-
-}
-*/
 void KSelectorManager::getConnectionTr(KHttpRequest *rq, stringstream &s,
 		time_t now_time,bool translate) {
 	//s << "<tr><td>";
 	
 	s << "' ";
 	if (translate) {
-		s << "rq=" << (void *)(KSelectable *)rq << ",sockop=" << (int)rq->sockop;
-		s << " handler=" << (void *)rq->handler;
-		if (rq->secondHandler) {
-			s << ",sh=" << (void *)rq->secondHandler;
-			s << ",shhandler=" << (void *)rq->secondHandler->handler;
-			s << ",shsockop=" << (int)rq->secondHandler->sockop;
-		}
-/////////[303]
+		s << "rq=" << (void *)(KSelectable *)rq->c << ",st_flags=" << (int)rq->c->st_flags;
 		s << ",meth=" << (int)rq->meth;
 #ifdef ENABLE_REQUEST_QUEUE
 		s << ",queue=" << rq->queue;
@@ -300,8 +280,8 @@ void KSelectorManager::getConnectionTr(KHttpRequest *rq, stringstream &s,
 	}
 	s << "','";
 	char ips[MAXIPLEN];
-	rq->server->get_remote_ip(ips,sizeof(ips));
-	s << ips << ":"	<< rq->server->get_remote_port();
+	rq->c->socket->get_remote_ip(ips,sizeof(ips));
+	s << ips << ":"	<< rq->c->socket->get_remote_port();
 	s << "','" << (now_time - rq->request_msec/1000);
 	s << "','";
 	if (translate) {
@@ -342,9 +322,21 @@ void KSelectorManager::getConnectionTr(KHttpRequest *rq, stringstream &s,
 	s << "','";
 	if (!translate) {
 		sockaddr_i self_addr;
-		rq->server->get_self_addr(&self_addr);
+		rq->c->socket->get_self_addr(&self_addr);
 		KSocket::make_ip(&self_addr,ips,sizeof(ips));
 		s << ips << ":" << self_addr.get_port();
 	}
 	s << "'";
+}
+void KSelectorManager::onReady(void (WINAPI *call_back)(void *arg),void *arg)
+{
+	if (isInit()) {
+		call_back(arg);
+		return;
+	}
+	KOnReadyItem *onReadyItem = new KOnReadyItem();
+	onReadyItem->call_back = call_back;
+	onReadyItem->arg = arg;
+	onReadyItem->next = onReadyList;
+	onReadyList = onReadyItem;
 }

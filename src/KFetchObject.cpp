@@ -30,7 +30,7 @@ bool KFetchObject::pushHttpBody(KHttpRequest *rq,char *buf,int len)
 	
 //	KHttpRequest *rq = (KHttpRequest *)param;
 	//printf("body = [%s],len=[%d]\n",buf,len);
-	assert(rq->send_ctx.body==NULL);
+	//assert(rq->send_ctx.body==NULL);
 	//KHttpObject *obj = rq->ctx->obj;
 	//rq->buffer.clean();
 	//printf("handle body len=%d\n",len);
@@ -49,10 +49,10 @@ bool KFetchObject::pushHttpBody(KHttpRequest *rq,char *buf,int len)
 	case STREAM_WRITE_FAILED:
 		stage_rdata_end(rq,STREAM_WRITE_FAILED);
 		return false;
-	case STREAM_WRITE_SUBREQUEST:
+	case STREAM_WRITE_HANDLED:
 		return false;
 	default:
-		if(try_send_request(rq,true)){
+		if(try_send_request(rq)){
 			//如果已经发送了数据就不要继续读了。
 			return false;
 		}

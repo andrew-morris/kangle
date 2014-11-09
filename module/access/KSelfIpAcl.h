@@ -23,7 +23,7 @@ class KSelfIpAcl : public KIpAclBase {
 public:
 	bool match(KHttpRequest *rq, KHttpObject *obj) {
 		sockaddr_i addr;
-		rq->server->get_self_addr(&addr);
+		rq->c->socket->get_self_addr(&addr);
 		ip_addr to;
 		KSocket::get_addr(&addr,&to);
 		return matchIP(to);

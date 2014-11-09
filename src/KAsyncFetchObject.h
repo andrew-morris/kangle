@@ -2,7 +2,7 @@
 #define KASYNCFETCHOBJECT_H
 #include "KUpstreamFetchObject.h"
 #include "KSocketBuffer.h"
-#include "KPoolableSocket.h"
+#include "KUpstreamSelectable.h"
 #include "KHttpObject.h"
 #include "KSelector.h"
 #include "KSelectorManager.h"
@@ -15,7 +15,7 @@ enum Parse_Result
 /**
 * 异步调用扩展，所以支持异步调用的扩展从该类继承
 */
-class KAsyncFetchObject : public KUpstreamFetchObject
+class KAsyncFetchObject : public KFetchObject
 {
 public:
 	KAsyncFetchObject()
@@ -36,8 +36,8 @@ public:
 				|| (rq->ctx->obj && TEST(rq->ctx->obj->index.flags,ANSW_CLOSE))) {
 				lifeTime = -1;
 			}
-			rq->selector->removeSocket(rq);
-			client->destroy(lifeTime);
+			client->removeSocket();
+			client->gc(lifeTime);
 			client = NULL;
 		}
 		KFetchObject::close(rq);
@@ -47,7 +47,7 @@ public:
 	{
 		assert(client==NULL);	
 		if (client) {
-			client->destroy(-1);
+			client->gc(-1);
 		}
 		if (header) {
 			free(header);
@@ -70,23 +70,19 @@ public:
 	void handleReadBody(KHttpRequest *rq,int got);
 	void handleReadHead(KHttpRequest *rq,int got);
 	void handleSendHead(KHttpRequest *rq,int got);
+	void handleSpdySendHead(KHttpRequest *rq,int got);
 	void handleSendPost(KHttpRequest *rq,int got);
 	void handleReadPost(KHttpRequest *rq,int got);
 	
 	//得到post读缓冲，发送到upstream
 	void getPostRBuffer(KHttpRequest *rq,LPWSABUF buf,int &bufCount)
 	{		
-		int pre_loaded_body = (int)(MIN(rq->parser.bodyLen,rq->left_read));
-		if (pre_loaded_body > 0) {
+
+		if (rq->pre_post_length > 0) {
 			assert(rq->left_read>0);
 			bufCount = 1;
-#ifdef _WIN32
-			buf[0].len= pre_loaded_body;
-			buf[0].buf = rq->parser.body;
-#else
-			buf[0].iov_len= pre_loaded_body;
+			buf[0].iov_len= rq->pre_post_length;
 			buf[0].iov_base = rq->parser.body;
-#endif
 			return;
 		}
 		buffer.getRBuffer(buf,bufCount);
@@ -134,37 +130,24 @@ public:
 		assert(len>0);
 		return header;
 	}
+	KConnectionSelectable *getSelectable()
+	{
+		return client;
+	}
 	KClientSocket *getSocket()
 	{
-		return client;
+		return client->socket;
 	}
-#ifdef _WIN32
-	KSelectable *getBindData()
-	{
-		client->bindcpio_flag = true;
-		return client;
-	}
-#endif
-	SOCKET getSockfd()
-	{
-		if (client) {
-			return client->get_socket();
-		}
-		return INVALID_SOCKET;
-	}
-	void connectCallBack(KHttpRequest *rq,KPoolableSocket *client,bool half_connection = true);
+	void connectCallBack(KHttpRequest *rq,KUpstreamSelectable *client,bool half_connection = true);
 	void handleConnectError(KHttpRequest *rq,int error,const char *msg);
 	void handleConnectResult(KHttpRequest *rq,int got);
 	KSocketBuffer buffer;
-	KPoolableSocket *client;
+	KUpstreamSelectable *client;
 	BadStage badStage;
 protected:
+	void sendHeadSuccess(KHttpRequest *rq);
 	//header重新分配过时要重新调整偏移量
 	virtual void adjustBuffer(INT64 offset)
-	{
-	}
-	//reopen调用
-	virtual void reset()
 	{
 	}
 	int lifeTime;
@@ -191,10 +174,11 @@ protected:
 	virtual Parse_Result parseBody(KHttpRequest *rq,char *data,int len) = 0;
 private:
 	void continueReadBody(KHttpRequest *rq);
-	void readPost(KHttpRequest *rq,bool useEvent=true);
+	void readPost(KHttpRequest *rq);
 	void sendPost(KHttpRequest *rq);
 	int tryCount;
 	void retryOpen(KHttpRequest *rq);
+	void startReadHead(KHttpRequest *rq);
 };
-/////////[116]
+/////////[154]
 #endif

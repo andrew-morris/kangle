@@ -25,7 +25,7 @@
 #include "KString.h"
 #include "malloc_debug.h"
 #include "forwin32.h"
-
+#define MAX_ADD_SIZE 8192
 KStringBuf::KStringBuf(int size) {
 	buf = NULL;
 	init(size);
@@ -59,7 +59,11 @@ StreamState KStringBuf::write_all(const char *str, int len) {
 		if (used + len < current_size) {
 			break;
 		}
-		char *nb = (char *) xmalloc(2*current_size);
+		int add_size = current_size;
+		if (add_size>MAX_ADD_SIZE) {
+			add_size = MAX_ADD_SIZE;
+		}
+		char *nb = (char *) xmalloc(current_size + add_size);
 		if (!nb) {
 			return STREAM_WRITE_FAILED;
 		}
@@ -67,7 +71,7 @@ StreamState KStringBuf::write_all(const char *str, int len) {
 		xfree(buf);
 		buf = nb;
 		hot = buf + used;
-		current_size += current_size;
+		current_size += add_size;
 	}
 	memcpy(hot, str, len);
 	hot += len;

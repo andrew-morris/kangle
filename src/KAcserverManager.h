@@ -36,11 +36,13 @@ public:
 	std::string cgiList(std::string name = "");
 #ifdef ENABLE_VH_RUN_AS	
 	std::string cmdList(std::string name = "");
-	/////////[384]
+	/////////[459]
 	void refreshCmd(time_t nowTime);
 	void getProcessInfo(std::stringstream &s);
 	void killCmdProcess(USER_T user);
 	void killAllProcess(KVirtualHost *vh=NULL);
+	/* 全部准备好了，可以加载所有的api了。*/
+	void loadAllApi();
 #endif
 	void copy(KAcserverManager &a);
 	void unloadAllApi();
@@ -56,7 +58,7 @@ public:
 		if(as){
 			as->addRef();
 		}
-		lock.Unlock();
+		lock.RUnlock();
 		return as;
 	}
 	bool addMultiAcserver(KMultiAcserver *as)
@@ -64,11 +66,11 @@ public:
 		lock.WLock();
 		std::map<std::string,KMultiAcserver *>::iterator it = mservers.find(as->name);
 		if (it!=mservers.end()) {
-			lock.Unlock();
+			lock.WUnlock();
 			return false;
 		}
 		mservers.insert(std::pair<std::string,KMultiAcserver *>(as->name,as));
-		lock.Unlock();
+		lock.WUnlock();
 		return true;
 	}
 #endif
@@ -91,11 +93,11 @@ public:
 		lock.WLock();
 		std::map<std::string,KCmdPoolableRedirect *>::iterator it = cmds.find(as->name);
 		if (it!=cmds.end()) {
-			lock.Unlock();
+			lock.WUnlock();
 			return false;
 		}
 		cmds.insert(std::pair<std::string,KCmdPoolableRedirect *>(as->name,as));
-		lock.Unlock();
+		lock.WUnlock();
 		return true;
 	}
 #endif

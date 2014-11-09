@@ -18,9 +18,9 @@ inline void stage_async_need_queue(KHttpRequest *rq)
 	rq->request_msec = kgl_current_msec;
 	rq->fetchObj->open(rq);
 }
-void handleQueuedRequestTimeOut(KSelectable *st,int got)
+void resultQueuedRequestTimeOut(void *arg,int got)
 {
-	KHttpRequest *rq = static_cast<KHttpRequest *>(st);
+	KHttpRequest *rq = (KHttpRequest *)arg;//static_cast<KConnectionSelectable *>(st)->rq;
 	if (got<0) {
 		SET(rq->flags,RQ_CONNECTION_CLOSE);
 		stageEndRequest(rq);
@@ -34,15 +34,16 @@ bool checkQueuedRequestTimeOut(KHttpRequest *rq)
 	if (kgl_current_msec - rq->active_msec > conf.time_out * 1000) {
 		CLR(rq->flags,RQ_SYNC);
 		//cut the stack call.
-		rq->handler = handleQueuedRequestTimeOut;
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_NEXT);
+		//rq->c->handler = handleQueuedRequestTimeOut;
+		//rq->c->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_NEXT);
+		rq->c->next(rq,resultQueuedRequestTimeOut);
 		return true;
 	}
 	return false;
 }
-void handleAsyncNextRequest(KSelectable *st,int got)
+void resultAsyncNextRequest(void *arg,int got)
 {
-	KHttpRequest *rq = static_cast<KHttpRequest *>(st);
+	KHttpRequest *rq = (KHttpRequest *)arg;
 	assert(rq->fetchObj && !rq->fetchObj->isSync());
 	stage_async_need_queue(rq);
 }
@@ -69,8 +70,9 @@ void async_queue_destroy(KRequestQueue *queue)
 		}
 	} else {
 		//这里要切断堆栈，否则有可能会有过多的调用。
-		rq->handler = handleAsyncNextRequest;
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_NEXT);
+		//rq->c->handler = handleAsyncNextRequest;
+		//rq->c->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_NEXT);
+		rq->c->next(rq,resultAsyncNextRequest);
 	}
 }
 FUNC_TYPE FUNC_CALL thread_queue(void *param)
@@ -143,7 +145,7 @@ bool KRequestQueue::start(KHttpRequest *rq)
 			result = true;
 			if(!TEST(rq->flags,RQ_SYNC)){
 				//in queue
-				rq->selector->removeRequest(rq);
+				rq->c->removeRequest(rq);
 			}
 		}
 	}

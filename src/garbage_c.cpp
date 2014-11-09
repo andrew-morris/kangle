@@ -39,7 +39,8 @@
 #include "KSelectorManager.h"
 #include "malloc_debug.h"
 #include "KHttpObjectHash.h"
-/////////[219]
+/////////[277]
+#include "KSimulateRequest.h"
 #include "KVirtualHostManage.h"
 #include "KProcessManage.h"
 #include "KProcess.h"
@@ -53,7 +54,7 @@
 #include "KCdnContainer.h"
 #include "KWriteBackManager.h"
 #include "md5.h"
-
+#include "KTimer.h"
 void list_all_malloc();
 using namespace std;
 volatile bool configReload = false;
@@ -63,7 +64,12 @@ volatile int stop_service_sig = 0;
 string get_service_to_name(int port);
 static bool flush_mem_flag = true;
 volatile bool autoupdate_thread_started = false;
-/////////[220]
+/////////[278]
+#ifdef ENABLE_VH_FLOW
+volatile bool flushFlowFlag = false;
+time_t lastFlushFlowTime = time(NULL);
+#endif
+
 std::string md5sum(FILE *fp)
 {
         KMD5_CTX context;
@@ -89,7 +95,7 @@ std::string md5sum(FILE *fp)
 void get_cache_size(INT64 &total_mem_size, INT64 &total_disk_size) {
 	cache.getSize(total_mem_size,total_disk_size);
 }
-/////////[221]
+/////////[279]
 void flush_mem_cache(void) {
 	INT64 disk_cache = 0;
 #ifdef ENABLE_DISK_CACHE
@@ -108,6 +114,8 @@ void reloadVirtualHostConfig() {
 }
 */
 FUNC_TYPE FUNC_CALL time_thread(void* arg) {
+	//assert(test_simulate_request());
+	//assert(test_timer());
 	unsigned i = rand();
 	//	quit_program_flag = PROGRAM_NO_QUIT;
 	int sleep_time = GC_SLEEP_TIME;
@@ -117,7 +125,7 @@ FUNC_TYPE FUNC_CALL time_thread(void* arg) {
 		start_hook_alloc();
 	}
 #endif
-/////////[222]
+/////////[280]
 	time_t nowTime = time(NULL);
 	for(;;){
 		i++;
@@ -144,11 +152,21 @@ FUNC_TYPE FUNC_CALL time_thread(void* arg) {
 		//if (stop_service_sig > 0) {
 		//	stopService(stop_service_sig);
 		//}
-		/////////[223]
-/////////[224]
+#ifdef ENABLE_VH_FLOW
+		//自动刷新流量
+		if (conf.flush_flow_time>0 && nowTime - lastFlushFlowTime > conf.flush_flow_time) {
+			lastFlushFlowTime = nowTime;
+			flushFlowFlag = true;
+		}
+		if (flushFlowFlag) {
+			conf.gvm->dumpFlow();
+			flushFlowFlag = false;
+		}
+#endif
+/////////[281]
 		spProcessManage.refresh(nowTime);
 		conf.gam->refreshCmd(nowTime);
-/////////[225]
+/////////[282]
 #ifdef MALLOCDEBUG
 		if (dump_memory_object) {
 			dump_memory(0,-1);
@@ -165,9 +183,9 @@ FUNC_TYPE FUNC_CALL time_thread(void* arg) {
 			KHttpDigestAuth::flushSession(kgl_current_sec);
 #endif
 		}
-/////////[226]
+/////////[283]
 		flush_mem_cache();
-/////////[227]
+/////////[284]
 		cdnContainer.flush(kgl_current_sec);
 		if(vhd.isLoad() && !vhd.isSuccss()){
 			klog(KLOG_NOTICE,"vh database last status is failed.try again.\n");

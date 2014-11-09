@@ -47,8 +47,8 @@ public:
 		stLock.Unlock();
 		return true;
 	}
-	KPoolableSocket *poweron(KVirtualHost *vh, KExtendProgram *rd, bool &success);
-	/////////[263]
+	KUpstreamSelectable *poweron(KVirtualHost *vh, KExtendProgram *rd, bool &success);
+	/////////[326]
 protected:
 	bool isProcessActive()
 	{

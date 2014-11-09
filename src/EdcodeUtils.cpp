@@ -1,5 +1,8 @@
 #include <string>
-#include "utils.h"
+#include <sstream>
+#include <string.h>
+#include <stdlib.h>
+#include "malloc_debug.h"
 static const char *b64alpha =
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 //static unsigned char hexchars[] = "0123456789ABCDEF";
@@ -127,6 +130,5 @@ string b64encode(const unsigned char *in, int len)
 		else
 			s << b64alpha[c & 63];
 	}
-	//  out->len = s - out->s;
 	return s.str();
 }

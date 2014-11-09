@@ -23,7 +23,7 @@ public:
 	{
 		if(attr && val){
 			assert(obj);
-			obj->insertHttpHeader((const char *)attr,(const char *)val);
+			obj->insertHttpHeader((const char *)attr,attr_len,(const char *)val,val_len);
 		}
 		return true;
 	}
@@ -73,10 +73,12 @@ public:
 			free(val);
 			val = NULL;
 		}
-		if(attribute["attr"].size()>0){
+		attr_len = attribute["attr"].size();
+		if(attr_len>0){
 			attr = strdup(attribute["attr"].c_str());
 		}
-		if(attribute["val"].size()>0){
+		val_len = attribute["val"].size();
+		if(val_len>0){
 			val = strdup(attribute["val"].c_str());
 		}
 	}
@@ -85,6 +87,8 @@ public:
 		s << " attr='" << (attr?attr:"") << "' val='" << (val?val:"") << "'>";
 	}
 private:
+	int attr_len;
+	int val_len;
 	char *attr;
 	char *val;
 };

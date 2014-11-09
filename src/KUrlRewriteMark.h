@@ -31,7 +31,7 @@ public:
 		delete subString;
 		if (nu) {
 			if (code>0) {
-				send_redirect(rq, nu->getString(),code,rq->buffer);
+				send_redirect(rq, nu->getString(),nu->getSize(),code);
 				jumpType = JUMP_DENY;
 			} else {
 				rq->rewriteUrl(nu->getString(),0,NULL);

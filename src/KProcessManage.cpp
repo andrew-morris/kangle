@@ -43,7 +43,7 @@ void KProcessManage::connect(KHttpRequest *rq,KExtendProgram *rd) {
 	gc->handleRequest(rq,rd);
 	gc->release();
 }
-/////////[18]
+/////////[19]
 void KProcessManage::refresh(time_t nowTime) {
 
 	std::map<USER_T, KVirtualHostProcess *>::iterator it;
@@ -81,7 +81,7 @@ void KProcessManage::getProcessInfo(std::stringstream &s) {
 	s << name << "(" << count << ")<br><table border=1><tr><td>"
 			<< LANG_OPERATOR << "</td><td>" << klang["app"] << "</td><td>"
 			<< klang["pid"] << "</td>";
-/////////[19]
+/////////[20]
 	s << "<td>" << klang["lang_sock_refs_size"] << "</td><td>" << klang["lang_sock_pool_size"] << "</td>";
 	s << "<td>" << LANG_TOTAL_RUNING << "</td>";
 	s << "</tr>\n";

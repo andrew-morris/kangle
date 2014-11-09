@@ -110,7 +110,7 @@ public:
 		if (attibute["cache_no_length"]=="1") {
 			flag |= RF_CACHE_NO_LENGTH;
 		}
-
+		/////////[460]
 	}
 	std::string getHtml(KModel *model) {
 		KFlagMark *m_chain = (KFlagMark *) model;
@@ -226,6 +226,7 @@ public:
 			s << "checked";
 		}
 		s << ">cache_no_length";
+		/////////[461]
 		return s.str();
 	}
 	KMark *newInstance() {
@@ -306,6 +307,7 @@ public:
 		if (TEST(flag,RF_CACHE_NO_LENGTH)) {
 			s << "cache_no_length='1' ";
 		}
+		/////////[462]
 	}
 	void buildXML(std::stringstream &s) {
 		if (clear) {

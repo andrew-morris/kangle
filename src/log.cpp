@@ -116,7 +116,14 @@ int klog_start() {
 	} else {
 		errorLogger.errorLog = true;
 		errorLogger.place = LOG_FILE;
-		errorLogger.setPath(conf.path + "var/server.log");
+		std::string log_file;
+#ifdef KANGLE_VAR_DIR
+		log_file = KANGLE_VAR_DIR;
+#else
+		log_file = conf.path + "/var";
+#endif
+		log_file += "/server.log";
+		errorLogger.setPath(log_file.c_str());
 		if (!errorLogger.open()) {
 			fprintf(stderr, "cann't open log file (server.log) for write\n");
 			errorLogger.place = LOG_PRINT;
@@ -124,7 +131,12 @@ int klog_start() {
 		accessLogger.place = LOG_FILE;
 		std::string logpath;
 		if(conf.access_log[0]!='|' && !isAbsolutePath(conf.access_log)){
-			logpath = conf.path;
+#ifdef KANGLE_VAR_DIR
+			logpath = KANGLE_VAR_DIR;
+			logpath += "/";
+#else
+			logpath = conf.path + "/var/";
+#endif
 		}
 		logpath+=conf.access_log;
 		accessLogger.setPath(logpath);

@@ -22,15 +22,42 @@
 #include "KSendable.h"
 #include "KStream.h"
 #include "forwin32.h"
-//#define 	CHUNK		11
 #define 	CHUNK		NBUFF_SIZE
 
-class buff {
-public:
-	buff *next;
-	unsigned used;
+struct buff {
 	char *data;
+	buff *next;
+	int used;
+	union {
+		struct {
+			int skip_data_free : 1;
+		};
+		int flags;
+	};
 };
+inline buff * new_buff(char *data,int len)
+{
+	buff *b = (buff *)xmalloc(sizeof(buff));
+	b->used = len;
+	b->flags = 0;
+	b->data = data;
+	return b;
+}
+inline buff * new_buff(int len)
+{
+	buff *b = (buff *)xmalloc(sizeof(buff));
+	b->used = len;
+	b->flags = 0;
+	b->data = (char *)xmalloc(len);
+	return b;
+}
+inline void free_buff(buff *buf)
+{
+	if (buf->data) {
+		xfree(buf->data);
+	}
+	xfree(buf);
+}
 template<typename T>
 StreamState send_buff(T *socket, buff *buf) {
 	StreamState result = STREAM_WRITE_FAILED;
@@ -146,93 +173,6 @@ private:
 	unsigned chunkSize;
 	unsigned totalLen;
 };
-class KSendBuffer
-{
-public:
-	KSendBuffer(buff *buf)
-	{
-		this->buf = buf;
-		hot_buf = buf;
-		hot = this->buf->data;
-	}
-	~KSendBuffer()
-	{
-		if (buf) {
-			KBuffer::destroy(buf);
-		}
-	}
-	bool readSuccess(int got)
-	{
-		assert(hot && hot_buf);
-		while (got>0) {
-			int hot_left = hot_buf->used - (hot - hot_buf->data);
-			int this_len = MIN(got,hot_left);
-			hot += this_len;
-			got -= this_len;
-			if (hot_buf->used == (unsigned)(hot-hot_buf->data)) {
-				hot_buf = hot_buf->next;
-				if(hot_buf==NULL){
-					return false;
-				}
-				hot = hot_buf->data;
-			}
-		}
-		return true;
-	}
-	char *getReadBuffer(int &len)
-	{
-		if (hot_buf==NULL) {
-			return NULL;
-		}
-		assert(hot);
-		len = (hot_buf->used - (hot - hot_buf->data));
-		//printf("hot_buf->used=%d,hot = %p\n",hot_buf->used,hot);
-		if (len==0) {
-			hot_buf = hot_buf->next;
-			if(hot_buf==NULL){			
-				return NULL;
-			}
-			len = hot_buf->used;
-			hot = hot_buf->data;
-		}
-		return hot;
-	}
-	void getReadBuffer(LPWSABUF buffer,int &bufferCount)
-	{
-		if(hot==NULL){
-			bufferCount = 0;
-			return;
-		}
-		assert(hot_buf);
-		buff *tmp = hot_buf;
-#ifdef _WIN32
-		buffer[0].buf = hot;
-		buffer[0].len = hot_buf->used - (hot - hot_buf->data);
-#else
-		buffer[0].iov_base = hot;
-		buffer[0].iov_len = hot_buf->used - (hot - hot_buf->data);
-#endif
-		int i;
-		for(i=1;i<bufferCount;i++){
-			tmp = tmp->next;
-			if (tmp==NULL) {
-				break;
-			}
-#ifdef _WIN32
-			buffer[i].buf = tmp->data;
-			buffer[i].len = tmp->used;
-#else
-			buffer[i].iov_base = tmp->data;
-			buffer[i].iov_len = tmp->used;
-#endif
-		}
-		bufferCount = i;
-	}
 
-private:
-	buff *buf;
-	buff *hot_buf;
-	char *hot;
-};
 #endif
 

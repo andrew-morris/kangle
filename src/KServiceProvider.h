@@ -7,10 +7,9 @@
 
 #ifndef KSERVICEPROVIDER_H_
 #define KSERVICEPROVIDER_H_
-#include <vector>
-#include "utils.h"
+//#include "utils.h"
 #include "KStream.h"
-
+#include "forwin32.h"
 class KServiceProvider {
 public:
 	KServiceProvider();
@@ -18,10 +17,7 @@ public:
 	virtual KWStream *getOutputStream() = 0;
 	virtual KRStream *getInputStream() = 0;
 	virtual char getMethod() = 0;
-	virtual const char *getRemoteAddr() = 0;
-	virtual int getRemotePort() = 0;
 	virtual const char *getFileName() = 0;
-	virtual const char *getDocumentRoot() = 0;
 	virtual const char *getQueryString() = 0;
 	virtual const char *getRequestUri() = 0;
 	virtual unsigned getContentLength() = 0;

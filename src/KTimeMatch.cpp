@@ -41,7 +41,6 @@ void KTimeMatch::init()
 	open = false;
 }
 bool KTimeMatch::set(const char * time_model) {
-	int i = 0;
 	init();
 	if (time_model == NULL || *time_model == '\0') {
 		open = true;

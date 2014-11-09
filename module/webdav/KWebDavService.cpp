@@ -222,11 +222,13 @@ const char *KWebDavService::getIfToken() {
 }
 bool KWebDavService::doLock() {
 	KXmlDocument document;
+	char ips[255];
+	int len = sizeof(ips);
+	provider->getEnv("REMOTE_ADDR",ips,&len);
 	if (!parseDocument(document)) {
 		if (getIfToken() != NULL) {
-			//todo:refresh the lock		
-			KLockToken *token = lockManager.findLockToken(if_token,
-					provider->getRemoteAddr());
+			//todo:refresh the lock
+			KLockToken *token = lockManager.findLockToken(if_token,ips);
 			if (token != NULL) {
 				token->refresh();
 				lockManager.releaseToken(token);
@@ -252,8 +254,7 @@ bool KWebDavService::doLock() {
 	if (type == Lock_none) {
 		return send(STATUS_BAD_REQUEST);
 	}
-	KLockToken *token = lockManager.newToken(provider->getRemoteAddr(), type,
-			3600);
+	KLockToken *token = lockManager.newToken(ips, type,3600);
 	if (token == NULL) {
 		return send(STATUS_SERVER_ERROR);
 	}

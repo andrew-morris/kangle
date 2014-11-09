@@ -83,9 +83,17 @@ bool KLang::startElement(KXmlContext *context,
 	if (context->qName == "include") {
 		//KXml xml;
 		KLang parser(langs);
-		try{
-			parser.load(conf.path+attribute["file"]);
-		}catch(KXmlException &e){
+		try {
+			std::string file;
+#ifdef KANGLE_WEBADMIN_DIR
+			file = KANGLE_WEBADMIN_DIR;
+#else
+			file = conf.path + "/webadmin";
+#endif
+			file += "/";
+			file += attribute["file"];
+			parser.load(file.c_str());
+		} catch(KXmlException &e) {
 			fprintf(stderr,"catch exception :%s\n",e.what());
 		}
 		return true;

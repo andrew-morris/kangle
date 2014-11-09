@@ -47,6 +47,7 @@ private:
 	int life_time;
 	bool proxy;
 	bool rewrite;
+	bool ssl;
 };
 #endif
 

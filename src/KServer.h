@@ -34,13 +34,13 @@ class KVirtualHost;
 class KServer : public KSelectable,public KAtomCountable {
 public:
 	KServer();
-	inline SOCKET getSockfd()
+	KSocket *getSocket()
 	{
-		return server.get_socket();
+		return &server;
 	}
 	bool isOpened()
 	{
-		return getSockfd() != INVALID_SOCKET;
+		return server.get_socket() != INVALID_SOCKET;
 	}
 	void close();
 	KServerSocket server;
@@ -56,12 +56,15 @@ public:
 #ifdef KSOCKET_SSL
 	bool sslParsed;
 	bool sni;
+	bool spdy;
 	std::string certificate;
 	std::string certificate_key;
+	std::string cipher;
+	std::string protocols;
 	SSL_CTX *ssl_ctx;
 	bool load_ssl();
 #endif
-/////////[257]
+/////////[320]
 public:
 	void clear();
 	inline bool isClosed()
@@ -72,6 +75,7 @@ public:
 	{
 		closed = true;
 	}
+	void removeSocket();
 	bool isEmpty();
 	KVirtualHostContainer *vhc;
 	void addVirtualHost(KVirtualHost *vh);
@@ -80,11 +84,11 @@ public:
 	void unbindAllVirtualHost();
 	static void addDefaultVirtualHost(KVirtualHost *vh);
 	static void removeDefaultVirtualHost(KVirtualHost *vh);
-	static query_vh_result parseVirtualHost(KHttpRequest *rq,const char *site);
+	static query_vh_result parseVirtualHost(KSubVirtualHost **rq_svh,const char *site);
 	static KVirtualHostContainer defaultVhc;
 private:
 	virtual ~KServer();
 	volatile bool closed;
-/////////[258]
+/////////[321]
 };
 #endif /* KSERVER_H_ */

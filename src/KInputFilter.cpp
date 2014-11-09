@@ -3,6 +3,7 @@
 #include "KHttpRequest.h"
 #include "utils.h"
 #include "http.h"
+#include "KUrlParser.h"
 #ifdef ENABLE_INPUT_FILTER
 void parseUrlParam(char *buf,int len,char **name,int *name_len,char **value,int *value_len)
 {

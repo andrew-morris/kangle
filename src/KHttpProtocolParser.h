@@ -32,17 +32,7 @@
 #include "KHttpProtocolParserHook.h"
 #include "KHttpHeader.h"
 #include "malloc_debug.h"
-inline void free_header(struct KHttpHeader *av) {
-	struct KHttpHeader *next;
 
-	while (av) {
-		next = av->next;
-		free(av->attr);
-		free(av->val);
-		free(av);
-		av = next;
-	}
-}
 class KHttpProtocolParser {
 public:
 	inline KHttpProtocolParser() {
@@ -82,6 +72,7 @@ public:
 	 * return 0=failed,1=success,2=continue
 	 */
 	int parse(char *buf, int len, KHttpProtocolParserHook *hook);
+	/////////[74]
 	virtual ~KHttpProtocolParser();
 	/*
 	只用来解析不带http的request line协议，设置started=true
@@ -166,13 +157,18 @@ public:
 	/*
 	 * body len
 	 */
-	int bodyLen;
-	bool insertHeader(const char *attr,const char *val,bool tail=true);
+	union {
+		int bodyLen;
+		int headerCount;
+	};
+	bool insertHeader(const char *attr,int attr_len,const char *val,int val_len,bool tail=true);
 	//void adjustHeader(INT64 offset);
 	//bool strdup_flag;
 	KHttpHeader *headers;
 private:
-	bool parseHeader(char *header, bool isFirst, KHttpProtocolParserHook *hook);
+	bool insertHeader(KHttpHeader *new_t,bool tail=true);
+	/////////[75]
+	bool parseHeader(char *header,char *end, bool isFirst, KHttpProtocolParserHook *hook);
 	int checked;
 	bool started;	
 	KHttpHeader *last;

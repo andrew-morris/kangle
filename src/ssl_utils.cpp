@@ -96,6 +96,7 @@ void load_ssl_library()
 	SSL_library_init();
 	SSLeay_add_ssl_algorithms();
 	kangle_ssl_conntion_index = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+	kangle_ssl_ctx_index = SSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);
 }
 #endif
 

@@ -43,7 +43,7 @@ static bool open_std_file(const char *filename,KFile *file)
 	}
 	return true;
 }
-bool open_process_std(kgl_process_std_t *std,KFile *file)
+bool open_process_std(kgl_process_std *std,KFile *file)
 {
 	if (std->hstdin==INVALIDE_PIPE && std->stdin_file) {
 		if (!file[0].open(std->stdin_file,fileRead)) {
@@ -69,7 +69,7 @@ bool open_process_std(kgl_process_std_t *std,KFile *file)
 	}
 	return true;
 }
-/////////[88]
+/////////[117]
 void closeAllFile(int start_fd) {
 #ifndef _WIN32
 	int max_fd = sysconf(_SC_OPEN_MAX);
@@ -119,7 +119,7 @@ bool createProcess(Token_t token, char * args[],KCmdEnv *envs,char *curdir,PIPE_
 		arg << "\"";
 	}
 	klog(KLOG_NOTICE,"now create process [%s]\n",arg.getString());
-	/////////[89]
+	/////////[118]
 	pid = fork();
 	if (pid == -1) {
 		klog(KLOG_ERR, "cann't fork errno=%d\n", errno);
@@ -172,7 +172,7 @@ bool createProcess(Token_t token, char * args[],KCmdEnv *envs,char *curdir,PIPE_
 		debug("child end\n");
 		exit(127);	
 	}
-	/////////[90]
+	/////////[119]
 	return true;
 }
 bool createProcess(KPipeStream *st, Token_t token, char * args[],KCmdEnv *envs, int rdstd) {
@@ -206,7 +206,7 @@ bool createProcess(KPipeStream *st, Token_t token, char * args[],KCmdEnv *envs, 
 		arg << "\"";
 	}
 	klog(KLOG_NOTICE,"now create process [%s]\n",arg.getString());
-	/////////[91]
+	/////////[120]
 	int c_pid = fork();
 	if (c_pid == -1) {
 		klog(KLOG_ERR, "cann't fork errno=%d\n", errno);
@@ -268,7 +268,7 @@ bool createProcess(KPipeStream *st, Token_t token, char * args[],KCmdEnv *envs, 
 		debug("child end\n");
 		exit(0);
 	}
-	/////////[92]
+	/////////[121]
 	return true;
 
 }

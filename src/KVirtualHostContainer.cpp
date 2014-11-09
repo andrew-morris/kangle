@@ -1,59 +1,42 @@
 #include "KVirtualHostContainer.h"
 #include "KSubVirtualHost.h"
 #include "KVirtualHost.h"
-inline rb_node *insertVirtualHost(rb_root *root,const char *site,bool &newobj)
+#include "KList.h"
+
+int site_cmp(void *k1,void *k2)
 {
-	struct rb_node **n = &(root->rb_node), *parent = NULL;
-	KSubVirtualHost *svh = NULL;
-	newobj = true;
-	while (*n) {
-		svh = (KSubVirtualHost *)((*n)->data);
-		int result = strcasecmp(site,svh->host);
-		parent = *n;
-		if (result < 0)
-			n = &((*n)->rb_left);
-		else if (result > 0)
-			n = &((*n)->rb_right);
-		else{
-			newobj = false;
-		    break;
-		}
-	}
-	if (newobj) {
-		rb_node *node = new rb_node;
-		node->data = NULL;
-		rb_link_node(node, parent, n);
-		rb_insert_color(node, root);
-		return node;
-	}
-	return *n;
+	const char *site = (const char *)k1;
+	KSubVirtualHost *svh = (KSubVirtualHost *)k2;
+	return strcmp(site,svh->bind_host);
 }
-inline rb_node *findVirtualHost(rb_root *root,const char *site)
+int wide_tree_cmp(void *k1,void *k2)
 {
-	assert(site && root);
-	struct rb_node *node = root->rb_node;
-	while (node) {
-        KSubVirtualHost *data = (KSubVirtualHost *)(node->data);
-		assert(data && data->host);
-        int result = strcasecmp(site,data->host);
-        if (result < 0)
-                node = node->rb_left;
-        else if (result > 0)
-                node = node->rb_right;
-        else
-                return node;
-    }
-	return NULL;
+	KSubVirtualHost *svh = (KSubVirtualHost *)k1;
+	KWideBindVirtualHost *wbvh = (KWideBindVirtualHost *)k2;
+	if (wbvh->svh > svh) {
+		return 1;
+	}
+	if (wbvh->svh == svh) {
+		return 0;
+	}
+	return -1;
+}
+int site_wide_cmp(const char *site,KWideBindVirtualHost *bvh)
+{
+	return strncmp(site,bvh->svh->bind_host,bvh->svh->bind_host_len);
 }
 KVirtualHostContainer::KVirtualHostContainer()
 {
-	hosts.rb_node = NULL;
-	wideHosts.rb_node = NULL;
-	defaultVh = NULL;
+
+	hosts = rbtree_create();
+	wide_hosts = rbtree_create();
+	klist_init(&wide_list);
 }
 KVirtualHostContainer::~KVirtualHostContainer()
 {
 	clear();
+	rbtree_destroy(hosts);
+	rbtree_destroy(wide_hosts);
 }
 void KVirtualHostContainer::removeVirtualHost(KVirtualHost *vh)
 {
@@ -71,132 +54,124 @@ void KVirtualHostContainer::addVirtualHost(KVirtualHost *vh)
 		}
 	}
 }
+static iterator_ret bindVirtualHostIterator(void *data,void *argv)
+{
+	return iterator_remove_continue;
+}
+static iterator_ret wideBindVirtualHostIterator(void *data,void *argv)
+{
+	KWideBindVirtualHost *wbvh = (KWideBindVirtualHost *)data;
+	delete wbvh;
+	return iterator_remove_continue;
+}
 void KVirtualHostContainer::clear()
 {
-	 struct rb_node *node;
-	 for(;;){
-		 node = hosts.rb_node;
-		 if(node==NULL){
-			 break;
-		 }
-		 rb_erase(node,&hosts);
-		 delete node;
-	 }
-	 for(;;){
-		 node = wideHosts.rb_node;
-		 if(node==NULL){
-			 break;
-		 }
-		 rb_erase(node,&wideHosts);
-		 delete node;
-	 }
-	 defaultVh = NULL;
+	rbtree_iterator(hosts,bindVirtualHostIterator,NULL);
+	rbtree_iterator(wide_hosts,wideBindVirtualHostIterator,NULL);
+	klist_init(&wide_list);
 }
-query_vh_result KVirtualHostContainer::parseVirtualHost(KHttpRequest *rq,const char *site)
+query_vh_result KVirtualHostContainer::parseVirtualHost(KSubVirtualHost **rq_svh,const char *site)
 {
 	KSubVirtualHost *svh = NULL;
-	rb_node *node = findVirtualHost(&hosts,site);
-	if(node==NULL){
-		site = strchr(site, '.');
-		if (site) {
-			node = findVirtualHost(&wideHosts,site);
-		}	
-	}
-	if(node){
+	rb_node *node = rbtree_find(hosts,(void *)site,site_cmp);
+	if (node) {
 		assert(node->data);
 		svh = (KSubVirtualHost *)node->data;
+		assert(svh);
 	} else {
-		svh = defaultVh;
-	}
-	if (svh) {
-		if (rq->svh!=svh) {
-			//虚拟主机变化了?把老的释放，引用新的
-			rq->releaseVirtualHost();
-#ifdef ENABLE_VH_RS_LIMIT
-			if (!svh->vh->addConnection()) {
-				return query_vh_connect_limit;
+		KWideBindVirtualHost *pos;
+		klist_foreach (pos,&wide_list) {
+			if (site_wide_cmp(site,pos)==0) {
+				svh = pos->svh;
+				break;
 			}
-#endif
-			svh->vh->addRef();
-			rq->svh = svh;
+		}
+	}
+	if (svh==NULL) {
+		return query_vh_host_not_found;
+	}
+	if ((*rq_svh)!=svh) {
+		//虚拟主机变化了?把老的释放，引用新的
+		if (*rq_svh) {
+			(*rq_svh)->release();
+			(*rq_svh) = NULL;
 		}
 #ifdef ENABLE_VH_RS_LIMIT
-		if (svh->vh->sl) {
-			rq->addSpeedLimit(svh->vh->sl);
+		if (!svh->vh->addConnection()) {
+			return query_vh_connect_limit;
 		}
 #endif
-#ifdef ENABLE_VH_FLOW
-		if (svh->vh->flow) {
-			rq->addFlowInfo(svh->vh->flow);
-		}
-#endif		
-		return query_vh_success;
+		svh->vh->addRef();
+		(*rq_svh) = svh;
 	}
-	return query_vh_host_not_found;
+	return query_vh_success;	
 }
-bool KVirtualHostContainer::unbindVirtualHost(KSubVirtualHost *vh) {
-	bool result = false;
-	char *site = vh->host;
-	rb_node *node = NULL;
-	if (strcmp(site, "*") == 0 || strcmp(site,"default")==0) {
-		if (vh == defaultVh) {
-			defaultVh = NULL;
-			return true;
-		}
+bool KVirtualHostContainer::unbindVirtualHost(KSubVirtualHost *svh) {
+	assert(svh->bind_host);
+	if (svh->bind_host==NULL) {
 		return false;
 	}
-	if (site[0] == '.') {
-		//site = site + 1;
-		node = findVirtualHost(&wideHosts,site);
-		if(node && node->data == vh){
-			result = true;
-			rb_erase(node,&wideHosts);
-			delete node;
-		}
-	} else {
-		node = findVirtualHost(&hosts,site);
-		if(node && node->data == vh){
-			result = true;
-			rb_erase(node,&hosts);
-			delete node;
-		}		
+	if (svh->wide) {
+		return unbindWideVirtualHost(svh);
 	}
-	return result;
+	rb_node *node = rbtree_find(hosts,svh->bind_host,site_cmp);
+	if (node==NULL) {
+		return false;
+	}
+	KSubVirtualHost *bvh = (KSubVirtualHost *)node->data;
+	if (bvh!=svh) {
+		return false;
+	}
+	rbtree_remove(hosts,node);
+	return true;
 }
 bool KVirtualHostContainer::bindVirtualHost(KSubVirtualHost *svh) {
-	bool result = false;
-	bool newNode = false;
-	char *site = svh->host;
-	rb_node *node = NULL;
-	if (strcmp(site, "*") == 0 || strcmp(site, "default") == 0) {
-		if (defaultVh == NULL) {
-			defaultVh = svh;
+	assert(svh->bind_host);
+	if (svh->wide) {
+		return bindWideVirtualHost(svh);
+	}
+	int new_flag;
+	rb_node *node = rbtree_insert(hosts,svh->bind_host,&new_flag,site_cmp);
+	if (new_flag) {
+		node->data = svh;
+		return true;
+	}
+	return svh==node->data;
+}
+bool KVirtualHostContainer::bindWideVirtualHost(KSubVirtualHost *svh)
+{
+	int new_flag;
+	rb_node *node = rbtree_insert(wide_hosts,svh,&new_flag,wide_tree_cmp);
+	if (!new_flag) {
+		return true;
+	}
+	KWideBindVirtualHost *wbvh = new KWideBindVirtualHost(svh);
+	node->data = (KWideBindVirtualHost *)wbvh;
+	KWideBindVirtualHost *pos;
+	klist_foreach (pos,&wide_list) {
+		if (strcmp(svh->bind_host,pos->svh->bind_host)==0) {
+			delete wbvh;
+			rbtree_remove(wide_hosts,node);
+			return false;
+		}
+		if (svh->bind_host_len > pos->svh->bind_host_len) {
+			klist_insert(pos,wbvh);
 			return true;
 		}
-		if (defaultVh == svh) {
-			return true;
-		}
+	}
+	klist_append(&wide_list,wbvh);
+	return true;
+}
+bool KVirtualHostContainer::unbindWideVirtualHost(KSubVirtualHost *svh)
+{
+	rb_node *node = rbtree_find(wide_hosts,svh,wide_tree_cmp);
+	if (node==NULL) {
 		return false;
 	}
-	if (site[0] == '.') {
-		//site = site + 1;
-		node = insertVirtualHost(&wideHosts,site,newNode);
-		if(newNode){
-			node->data = svh;
-			result = true;
-		} else if(node->data == svh) {
-			result = true;
-		}
-		assert(node->data);	
-	} else {
-		node = insertVirtualHost(&hosts,site,newNode);
-		if(newNode){
-			node->data = svh;
-			result = true;
-		} else if(node->data == svh) {
-			result = true;
-		}
-		assert(node->data);	
-	}
-	return result;
+	KWideBindVirtualHost *wbvh = (KWideBindVirtualHost *)node->data;
+	assert(wbvh->svh == svh);
+	rbtree_remove(wide_hosts,node);
+	klist_remove(wbvh);
+	delete wbvh;
+	return true;
 }

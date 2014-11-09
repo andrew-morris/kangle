@@ -1,13 +1,13 @@
 #include "WhmShellProcess.h"
 static int write_pipe(PIPE_T fd,const char *buf,int len)
-{		/////////[387]
+{		/////////[465]
 	return ::write(fd, buf, len);
-/////////[388]
+/////////[466]
 }
 static int read_pipe(PIPE_T fd,char *buf,int len) {
-/////////[389]
+/////////[467]
 	return ::read(fd, buf, len);
-/////////[390]
+/////////[468]
 }
 bool WhmShellProcess::run(WhmShellContext *sc)
 {
@@ -140,7 +140,7 @@ bool WhmShellProcess::run(WhmShellContext *sc)
 	if (big_stdin_pipe_created) {
 		if (result) {
 			//创建成功才写入数据
-			nbuff *buf = sc->in_buffer.getHead();
+			buff *buf = sc->in_buffer.getHead();
 			while (buf && buf->data) {
 				if (write_pipe(big_stdin_pipe[WRITE_PIPE],buf->data,buf->used)!=buf->used) {
 					break;

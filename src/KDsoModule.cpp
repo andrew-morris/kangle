@@ -30,13 +30,13 @@ bool KDsoModule::load(const char *file)
 	}else{
 		path = file;
 	}
-/////////[310]
+/////////[380]
 	handle = LoadLibrary(file);
 	if (handle == NULL) {
-		debug("cann't LoadLibrary %s %s\n", path.c_str(), getError());
+		klog(KLOG_ERR,"cann't LoadLibrary %s %s\n", path.c_str(), getError());
 		return false;
 	}
-/////////[311]
+/////////[381]
 	return true;
 }
 void *KDsoModule::findFunction(const char *func)

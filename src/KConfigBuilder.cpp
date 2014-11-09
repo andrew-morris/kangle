@@ -33,8 +33,12 @@ KConfigBuilder::~KConfigBuilder() {
 }
 bool KConfigBuilder::saveConfig() {
 	KConfigBuilder builder;
-	string configFile = conf.path;
-	configFile += "/etc/config.xml";
+#ifdef KANGLE_ETC_DIR
+	string configFile = KANGLE_ETC_DIR;
+#else
+	string configFile = conf.path + "/etc";
+#endif
+	configFile += CONFIG_FILE;
 	string tmpfile = configFile + ".tmp";
 	string lstfile = configFile + ".lst";
 	KFile fp;
@@ -108,12 +112,20 @@ void KConfigBuilder::build(std::stringstream &s) {
 #ifdef KSOCKET_SSL
 		if(TEST(conf.service[i]->model,WORK_MODEL_SSL)){
 			if (conf.service[i]->certificate.size() > 0) {
-					s << "certificate='" << conf.service[i]->certificate << "' ";
+				s << "certificate='" << conf.service[i]->certificate << "' ";
 			}
 			if (conf.service[i]->certificate_key.size() > 0) {
-					s << "certificate_key='" << conf.service[i]->certificate_key << "' ";
+				s << "certificate_key='" << conf.service[i]->certificate_key << "' ";
+			}
+			if (conf.service[i]->cipher.size()>0) {
+				s << "cipher='" << conf.service[i]->cipher << "' ";
+			}
+			if (conf.service[i]->protocols.size()>0) {
+				s << "protocols='" << conf.service[i]->protocols << "' ";
 			}
 			s << "sni='" << (conf.service[i]->sni?"1":"0") << "' ";
+			s << "spdy='" << (conf.service[i]->spdy?"1":"0") << "' ";
+
 		}
 #endif
 		s << "/>\n";
@@ -131,8 +143,9 @@ void KConfigBuilder::build(std::stringstream &s) {
 	s << "\t<lang>" << conf.lang << "</lang>\n";
 	s << "\t<keep_alive>" << conf.keep_alive << "</keep_alive>\n";
 	s << "\t<timeout>" << conf.time_out << "</timeout>\n";
+	s << "\t<connect_timeout>" << conf.connect_time_out << "</connect_timeout>\n";
 	s << "\t<min_free_thread>" << conf.min_free_thread << "</min_free_thread>\n";	
-/////////[123]
+/////////[161]
 	s << "\t<admin user='" << conf.admin_user << "' password='"
 			<< conf.admin_passwd << "' crypt='" << buildCryptType(
 			conf.passwd_crypt) << "' auth_type='" << KHttpAuth::buildType(
@@ -150,7 +163,7 @@ void KConfigBuilder::build(std::stringstream &s) {
 			<< "'/>\n";
 	s << "\t<cache default='" << conf.default_cache << "'"
 		<< " max_cache_size='" << get_size(conf.max_cache_size) << "'";
-		/////////[124]
+		/////////[162]
 	s << " memory='" <<  get_size(conf.mem_cache) << "'";
 #ifdef ENABLE_DISK_CACHE
 	s << " disk='" << get_size(conf.disk_cache) << "'";
@@ -163,7 +176,7 @@ void KConfigBuilder::build(std::stringstream &s) {
 #endif
 	s << " refresh_time='" << conf.refresh_time << "'";
 	s << "/>\n";
-	/////////[125]
+	/////////[163]
 	s << "\t<connect max_per_ip='" << conf.max_per_ip << "' max='" << conf.max << "' ";
 #ifndef _WIN32
 	//s << "stack_size='" << conf.stack_size << "'";
@@ -194,20 +207,19 @@ void KConfigBuilder::build(std::stringstream &s) {
 	ipLock.Unlock();
 	s << "\t</connect>\n";
 #ifdef ENABLE_TF_EXCHANGE
-	s << "\t<tempfile>" << conf.tmpfile << "</tempfile>\n";
+	//s << "\t<tempfile>" << conf.tmpfile << "</tempfile>\n";
 	s << "\t<max_post_size>" << get_size(conf.max_post_size) << "</max_post_size>\n";
 #endif
 	if (conf.async_io) {
 		s << "\t<async_io>1</async_io>\n";
 	}
-	s << "\t<buffer>" << get_size(conf.buffer) << "</buffer>\n";
 #ifdef ENABLE_REQUEST_QUEUE
 	unsigned max_worker = globalRequestQueue.getMaxWorker();
 	if(max_worker>0){
 		s << "\t<request_queue max_worker='" << max_worker << "' max_queue='" << globalRequestQueue.getMaxQueue() << "'/>\n";
 	}
 #endif
-/////////[126]
+/////////[164]
 #ifdef KSOCKET_UNIX	
 	if(conf.unix_socket){
 		 s << "\t<unix_socket>1</unix_socket>\n";

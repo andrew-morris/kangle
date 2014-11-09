@@ -31,5 +31,7 @@ extern bool dump_memory_object;
 extern volatile bool cur_config_ext;
 extern volatile bool cur_config_vh_db;
 extern int worker_index;
-/////////[233]
+#ifdef ENABLE_VH_FLOW
+extern volatile bool flushFlowFlag;
+#endif
 #endif

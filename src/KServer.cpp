@@ -33,7 +33,7 @@
 #include "KHttpRequest.h"
 #include "KNsVirtualHost.h"
 #include "malloc_debug.h"
-/////////[38]
+/////////[59]
 KVirtualHostContainer KServer::defaultVhc;
 #ifdef ENABLE_BASED_IP_VH
 KIpVirtualHost KServer::ipVhc;
@@ -45,26 +45,31 @@ KServer::KServer() {
 #endif
 	closed = false;
 	started = false;
-/////////[39]
+/////////[60]
 	vhc = NULL;
 	dynamic = false;
-	selector = false;
+	
 }
 
 KServer::~KServer() {
 #ifdef KSOCKET_SSL
-        if (ssl_ctx) {
-                KSSLSocket::clean_ctx(ssl_ctx);
-        }
+    if (ssl_ctx) {
+            KSSLSocket::clean_ctx(ssl_ctx);
+    }
 #endif
 
-/////////[40]
+/////////[61]
 	if(vhc){
 		delete vhc;
 	}
 }
+void KServer::removeSocket()
+{
+	selector->removeSocket(this);
+}
 void KServer::close() {
 	closed = true;
+	server.shutdown(SHUT_RDWR);
 	server.close();
 }
 #ifdef KSOCKET_SSL
@@ -77,9 +82,11 @@ bool KServer::load_ssl()
 		for (it=conf.service.begin();it!=conf.service.end();it++) {
 			//优先根据name查找，如果name为空，则查找port.
 			if( model==(*it)->model
-				&& (name.size()>0 && name==(*it)->name) || (name.size()==0 && port==(*it)->port) ) {
+				&& ((name.size()>0 && name==(*it)->name) || (name.size()==0 && port==(*it)->port))) {
 				certificate = (*it)->certificate;
 				certificate_key = (*it)->certificate_key;
+				cipher = (*it)->cipher;
+				protocols = (*it)->protocols;
 				break;
 			}
 		
@@ -111,6 +118,14 @@ bool KServer::load_ssl()
 					"therefore SNI is not available");
 		}
 #endif
+		/////////[62]
+		if (cipher.size()>0 && 
+			SSL_CTX_set_cipher_list(ssl_ctx,cipher.c_str())!=1) {
+			klog(KLOG_WARNING,"cipher [%s] is not support\n",cipher.c_str());
+		}
+		if (protocols.size() > 0) {
+			KSSLSocket::set_ssl_protocols(ssl_ctx, protocols.c_str());
+		}
 		return true;
 	}
 	return false;
@@ -215,9 +230,9 @@ void KServer::addDefaultVirtualHost(KVirtualHost *vh)
 	return;
 #endif
 }
-query_vh_result KServer::parseVirtualHost(KHttpRequest *rq,const char *site)
+query_vh_result KServer::parseVirtualHost(KSubVirtualHost **rq_svh,const char *site)
 {
-	return defaultVhc.parseVirtualHost(rq,site);
+	return defaultVhc.parseVirtualHost(rq_svh,site);
 }
 void KServer::removeDefaultVirtualHost(KVirtualHost *vh)
 {
@@ -232,4 +247,4 @@ void KServer::removeDefaultVirtualHost(KVirtualHost *vh)
 	return;
 #endif
 }
-/////////[41]
+/////////[63]

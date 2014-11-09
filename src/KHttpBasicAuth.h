@@ -22,6 +22,7 @@ public:
 	}
 	bool verify(KHttpRequest *rq,const char *password,int passwordType);
 	void insertHeader(KWStream &s);
+	void insertHeader(KHttpRequest *rq);
 private:
 	char *password;
 };

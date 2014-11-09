@@ -74,7 +74,7 @@ void set_stack_size(std::string stack_size) {
 FUNC_TYPE FUNC_CALL run_thread(void *param) {
 	ThreadInfo *m_thread = (ThreadInfo *) param;
 	m_thread->pid = pthread_self();
-	/////////[53]
+	/////////[77]
 	m_thread->runCount = 0;
 	m_thread->work(m_thread->param);
 	
@@ -89,15 +89,15 @@ FUNC_TYPE FUNC_CALL run_thread(void *param) {
 		total_thread--;
 		FreeThread.push_front(m_thread);
 		m_ThreadPoolLock.Unlock();
-		/////////[54]
+		/////////[78]
 		int recv_sig = 0;
 		sigwait(&m_blockset, &recv_sig);
 		pthread_sigmask(SIG_UNBLOCK, &m_blockset, NULL);
-		/////////[55]
+		/////////[79]
 		if (m_thread->cmd == COMMAND_THREAD_START) {
 			m_thread->work(m_thread->param);
 		} else if (m_thread->cmd == COMMAND_THREAD_END) {
-/////////[56]
+/////////[80]
 			delete m_thread;
 			KTHREAD_RETURN;
 		} else {
@@ -113,7 +113,7 @@ FUNC_TYPE FUNC_CALL run_thread(void *param) {
 }
 void KThreadPool::setStackSize(unsigned size) {
 #ifndef _WIN32
-//	pthread_attr_setstacksize(&m_thread.attr, conf.stack_size);
+	//pthread_attr_setstacksize(&m_thread.attr, conf.stack_size);
 #endif
 }
 KThreadPool::KThreadPool() {
@@ -142,7 +142,7 @@ void KThreadPool::closeAllFreeThread() {
 			klog(KLOG_ERR,
 					"cann't send signal to thread(command:close,id=%d)\n", pid);
 		}
-		/////////[57]
+		/////////[81]
 #endif
 		it = FreeThread.erase(it);
 	}
@@ -167,7 +167,7 @@ void KThreadPool::Flush(unsigned min_free_thread) {
 						"cann't send signal to thread(command:close,id=%d)\n",
 						pid);
 			}
-			/////////[58]
+			/////////[82]
 #endif
 			it = FreeThread.erase(it);
 		} else {
@@ -221,7 +221,7 @@ bool KThreadPool::start(void *param, ThreadFunc work, bool usePool) {
 					"cann't send signal to thread(command:start,id=%d)\n",
 					(*it)->pid);
 		}
-		/////////[59]
+		/////////[83]
 #endif
 		FreeThread.erase(it);
 	}

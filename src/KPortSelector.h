@@ -35,9 +35,12 @@ public:
 	KPortSelector();
 	virtual ~KPortSelector();
 	void select();
-	bool addListenSocket(KSelectable *st);
+	bool listen(KServer *st,resultEvent result);
+	bool read(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg);
+        bool write(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg);
+        bool next(KSelectable *st,resultEvent result,void *arg);
+	bool connect(KSelectable *st,resultEvent result,void *arg);
 protected:
-	bool addSocket(KSelectable *rq,int op);
 	void removeSocket(KSelectable *rq);
 private:
 	int kdpfd;

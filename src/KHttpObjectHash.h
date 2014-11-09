@@ -98,7 +98,7 @@ public:
 				obj = obj->next;
 				continue;
 			}
-/////////[338]
+/////////[416]
 			if ((gzip == (bool)(TEST(obj->index.flags,test_obj_gzip_flag)>0) &&
 				internal == (TEST(obj->index.flags,FLAG_RQ_INTERNAL)>0))) {
 				//普通物件(但要对到gzip和internal)
@@ -194,7 +194,7 @@ public:
 			size_lock.Lock();
 			if (TEST(obj->index.flags,FLAG_IN_MEM)) {
 				assert(obj->data);
-				/////////[339]
+				/////////[417]
 					size -= obj->index.have_length;
 			}
 			if (TEST(obj->index.flags,FLAG_IN_DISK)) {
@@ -239,7 +239,7 @@ public:
 	KMutex size_lock; /* lock to change size		*/
 	INT64 size; /* size of objects in this hash */
 	INT64 disk_size;
-private:	
+private:
 	/**
 	* 清除物件
 	*/

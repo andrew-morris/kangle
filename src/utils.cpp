@@ -146,7 +146,7 @@ int create_select_pipe(KHttpRequest *rq, KClientSocket *client, int tmo,
 	char *buf;
 	int len;
 	assert(rq && client);
-	int s1 = rq->server->get_socket(), s2 = client->get_socket();
+	int s1 = rq->c->socket->get_socket(), s2 = client->get_socket();
 	int server_recv_len = 0, client_recv_len = 0;
 	if (s1 <= 0 || s2 <= 0)
 		return 0;
@@ -194,7 +194,7 @@ int create_select_pipe(KHttpRequest *rq, KClientSocket *client, int tmo,
 				max_recv_len = MIN(max_server_len-server_recv_len,max_recv_len);
 
 			}
-			if ((len = rq->server->read(buf, max_recv_len)) <= 0) {
+			if ((len = rq->c->socket->read(buf, max_recv_len)) <= 0) {
 				ret = s1;
 				break;
 			}
@@ -452,13 +452,13 @@ bool startProcessWork(Token_t token, char * args[], KCmdEnv *envs)
 	return false;
 }
 
-pid_t createProcess(Token_t token,const char *cmd,KCmdEnv *envs,const char *curdir,kgl_process_std_t *std)
+pid_t createProcess(Token_t token,const char *cmd,KCmdEnv *envs,const char *curdir,kgl_process_std *std)
 {
 	if (quit_program_flag==PROGRAM_QUIT_IMMEDIATE) {
 		return false;
 	}
 	pid_t pid;
-	/////////[351]
+	/////////[428]
 	if (cmd==NULL || *cmd=='\0') {
 		return -1;
 	}
@@ -521,6 +521,6 @@ pid_t createProcess(Token_t token,const char *cmd,KCmdEnv *envs,const char *curd
 		debug("child end\n");
 		exit(127);
 	}
-	/////////[352]
+	/////////[429]
 	return pid;
 }

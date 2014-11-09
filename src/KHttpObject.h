@@ -11,7 +11,7 @@
 #include "KUrl.h"
 #include "KHttpHeader.h"
 #include "KHttpRequest.h"
-/////////[47]
+/////////[69]
 #include "time_utils.h"
 #include "KFile.h"
 #include "KBuffer.h"
@@ -52,7 +52,7 @@ public:
 				delete os;
 			}
 			break;
-		/////////[48]
+		/////////[70]
 		}
 	}
 	unsigned short status_code;
@@ -62,7 +62,7 @@ public:
 	union {
 		buff *bodys; /* data storage	*/
 		KHttpObjectSwaping *os;
-		/////////[49]
+		/////////[71]
 	};
 };
 /**
@@ -162,7 +162,7 @@ public:
 				char *tmp_buf = (char *)malloc(41);
 				memset(tmp_buf, 0, 41);
 				mk1123time(index.last_modified, tmp_buf, 41);
-				insertHttpHeader2(strdup("Last-Modified"),tmp_buf);
+				insertHttpHeader2(strdup("Last-Modified"),sizeof("Last-Modified")-1,tmp_buf,29);
 			}
 		}
 		SET(index.flags,OBJ_IS_STATIC2|ANSW_LAST_MODIFIED|FLAG_NEED_CACHE);
@@ -188,7 +188,7 @@ public:
 	void count_size(INT64 &mem_size,INT64 &disk_size)
 	{
 		if (TEST(index.flags,FLAG_IN_MEM)) {
-		/////////[50]
+		/////////[72]
 				mem_size += index.have_length;
 		}
 		if (TEST(index.flags,FLAG_IN_DISK)) {
@@ -227,16 +227,18 @@ public:
 		}
 		return result;
 	}
-	void insertHttpHeader2(char *attr,char *val)
+	void insertHttpHeader2(char *attr,int attr_len,char *val,int val_len)
 	{
 		KHttpHeader *new_h = (KHttpHeader *) xmalloc(sizeof(KHttpHeader));
 		new_h->attr = attr;
+		new_h->attr_len = attr_len;
 		new_h->val = val;
+		new_h->val_len = val_len;
 		new_h->next = data->headers;
 		data->headers = new_h;
 	}
-	void insertHttpHeader(const char *attr, const char *val) {
-		insertHttpHeader2(xstrdup(attr),xstrdup(val));
+	void insertHttpHeader(const char *attr,int attr_len, const char *val,int val_len) {
+		insertHttpHeader2(xstrdup(attr),attr_len,xstrdup(val),val_len);
 	}
 	INT64 getTotalContentSize(KHttpRequest *rq)
 	{
@@ -256,7 +258,7 @@ public:
 	unsigned char list_state;
 	unsigned char in_cache;
 	short h; /* hash value */
-	int refs;	
+	int refs;
 	KUrl *url;
 	KHttpObjectBody *data;
 	HttpObjectIndex index;

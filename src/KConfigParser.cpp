@@ -29,6 +29,7 @@
 #include "do_config.h"
 #include "KListenConfigParser.h"
 #include "KSelectorManager.h"
+#include "KHttpFilterDsoManage.h"
 using namespace std;
 KConfigParser::KConfigParser() {
 
@@ -74,7 +75,7 @@ bool KConfigParser::startElement(std::string &context, std::string &qName,
 	if (qName == "cache") {
 		cconf->default_cache = atoi(attribute["default"].c_str());
 		cconf->max_cache_size = (unsigned)get_size(attribute["max_cache_size"].c_str());
-		/////////[153]
+		/////////[191]
 		if (attribute["memory"].size()>0) {
 			cconf->mem_cache = get_size(attribute["memory"].c_str());
 		}
@@ -112,7 +113,7 @@ bool KConfigParser::startElement(std::string &context, std::string &qName,
 		return true;
 	}
 #endif
-/////////[154]
+/////////[192]
 	if (qName == "log") {
 		if (attribute["level"].size()>0) {
 			cconf->log_level = atoi(attribute["level"].c_str());
@@ -137,7 +138,15 @@ bool KConfigParser::startElement(std::string &context, std::string &qName,
 }
 bool KConfigParser::startElement(KXmlContext *context, std::map<std::string,
 		std::string> &attribute) {
-	if (context->parent == NULL && context->qName == "config") {
+	if (context->path == "config") {
+#ifdef ENABLE_KSAPI_FILTER
+		if (context->qName == "http_filter") {
+			if (conf.hfdm==NULL) {
+				conf.hfdm = new KHttpFilterDsoManage;
+			}
+			conf.hfdm->add(attribute);
+		}
+#endif
 	}
 	if (context->path == "config/connect" && context->qName == "per_ip") {
 		KPerIpConnect *per_ip = new KPerIpConnect;
@@ -217,6 +226,10 @@ bool KConfigParser::startCharacter(std::string &context, std::string &qName,
 			cconf->set_time_out(atoi(character));
 			return true;
 		}
+		if (qName == "connect_timeout") {
+			cconf->set_connect_time_out(atoi(character));
+			return true;
+		}
 #ifdef KSOCKET_UNIX	
 		if(qName == "unix_socket"){
 			if(strcmp(character,"1")==0 || strcmp(character,"on")==0){
@@ -249,7 +262,7 @@ bool KConfigParser::startCharacter(std::string &context, std::string &qName,
 		if(qName == "min_free_thread"){
 			cconf->min_free_thread = atoi(character);
 		}
-/////////[155]
+/////////[193]
 		if(qName == "access_log"){
 			SAFE_STRCPY(cconf->access_log ,character);
 		}
@@ -259,7 +272,7 @@ bool KConfigParser::startCharacter(std::string &context, std::string &qName,
 		if(qName == "log_handle_concurrent"){
 			cconf->maxLogHandle = atoi(character);
 		}
-		/////////[156]
+		/////////[194]
 		if(qName == "server_software"){
 			SAFE_STRCPY(cconf->server_software ,character);
 		}
@@ -267,20 +280,19 @@ bool KConfigParser::startCharacter(std::string &context, std::string &qName,
 			cconf->setHostname(character);
 		}
 #ifdef ENABLE_TF_EXCHANGE
+#if 0
 		if (qName == "tempfile") {
 			cconf->tmpfile = atoi(character);
 			if (cconf->tmpfile<0 || cconf->tmpfile>2) {
 				cconf->tmpfile = 1;
 			}
-		}		
+		}
+#endif
 		if (qName == "max_post_size") {
 			cconf->max_post_size = get_size(character);
 		}
 #endif
-		if (qName == "buffer") {
-			cconf->buffer = (unsigned)get_size(character);
-		}
-		/////////[157]
+		/////////[195]
 		if (qName == "async_io") {
 			cconf->async_io = (atoi(character)==1);
 			return true;

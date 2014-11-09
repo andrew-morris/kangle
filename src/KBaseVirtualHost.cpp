@@ -11,12 +11,16 @@
 #include "KApiRedirect.h"
 #include "lang.h"
 #include "http.h"
+#include "KHttpFilterManage.h"
 using namespace std;
 KBaseVirtualHost::KBaseVirtualHost()
 {
 	defaultRedirect = NULL;
 	mimeType = NULL;
-	/////////[107]
+	/////////[145]
+#ifdef ENABLE_KSAPI_FILTER
+	hfm = NULL;
+#endif
 }
 KBaseVirtualHost::~KBaseVirtualHost() {
 	lock.Lock();
@@ -46,9 +50,14 @@ KBaseVirtualHost::~KBaseVirtualHost() {
 		delete mimeType;
 		mimeType = NULL;
 	}
-	/////////[108]
+	/////////[146]
 	lock.Unlock();
 	clearEnv();
+#ifdef ENABLE_KSAPI_FILTER
+	if (hfm) {
+		delete hfm;
+	}
+#endif
 }
 void KBaseVirtualHost::swap(KBaseVirtualHost *a)
 {
@@ -282,7 +291,7 @@ void KBaseVirtualHost::getRedirectItemHtml(std::string url,std::string value,boo
 		s << "<td>" << brd->allowMethod.getMethod() << "</td>";
 		s << "<td>" << (brd->confirmFile ? LANG_ON : LANG_OFF)
 				<< "</td>";
-		/////////[109]
+		/////////[147]
 		s << "</tr>";
 }
 void KBaseVirtualHost::getRedirectHtml(std::string url, std::stringstream &s) {
@@ -291,7 +300,7 @@ void KBaseVirtualHost::getRedirectHtml(std::string url, std::stringstream &s) {
 	s << "</td><td>" << LANG_VALUE << "</td><td>" << klang["extend"]
 			<< "</td><td>" << klang["allow_method"] << "</td><td>"
 			<< klang["confirm_file"] << "</td>";
-	/////////[110]
+	/////////[148]
 	s << "</tr>";
 	std::list<KPathRedirect *>::iterator it2;
 	for (it2 = pathRedirects.begin(); it2 != pathRedirects.end(); it2++) {
@@ -341,7 +350,7 @@ void KBaseVirtualHost::getRedirectHtml(std::string url, std::stringstream &s) {
 			<< klang["confirm_file"] << "<br>";
 	s << "</td></tr>";
 	s << "<tr><td>" << klang["allow_method"] << ":<input name='allow_method' value='*'></td></tr>";
-	/////////[111]
+	/////////[149]
 	s << "<tr><td>";
 	s << "<input type='submit' value='" << LANG_ADD << "'>";
 	s << "</td></tr></table>";
@@ -427,14 +436,14 @@ bool KBaseVirtualHost::addRedirect(bool file_ext,std::string value,KRedirect *rd
 			}
 			KBaseRedirect *nrd = new KBaseRedirect(rd, confirmFile);
 			nrd->allowMethod.setMethod(allowMethod.c_str());
-		/////////[112]
+		/////////[150]
 			redirects.insert(pair<char *, KBaseRedirect *> (xstrdup(value.c_str()), nrd));
 		}		
 	} else {
 		KPathRedirect *pr = new KPathRedirect(value.c_str(), rd);
 		pr->allowMethod.setMethod(allowMethod.c_str());
 		pr->confirmFile = confirmFile;
-		/////////[113]
+		/////////[151]
 		list<KPathRedirect *>::iterator it2;
 		bool finded = false;
 		for (it2 = pathRedirects.begin(); it2 != pathRedirects.end(); it2++) {
@@ -659,7 +668,7 @@ void KBaseVirtualHost::copyTo(KVirtualHost *vh, bool copyInherit, int inherited)
 			} else {
 				br->inherited = (inherited == 1);
 			}
-			/////////[114]
+			/////////[152]
 			br->allowMethod.setMethod(
 					(*it).second->allowMethod.getMethod().c_str());
 			vh->redirects.insert(pair<char *, KBaseRedirect *> (
@@ -687,7 +696,7 @@ void KBaseVirtualHost::copyTo(KVirtualHost *vh, bool copyInherit, int inherited)
 		}
 		KPathRedirect *prd = new KPathRedirect((*it2)->path, (*it2)->rd);
 		prd->confirmFile = (*it2)->confirmFile;
-		/////////[115]
+		/////////[153]
 		prd->allowMethod.setMethod((*it2)->allowMethod.getMethod().c_str());
 
 		if (inherited == 2) {

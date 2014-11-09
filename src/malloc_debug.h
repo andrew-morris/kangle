@@ -25,6 +25,7 @@ void dump_memory(int min_time,int max_time);
 
 //void check_addr(void *ptr);
 #ifndef _WIN32
+/*
 #include <string.h>
 #include <string>
 #include <vector>
@@ -42,14 +43,18 @@ void dump_memory(int min_time,int max_time);
 void xfree2(void *ptr, const char *file, int line);
 void *xmalloc2(size_t size, const char *file, int line);
 char *xstrdup2(const char * s, const char *file, int line);
-
-
+*/
+#define xmalloc(x)		malloc(x)
+#define xfree(x)		free(x)
+#define xstrdup(x)		strdup(x)
+#define kassert         assert     
+/*
 void * operator new(size_t m_size, const char *file, int line);
 void * operator new[](size_t m_size, const char *file, int line);
 void operator delete(void *ptr);
-/* Macros */
 #define new DEBUG_NEW2
 #define DEBUG_NEW2 new(__FILE__, __LINE__)
+*/
 void * check_memory_thread(void* arg);
 #else
 #include <crtdbg.h>

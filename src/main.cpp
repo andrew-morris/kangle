@@ -21,8 +21,9 @@
  *
  *  Author: KangHongjiu <keengo99@gmail.com>
  */
-#include "global.h"
 
+#include "global.h"
+#include "forwin32.h"
 #ifndef _WIN32
 #include <pthread.h>
 #include <pwd.h>
@@ -77,7 +78,7 @@
 #include "KCdnContainer.h"
 #include "KWriteBackManager.h"
 #include "KDynamicListen.h"
-/////////[188]
+/////////[248]
 
 #ifndef HAVE_DAEMON
 int daemon(int nochdir, int noclose);
@@ -147,10 +148,17 @@ void killworker(int sig)
 }
 #endif
 //}}
+#ifdef MALLOCDEBUG
+extern "C" {
+	extern void __libc_freeres();
+}
+#endif
 void checkMemoryLeak()
 {
 #ifdef MALLOCDEBUG
+	fprintf(stderr,"checkMemoryLeak now\n");
 	if (!conf.mallocdebug) {
+		fprintf(stderr,"mallocdebug is not active\n");
 		return;
 	}
 	//释放所有正常的内存
@@ -180,20 +188,34 @@ void checkMemoryLeak()
 	KHttpDigestAuth::flushSession(kgl_current_sec + 172800);
 #endif
 	cdnContainer.flush(kgl_current_sec + 172800);
-	/////////[189]
+	/////////[249]
 	klang.clear();
 	conf.admin_ips.clear();
+	if (conf.dnsWorker) {
+		conf.dnsWorker->release();
+		conf.dnsWorker = NULL;
+	}
+	if (conf.ioWorker) {
+		conf.ioWorker->release();
+		conf.ioWorker = NULL;
+	}
 	sleep(3);
-	dump_memory(0,-1);
-	_exit(0);
+	//dump_memory(0,-1);
+#ifndef _WIN32
+	__libc_freeres();
+#endif
+	exit(0);
 #endif
 }
 void check_graceful_shutdown()
 {
 	if (total_connect == 0) {
-		/////////[190]
-		conf.gam->killAllProcess();
-		/////////[191]
+#ifndef HTTP_PROXY
+		conf.gam->killAllProcess();		
+#endif
+#ifdef ENABLE_VH_FLOW
+		conf.gvm->dumpFlow();
+#endif	
 		checkMemoryLeak();
 		my_exit(0);
 	}
@@ -212,7 +234,9 @@ void shutdown_work(bool graceful)
 #ifdef ENABLE_VH_RUN_AS
 		conf.gam->killAllProcess();
 #endif
-		/////////[192]
+#ifdef ENABLE_VH_FLOW
+		conf.gvm->dumpFlow();
+#endif
 	}	
 	klog(KLOG_INFO, "shutdown now,graceful=%d\n",graceful);
 	accessLogger.close();
@@ -263,7 +287,7 @@ void shutdown_signal(int sig)
 #endif
 #endif
 }
-/////////[193]
+/////////[250]
 #ifdef ENABLE_DISK_CACHE
 bool create_dir(const char *dir) {
 	mkdir(dir,448);
@@ -339,9 +363,9 @@ void console_call_reboot() {
 #ifndef _WIN32
 	my_exit(1);
 #endif
-/////////[194]
+/////////[251]
 }
-/////////[195]
+/////////[252]
 void sigcatch(int sig) {
 #ifdef HAVE_SYSLOG_H
 	klog(KLOG_INFO,"catch signal %d,my_pid=%d\n", sig, getpid());
@@ -374,7 +398,9 @@ void sigcatch(int sig) {
 		if(workerProcess.size()>0){
 			killworker(SIGUSR2);
 		} else {
-			/////////[196]
+#ifdef ENABLE_VH_FLOW
+			flushFlowFlag = true;
+#endif
 #ifdef MALLOCDEBUG
 			dump_memory_object = true;
 #endif
@@ -450,7 +476,12 @@ bool create_file_path(char *argv0) {
 	if (p > 0) {
 		conf.path = conf.path.substr(0, p + 1);
 	}
+#ifdef KANGLE_TMP_DIR
+	conf.tmppath = KANGLE_TMP_DIR;
+	conf.tmppath += PATH_SPLIT_CHAR;
+#else
 	conf.tmppath = conf.path + PATH_SPLIT_CHAR + "tmp" + PATH_SPLIT_CHAR;
+#endif
 	mkdir(conf.tmppath.c_str(),448);
 	return true;
 }
@@ -515,11 +546,14 @@ static int Usage(bool only_version = false) {
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 			"(sni)"
 #endif
+#ifdef TLSEXT_TYPE_next_proto_neg
+			"(npn)"
+#endif
 #endif
 #ifdef _LARGE_FILE
 			" large-file"
 #endif
-/////////[197]
+/////////[253]
 #ifdef ENABLE_DISK_CACHE
 			" disk-cache"
 #endif
@@ -528,6 +562,12 @@ static int Usage(bool only_version = false) {
 #endif
 #ifdef MALLOCDEBUG
 			" malloc-debug"
+#endif
+#ifdef ENABLE_ONESHOT_MODEL
+			" one-shot"
+#endif
+#ifdef ENABLE_KSAPI_FILTER
+			" ksapi-filter"
 #endif
 			"\n", getServerType());
 	printf("pcre version: %s\n",pcre_version());
@@ -559,6 +599,7 @@ static int Usage(bool only_version = false) {
 		"Report bugs to <keengo99@gmail.com>.\n"
 		"");
 	}
+	checkMemoryLeak();
 	my_exit(0);
 	return 0;
 }
@@ -587,7 +628,14 @@ int parse_args(int argc, char ** argv) {
 	char tmp[512];
 #endif
 	conf.log_level = -1;
-	string pidFile = conf.path;
+	string pidFile;
+#ifdef KANGLE_VAR_DIR
+        pidFile = KANGLE_VAR_DIR;
+#else
+        pidFile = conf.path;
+	pidFile += "/var";
+#endif
+	mkdir(pidFile.c_str(),0700);
 	pidFile += PID_FILE;
 	if (singleProgram.checkRunning(pidFile.c_str())) {
 		m_pid = singleProgram.pid;
@@ -631,7 +679,12 @@ int parse_args(int argc, char ** argv) {
 			}
 			my_exit(0);
 			break;
-			/////////[198]
+#ifdef ENABLE_VH_FLOW
+			case 'f':
+			service_to_signal(SIGUSR2);
+			my_exit(0);
+			break;
+#endif
 		case 'r':
 			service_to_signal(SIGHUP);
 			my_exit(0);
@@ -683,7 +736,7 @@ int parse_args(int argc, char ** argv) {
 		}
 	}
 #else
-/////////[199]
+/////////[254]
 #endif
 	if ((ret == 0) && (m_pid != 0) && !skipCheckRunning) {
 		fprintf(stderr, "Start error,another program (pid=%d) is running.\n",
@@ -724,7 +777,11 @@ void init_signal() {
 //初始化安全进程
 void init_safe_process()
 {
-	string configFile = conf.path;
+#ifdef KANGLE_ETC_DIR
+	string configFile = KANGLE_ETC_DIR;
+#else
+	string configFile = conf.path + "/etc";
+#endif
 	configFile += CONFIG_FILE;
 	listenConfigParser.parse(configFile.c_str());
 	if(conf.worker>1){
@@ -735,6 +792,19 @@ void init_safe_process()
 				startService(conf.service[i]);
 		}
 	}
+}
+void init_stderr()
+{
+#ifdef ENABLE_TCMALLOC
+	close(2);
+	string stderr_file = conf.path + "/var/stderr.log";
+	KFile fp;
+	if (fp.open(stderr_file.c_str(),fileAppend)) {
+		FILE_HANDLE fd = fp.stealHandle();
+		dup2(fd,2);
+		fprintf(stderr,"stderr is open success\n");
+	}
+#endif
 }
 void init_resource_limit()
 {
@@ -848,8 +918,6 @@ void my_fork() {
 #endif
 }
 void StartAll() {
-	unsigned i = 0;
-
 	init_signal();
 #ifndef _WIN32
 	if (!nodaemon && m_debug == 0) {
@@ -861,7 +929,7 @@ void StartAll() {
 	}
 	signal(SIGCHLD, SIG_IGN);
 #endif
-/////////[200]
+/////////[255]
 #ifdef _WIN32
 	if (worker_index==0) {
 		create_signal_pipe();
@@ -900,18 +968,20 @@ void StartAll() {
 #endif
 	program_start_time = time(NULL);
 	klog(KLOG_NOTICE, "Start success [pid=%d].\n",m_pid);
-/////////[201]
+/////////[256]
 	parse_config(true);
 	init_program();
-	//KServerListen::start(servers);
 	conf.gvm->addAllVirtualHost();
+#ifdef ENABLE_VH_RUN_AS	
+	conf.gam->loadAllApi();
+#endif
 	selectorManager.start();
-
 #ifdef ENABLE_TF_EXCHANGE
 	if (worker_index==0) {
 		m_thread.start(NULL,clean_tempfile_thread);
 	}
 #endif
+	//init_stderr();
 	time_thread(NULL);
 	KSocket::clean_socket();
 }
@@ -920,12 +990,12 @@ void StopAll() {
 }
 
 int main(int argc, char **argv) {
-/////////[202]
+/////////[257]
 	srand((unsigned) time(NULL));
 	program_rand_value = rand();
 	KSocket::init_socket();
 	KSSIProcess::init();
-/////////[203]
+/////////[258]
 	if (!create_path(argv)) {
 		fprintf(stderr,
 				"cann't create path,don't start kangle in search path\n");
@@ -936,7 +1006,7 @@ int main(int argc, char **argv) {
 	}
 	assert(test());
 	LoadDefaultConfig();
-/////////[204]
+/////////[259]
 	numberCpu = GetNumberOfProcessors();
 	//printf("number of cpus %d\n",numberCpu);
 	if(numberCpu<=0){
@@ -947,13 +1017,19 @@ int main(int argc, char **argv) {
 		Usage();
 		my_exit(0);
 	}
-/////////[205]
+/////////[260]
 	StartAll();
 	return 0;
 }
 
 void save_pid() {
-	std::string path = conf.path;
+	std::string path;
+#ifdef KANGLE_VAR_DIR
+	path = KANGLE_VAR_DIR;
+#else
+	path = conf.path;
+	path += "/var";
+#endif
 	path += PID_FILE;
 	singleProgram.lock(path.c_str());
 }

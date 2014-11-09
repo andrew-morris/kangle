@@ -1,15 +1,15 @@
 #ifndef KCONTENTTRANSFER_H
 #define KCONTENTTRANSFER_H
-#include "KStream.h"
+#include "KHttpStream.h"
 #include "KHttpRequest.h"
 
 /*
 ÄÚÈÝ±ä»»
 */
-class KContentTransfer : public KWUpStream
+class KContentTransfer : public KHttpStream
 {
 public:
-	KContentTransfer(KWStream *st,bool autoDelete) : KWUpStream(st,autoDelete)
+	KContentTransfer(KWStream *st,bool autoDelete) : KHttpStream(st,autoDelete)
 	{
 		rq = NULL;
 	}

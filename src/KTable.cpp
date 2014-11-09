@@ -39,88 +39,117 @@ bool KTable::startElement(KXmlContext *context, std::map<std::string,
 	return false;
 }
 void KTable::empty() {
-	vector<KChain *>::iterator it;
-	for (it = chain.begin(); it != chain.end(); it++) {
-		//		(*it)->destroy();
-		delete (*it);
+	while (head) {
+		end = head->next;
+		delete head;
+		head = end;
 	}
-	chain.clear();
+	chain_map.clear();
+}
+void KTable::pushChain(KChain *newChain)
+{
+	newChain->next = NULL;
+	newChain->prev = end;
+	if (end) {
+		end->next = newChain;
+	} else {
+		head = newChain;
+	}
+	end = newChain;
 }
 int KTable::insertChain(int index, KChain *newChain) {
-	if (index < 0 ||  index>=(int)chain.size()) {
-		chain.push_back(newChain);
-		return chain.size() - 1;
-	} else {		
-		chain.insert(chain.begin() + index,newChain);		
+	if (newChain->name.size() > 0) {
+		std::map<std::string, KChain *>::iterator it;
+		it = chain_map.find(newChain->name);
+		if (it != chain_map.end()) {
+			delete newChain;
+			return -1;
+		}
+		chain_map.insert(std::pair<std::string, KChain *>(newChain->name, newChain));
+	}
+	if (index==-1) {
+		pushChain(newChain);
 		return index;
+	}
+	KChain *point = findChain(index);
+	if (point==NULL) {
+		pushChain(newChain);
+		return index;
+	}
+	newChain->next = point;
+	newChain->prev = point->prev;
+	if (point->prev) {
+		point->prev->next = newChain;
+	}
+	point->prev = newChain;
+	if (head==point) {
+		head = newChain;
+	}
+	return index;
+}
+void KTable::removeChain(KChain *chain)
+{
+	if (chain->prev) {
+		chain->prev->next = chain->next;
+	}
+	if (chain->next) {
+		chain->next->prev = chain->prev;
+	}
+	if (head==chain) {
+		head = head->next;
+	}
+	if (end==chain) {
+		end = end->prev;
 	}
 }
 bool KTable::delChain(std::string name) {
-	 vector<KChain *>::iterator it;
-	 for (it = chain.begin(); it != chain.end(); it++) {
-		 if ((*it)->name == name) {
-			 delete (*it);
-			 chain.erase(it);
-			 return true;
-		 }
-	 }
-	 return false;
+	std::map<std::string,KChain *>::iterator it;
+	it = chain_map.find(name);
+	if (it==chain_map.end()) {
+		return false;
+	}
+	KChain *chain = (*it).second;
+	chain_map.erase(it);
+	removeChain(chain);
+	delete chain;
+	return true;
  }
  bool KTable::editChain(std::string name, KUrlValue *urlValue,KAccess *kaccess) {
-	vector<KChain *>::iterator it;
-	for (it = chain.begin(); it != chain.end(); it++) {
-		if ((*it)->name == name) {
-			(*it)->clear();
-			return (*it)->edit(urlValue,kaccess,false);
-		}
-	}
-	KChain *chain = new KChain();
-	chain->name = name;
-	bool result = chain->edit(urlValue,kaccess,false);
-	insertChain(-1,chain);
-	return result;
+	 std::map<std::string,KChain *>::iterator it;
+	 it = chain_map.find(name);
+	 if (it==chain_map.end()) {
+		KChain *chain = new KChain();
+		chain->name = name;
+		chain->edit(urlValue,kaccess,false);
+		insertChain(-1,chain);
+		chainChangeName("",chain);
+		return true;
+	 }
+	 KChain *chain = (*it).second;
+	 chain->clear();
+	 chain->edit(urlValue,kaccess,false);
+	 chainChangeName(name,chain);
+	 return true;
 }
-int KTable::getChain(const char *chain_name)
-{
-	vector<KChain *>::iterator it;
-	int id = 0;
-	for (it = chain.begin(); it != chain.end(); it++, id++) {
-		if((*it)->name == chain_name){
-			return id;
-		}
-	}
-	return -1;
-}
+
 bool KTable::match(KHttpRequest *rq, KHttpObject *obj, int &jumpType,
 		KJump **jumpTable, unsigned &checked_table,
 		const char **hitTable, int *chainId) {
 	vector<KChain *>::iterator it;
 	KTable *m_table = NULL;
-	KChain *matchChain;
+	KChain *matchChain = head;
 	int id = 0;
-	for (it = chain.begin(); it != chain.end(); ) {
-		matchChain = (*it);
-		if (matchChain->expire>0 && matchChain->expire<=kgl_current_sec) {
-			it = chain.erase(it);
-			continue;
-		}
-		it++;
+	while (matchChain) {
 		id++;
 		if (matchChain->match(rq, obj, jumpType, jumpTable)) {
 			switch (jumpType) {
 			case JUMP_CONTINUE:
+				matchChain = matchChain->next;
 				continue;
 			case JUMP_TABLE:
 				m_table = (KTable *) (*jumpTable);
 				if(m_table){
 					assert(m_table);
-/*					if (checked_table.find(m_table) != checked_table.end()) {
-						jumpType = JUMP_DENY;
-						//ËÀÑ­»·
-						return true;
-					}
-					checked_table[m_table] = 1;
-				*/
 					if(checked_table++ > 10){
 						jumpType = JUMP_DENY;
 						//jump tableÌ«¶à
@@ -131,6 +160,7 @@ bool KTable::match(KHttpRequest *rq, KHttpObject *obj, int &jumpType,
 						return true;
 					}
 				}
+				matchChain = matchChain->next;
 				continue;
 			default:
 				*hitTable = name.c_str();
@@ -138,6 +168,7 @@ bool KTable::match(KHttpRequest *rq, KHttpObject *obj, int &jumpType,
 				return true;
 			}
 		}
+		matchChain = matchChain->next;
 	}
 	return false;
 }
@@ -152,11 +183,6 @@ bool KTable::endElement(KXmlContext *context) {
 	if (context->getParentName() == TABLE_CONTEXT && context->qName
 			== CHAIN_CONTEXT) {
 		if (curChain) {
-			/*
-			 if (chainJumpName.size() > 0) {
-			 delChain( chainJumpName);
-			 }
-			 */
 			insertChain(-1, curChain);
 			curChain = NULL;
 		}
@@ -182,21 +208,20 @@ void KTable::htmlTable(std::stringstream &s,const char *vh,u_short accessType) {
 			<< "</td><td>" << klang["acl"] << "</td><td>" << klang["mark"]
 			<< "</td><td>";
 	s << LANG_HIT_COUNT << "</td></tr>\n";
-	vector<KChain *>::iterator it;
 	int j = 0;
 	int id = 0;
-	for (it = chain.begin(); it != chain.end(); it++, j++) {
+	KChain *chain = head;
+	while (chain) {
 		s
 				<< "<tr><td>[<a href=\"javascript:if(confirm('Are you sure to delete the chain";
-		//		s << "chain name=" << (*it)->name
 		s << "')){ window.location='delchain?vh=" << vh << "&access_type=" << accessType
 				<< "&id=" << j << "&table_name=" << name << "';}\">"
 				<< LANG_DELETE << "</a>][<a href='editchainform?vh=" << vh << "&access_type="
 				<< accessType << "&id=" << j << "&table_name=" << name
 				<< "'>" << LANG_EDIT << "</a>][<a href='addchain?vh=" << vh << "&access_type="
 				<< accessType << "&id=" << j << "&table_name=" << name
-				<< "'>" << LANG_INSERT << "</a>]</td><td><div>" << id++ << " " << (*it)->name << "</div></td><td>";
-		switch ((*it)->jumpType) {
+				<< "'>" << LANG_INSERT << "</a>]</td><td><div>" << id++ << " " << chain->name << "</div></td><td>";
+		switch (chain->jumpType) {
 		case JUMP_DENY:
 			s << LANG_DENY;
 			break;
@@ -228,16 +253,18 @@ void KTable::htmlTable(std::stringstream &s,const char *vh,u_short accessType) {
 			s << klang["default"];
 			break;
 		}
-		if ((*it)->jump) {
-			s << ":" << (*it)->jump->name;
+		if (chain->jump) {
+			s << ":" << chain->jump->name;
 		}
 		s << "</td><td>";
-		(*it)->getAclShortHtml(s);
+		chain->getAclShortHtml(s);
 		s << "</td><td>";
-		(*it)->getMarkShortHtml(s);
+		chain->getMarkShortHtml(s);
 		s << "</td>";
-		s << "<td>" << (*it)->hit_count << "</td>";
+		s << "<td>" << chain->hit_count << "</td>";
 		s << "</tr>\n";
+		j++;
+		chain = chain->next;
 	}
 	s << "</table>";
 	s << "[<a href='addchain?vh=" << vh << "&access_type=" << accessType
@@ -263,15 +290,17 @@ bool KTable::buildXML(const char *chain_name,std::stringstream &s,int flag)
 	return true;
 }
 void KTable::buildXML(std::stringstream &s,int flag) {
-	std::vector<KChain *>::iterator it;	
 	std::stringstream c;
-	for (it = chain.begin(); it != chain.end(); it++) {
-		if (TEST(flag,CHAIN_SKIP_EXT) && (*it)->ext) {
+	KChain *chain = head;
+	while (chain) {
+		if (TEST(flag,CHAIN_SKIP_EXT) && chain->ext) {
+			chain = chain->next;
 			continue;
 		}
 		c << "\t\t\t<chain ";
-		(*it)->buildXML(c,flag);
+		chain->buildXML(c,flag);
 		c << "\t\t\t</chain>\n";
+		chain = chain->next;
 	}
 	if (TEST(flag,CHAIN_SKIP_EXT) && ext && c.str().size()==0) {
 		return;
@@ -284,6 +313,8 @@ void KTable::buildXML(std::stringstream &s,int flag) {
 KTable::KTable() {
 	curChain = NULL;
 	ext = cur_config_ext;
+	head = NULL;
+	end = NULL;
 }
 KTable::~KTable() {
 	empty();
@@ -296,48 +327,94 @@ std::string KTable::addChainForm(KChain *chain,u_short accessType) {
 	return s.str();
 }
 bool KTable::delChain(int index) {
-	if(index<0 || index>=(int)chain.size()){
+	KChain *chain = findChain(index);
+	if (chain==NULL) {
 		return false;
 	}
-	vector<KChain *>::iterator it = chain.begin() + index;
-	delete (*it);
-	chain.erase(it);
+	if (chain->name.size()>0) {
+		std::map<std::string,KChain *>::iterator it;
+		it = chain_map.find(chain->name);
+		if (it!=chain_map.end() && chain==(*it).second) {
+			chain_map.erase(it);
+		}
+	}
+	removeChain(chain);
 	return true;
 }
 bool KTable::editChain(int index, KUrlValue *urlValue,KAccess *kaccess) {
-	if(index<0 || index>=(int)chain.size()){
+	KChain *chain = findChain(index);
+	if (chain==NULL) {
 		return false;
 	}
-	return chain[index]->edit(urlValue,kaccess,true);
+	std::string name = chain->name;
+	std::string new_name = urlValue->get("name");
+	if (new_name.size() > 0 && new_name!=name) {
+		if (findChain(new_name.c_str())) {
+			return false;
+		}
+	}
+	bool result = chain->edit(urlValue,kaccess,true);
+	chainChangeName(name,chain);
+	return result;
 }
 bool KTable::addAcl(int index, std::string acl, bool mark,KAccess *kaccess) {
-	if(index<0 || index>=(int)chain.size()){
+	KChain *chain = findChain(index);
+	if (chain==NULL) {
 		return false;
 	}
 	if (mark) {
-		return chain[index]->addMark(acl,"",kaccess)!=NULL;
+		return chain->addMark(acl,"",kaccess)!=NULL;
 	} else {
-		return chain[index]->addAcl(acl,"",kaccess)!=NULL;
+		return chain->addAcl(acl,"",kaccess)!=NULL;
 	}
 }
 bool KTable::delAcl(int index, std::string acl, bool mark) {
-	if(index<0 || index>=(int)chain.size()){
+	KChain *chain = findChain(index);
+	if (chain==NULL) {
 		return false;
 	}
 	if (mark) {
-		return chain[index]->delMark(acl);
+		return chain->delMark(acl);
 	} else {
-		return chain[index]->delAcl(acl);
+		return chain->delAcl(acl);
 	}
-
 }
 KChain *KTable::findChain(const char *name)
 {
-	vector<KChain *>::iterator it;
-	for (it = chain.begin(); it != chain.end(); it++) {
-		if((*it)->name == name){
-			return (*it);
+	std::map<std::string,KChain *>::iterator it;
+	it = chain_map.find(name);
+	if (it==chain_map.end()) {
+		return NULL;
+	}
+	return (*it).second;
+}
+KChain *KTable::findChain(int index)
+{
+	if (index==-1) {
+		return end;
+	}
+	KChain *chain = head;
+	while (index-->0 && chain) {
+		chain = chain->next;
+	}
+	return chain;
+}
+void KTable::chainChangeName(std::string oname,KChain *chain)
+{
+	if (chain->name==oname) {
+		return;
+	}
+	std::map<std::string,KChain *>::iterator it;
+	if (oname.size()>0) {
+		it = chain_map.find(oname);
+		if (it!=chain_map.end() && chain==(*it).second) {
+			chain_map.erase(it);
 		}
 	}
-	return NULL;
+	if (chain->name.size()>0) {
+		it = chain_map.find(chain->name);
+		if (it==chain_map.end()) {
+			chain_map.insert(std::pair<std::string,KChain *>(chain->name,chain));
+		}
+	}
 }

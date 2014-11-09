@@ -89,6 +89,7 @@ public:
 /**
 * 上传进度
 */
+#if 0
 class KUploadProgressMark :public KMark
 {
 public:
@@ -153,9 +154,9 @@ public:
 			int body_length = strlen(buf);
 			SET(rq->flags,RQ_HAS_SEND_HEADER);
 			s << getRequestLine(200);
-			/////////[308]
+			/////////[377]
 			s.WSTR("Server: " PROGRAM_NAME "/" VERSION "\r\nDate: ");
-			/////////[309]
+			/////////[378]
 			timeLock.Lock();
 			s.write_all((char *)cachedDateTime,29);
 			timeLock.Unlock();
@@ -338,4 +339,5 @@ private:
 	KUploadProgressItem *end;
 	KMutex lock;
 };
+#endif
 #endif

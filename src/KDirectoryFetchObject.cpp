@@ -13,7 +13,9 @@ void KPrevDirectoryFetchObject::open(KHttpRequest *rq)
 			new_path2 << "?" << rq->raw_url.param;
 		}
 		rq->closeFetchObject();
-		send_redirect(rq,new_path2.getString());
+		send_redirect(rq,new_path2.getString(),new_path2.getSize(),STATUS_FOUND);
+		rq->startResponseBody();
+		stageWriteRequest(rq);
 }
 KDirectoryFetchObject::KDirectoryFetchObject()
 {
@@ -39,7 +41,7 @@ KDirectoryFetchObject::~KDirectoryFetchObject()
 void KDirectoryFetchObject::open(KHttpRequest *rq)
 {
 	assert(rq->file->isDirectory());
-	rq->ctx->obj->insertHttpHeader("Content-Type", "text/html");
+	rq->ctx->obj->insertHttpHeader(kgl_expand_string("Content-Type"),kgl_expand_string("text/html"));
 #ifndef _WIN32
 	assert(dp==NULL);
 	dp = opendir(rq->file->getName());

@@ -7,18 +7,50 @@ public:
 	KReplaceIPMark()
 	{
 		header = "X-Real-Ip";
+		val = NULL;
+	}
+	~KReplaceIPMark()
+	{
+		if (val) {
+			delete val;
+		}
 	}
 	bool mark(KHttpRequest *rq, KHttpObject *obj,
 					const int chainJumpType, int &jumpType)
 	{
-		KHttpHeader *h = rq->parser.removeHeader(header.c_str());
-		if (h) {
-			if (rq->client_ip) {
-				free(rq->client_ip);
+		KHttpHeader *h = rq->parser.headers;
+		KHttpHeader *prev = NULL;
+		while (h) {
+			if (strcasecmp(h->attr, header.c_str()) == 0) {
+				KRegSubString *sub = NULL;
+				if (val) {
+					sub = val->matchSubString(h->val, strlen(h->val), 0);
+				}
+				if (val == NULL || sub) {
+					if (prev) {
+						prev->next = h->next;
+					} else {
+						rq->parser.headers = h->next;
+					}
+					if (rq->client_ip) {
+						free(rq->client_ip);
+					}
+					if (val == NULL) {
+						rq->client_ip = h->val;
+					} else {
+						free(h->val);
+						char *ip = sub->getString(1);
+						if (ip) {
+							rq->client_ip = strdup(ip);
+						}
+					}
+					free(h->attr);
+					free(h);
+					return true;
+				}
 			}
-			rq->client_ip = h->val;
-			free(h->attr);
-			free(h);
+			prev = h;
+			h = h->next;
 		}
 		return true;
 	}
@@ -41,22 +73,46 @@ public:
 			s << "X-Real-Ip";
 		}
 		s << "'>";
+		s << "val(regex):<input name='val' value='";
+		if (m && m->val) {
+			s << m->val->getModel();
+		}
+		s << "'>";
 		return s.str();
 	}
 	std::string getDisplay()
 	{
-		return header;
+		std::stringstream s;
+		s << header;
+		if (val) {
+			s << ":" << val->getModel();
+		}
+		return s.str();
 	}
 	void editHtml(std::map<std::string, std::string> &attribute) throw (KHtmlSupportException)
 	{
 		header = attribute["header"];
+		std::string val = attribute["val"];
+		if (this->val) {
+			delete this->val;
+			this->val = NULL;
+		}
+		if (!val.empty()) {
+			this->val = new KReg;
+			this->val->setModel(val.c_str(), PCRE_CASELESS);
+		}
 	}
 	void buildXML(std::stringstream &s)
 	{
-		s << " header='" << header << "'>";
+		s << " header='" << header << "' ";
+		if (val) {
+			s << "val='" << KXml::param(val->getModel()) << "' ";
+		}
+		s << "> ";
 	}
 private:
 	std::string header;
+	KReg *val;
 };
 class KSelfIPMark : public KMark
 {
@@ -72,8 +128,10 @@ public:
 		}
 		if (ip.size()==0) {
 			char ip[MAXIPLEN];
-			rq->server->get_self_ip(ip,sizeof(ip));
+			rq->c->socket->get_self_ip(ip,sizeof(ip));
 			rq->bind_ip = strdup(ip);
+		} else if (ip[0] == '$') {
+			rq->bind_ip = strdup(rq->getClientIp());
 		} else {
 			rq->bind_ip = strdup(ip.c_str());
 		}

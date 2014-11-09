@@ -24,7 +24,7 @@
 #include "KJump.h"
 #include "KFetchObject.h"
 #include "KRedirect.h"
-#include "KPoolableSocket.h"
+#include "KUpstreamSelectable.h"
 #include "malloc_debug.h"
 #include "KFileName.h"
 class KFetchObject;
@@ -36,7 +36,7 @@ public:
 	KPoolableRedirect();
 	virtual ~KPoolableRedirect();
 	KFetchObject *makeFetchObject(KHttpRequest *rq, KFileName *file);
-	virtual KPoolableSocket *getConnection(bool &half)
+	virtual KUpstreamSelectable *getConnection(bool &half)
 	{
 		return NULL;
 	}
@@ -58,6 +58,8 @@ public:
 			return "scgi";
 		case Proto_hmux:
 			return "hmux";
+		case Proto_spdy:
+			return "spdy";
 		}
 		return "unknow";
 	}

@@ -10,7 +10,7 @@
 #include <sstream>
 #include "global.h"
 #include "KExtendProgram.h"
-#include "KPoolableSocket.h"
+#include "KUpstreamSelectable.h"
 #include "KPoolableSocketContainer.h"
 #include "KHttpRequest.h"
 #include "KProcess.h"
@@ -42,9 +42,9 @@ public:
 	virtual ~KVirtualHostProcess() {
 		killProcess(0);
 	}
-	void isBad(KPoolableSocket *st,BadStage stage)
+	void isBad(KUpstreamSelectable *st,BadStage stage)
 	{
-		if (stage == BadStage_Connect || stage == BadStage_Send){
+		if (stage == BadStage_Connect || stage == BadStage_TrySend){
 			error_count++;
 			if (kgl_current_sec - lastCheckTime > 5) {
 				lastCheckTime = kgl_current_sec;
@@ -58,42 +58,43 @@ public:
 			}
 		}
 	}
-	void isGood(KPoolableSocket *st)
+	void isGood(KUpstreamSelectable *st)
 	{
 		//reset the error_count
 		error_count = 0;
 	}
 	virtual void handleRequest(KHttpRequest *rq,KExtendProgram *rd);
-	KPoolableSocket *connect(KHttpRequest *rq,KExtendProgram *rd,bool &isHalf) {
+	KUpstreamSelectable *connect(KHttpRequest *rq,KExtendProgram *rd,bool &isHalf) {
 		lastActive = kgl_current_sec;
-		KPoolableSocket *socket = getPoolSocket();
+		KUpstreamSelectable *socket = getPoolSocket();
 		if(socket){
 			isHalf = false;
 			return socket;
 		}
-		socket = new KPoolableSocket;
+		socket = new KUpstreamSelectable();
+		socket->socket = new KClientSocket;
 		isHalf = true;
 		bool result;
 #ifdef KSOCKET_UNIX	
 		if (unix_path.size()>0) 
-			result = socket->halfconnect(unix_path.c_str());
+			result = socket->socket->halfconnect(unix_path.c_str());
 		else 
 #endif
-			result = socket->halfconnect(addr);
+			result = socket->socket->halfconnect(addr);
 		
 		if (!result) {
-			delete socket;
+			socket->destroy();
 			return NULL;
 		}
 		bind(socket);
 		return socket;
 	}
 
-	virtual KPoolableSocket *poweron(KVirtualHost *vh,KExtendProgram *rd,bool &success) = 0;
+	virtual KUpstreamSelectable *poweron(KVirtualHost *vh,KExtendProgram *rd,bool &success) = 0;
 	virtual void getProcessInfo(const USER_T &user, const std::string &name,
 			std::stringstream &s,int &count) {
 	}
-	/////////[119]
+	/////////[157]
 	virtual bool canDestroy(time_t nowTime)
 	{
 		if (idleTime>0 && nowTime - lastActive > idleTime) {

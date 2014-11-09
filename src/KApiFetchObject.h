@@ -10,7 +10,6 @@
 
 #ifndef KAPIFETCHOBJECT_H_
 #define KAPIFETCHOBJECT_H_
-
 #include "KFetchObject.h"
 #include "KHttpTransfer.h"
 #include "KApiRedirect.h"

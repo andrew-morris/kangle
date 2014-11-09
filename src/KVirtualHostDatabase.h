@@ -25,7 +25,10 @@ public:
 	~KVirtualHostDatabase();
 	bool flushVirtualHost(const char *vhName,bool initEvent,KVirtualHostEvent *ctx);
 	bool loadVirtualHost(KVirtualHostManage *vm,std::string &errMsg);
-	/////////[9]
+#ifdef ENABLE_VH_FLOW
+	//流量操作
+	bool saveFlow(KVirtualHost *vh,void *cn);
+#endif
 	/*
 	写入操作
 	*/

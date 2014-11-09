@@ -84,6 +84,7 @@
 #include "KSelfPortsAcl.h"
 #include "KIpSpeedLimitMark.h"
 #include "KRandAcl.h"
+#include "KCloudIpAcl.h"
 #ifdef ENABLE_INPUT_FILTER
 #include "KParamMark.h"
 #include "KPostFileMark.h"
@@ -97,7 +98,7 @@
 #include "KUrlRewriteMark.h"
 #include "KUrlRangeMark.h"
 #include "KVaryMark.h"
-/////////[177]
+/////////[223]
 #ifdef HTTP_PROXY
 #include "KPortMapMark.h"
 #endif
@@ -111,8 +112,11 @@
 #include "KTimeoutMark.h"
 #include "KKeepConnectionAcl.h"
 #include "KConnectionCloseMark.h"
+#include "KMinObjVerifiedMark.h"
 #include "malloc_debug.h"
-
+#ifdef ENABLE_TCMALLOC
+#include "google/heap-checker.h"
+#endif
 using namespace std;
 
 KAccess kaccess[2];
@@ -138,14 +142,14 @@ KAccess::~KAccess() {
 }
 void KAccess::destroy() {
 	std::map<std::string,KTable *>::iterator it;
-	lock.Lock();
+	lock.WLock();
 	for (it = tables.begin(); it != tables.end(); it++) {
 		(*it).second->release();
 	}
 	tables.clear();
 	begin = NULL;
 	postMap = NULL;
-	lock.Unlock();
+	lock.WUnlock();
 }
 int KAccess::getType(int type) {
 	if (type < 0 || type > 1) {
@@ -156,29 +160,34 @@ int KAccess::getType(int type) {
 bool KAccess::isGlobal() {
 	return globalFlag;
 }
-void KAccess::addAclModel(u_short type,KAcl *m)
+bool KAccess::addAclModel(u_short type,KAcl *m)
 {
 	if (type>1) {
 		m->addRef();
 		for (u_short i=0;i<2;i++) {
 			aclFactorys[i].insert(std::pair<std::string,KAcl *>(m->getName(),m));
 		}
-		return;
+		return true;
 	}
 	aclFactorys[type].insert(std::pair<std::string,KAcl *>(m->getName(),m));
+	return true;
 }
-void KAccess::addMarkModel(u_short type,KMark *m)
+bool KAccess::addMarkModel(u_short type,KMark *m)
 {
 	if (type>1) {
 		m->addRef();
 		for (u_short i=0;i<2;i++) {
 			markFactorys[i].insert(std::pair<std::string,KMark *>(m->getName(),m));
 		}
-		return;
+		return true;
 	}
 	markFactorys[type].insert(std::pair<std::string,KMark *>(m->getName(),m));
+	return true;
 }
 void KAccess::loadModel() {
+#ifdef ENABLE_TCMALLOC
+	HeapLeakChecker::Disabler disabler;
+#endif
 	addAclModel(REQUEST_RESPONSE,new KUrlAcl());
 	KAcl *acl = NULL;
 	addAclModel(REQUEST_RESPONSE,new KRegPathAcl());
@@ -194,7 +203,9 @@ void KAccess::loadModel() {
 	addAclModel(REQUEST,new KHostAcl());
 	addAclModel(REQUEST,new KWideHostAcl());
 	addAclModel(REQUEST,new KMultiHostAcl());
-
+#ifdef ENABLE_SIMULATE_HTTP
+	addAclModel(REQUEST_RESPONSE, new KCloudIpAcl());
+#endif
 #ifndef _WIN32
 	addAclModel(REQUEST_RESPONSE,new KLoadAvgAcl());
 #endif
@@ -219,6 +230,7 @@ void KAccess::loadModel() {
 #ifdef HTTP_PROXY
 	addMarkModel(REQUEST,new KProtoMark());
 #endif
+	addMarkModel(REQUEST, new KMinObjVerifiedMark());
 	addMarkModel(REQUEST,new KFlagMark());
 	addMarkModel(REQUEST,new KRewriteMark());
 	addMarkModel(REQUEST,new KRedirectMark());
@@ -290,9 +302,9 @@ void KAccess::loadModel() {
 	addMarkModel(REQUEST,new KParamCountMark());	
 	addMarkModel(REQUEST,new KPostFileMark());
 	addMarkModel(RESPONSE,new KHttpOnlyCookieMark());
-	addMarkModel(REQUEST,new KUploadProgressMark());
+	//addMarkModel(REQUEST,new KUploadProgressMark());
 #endif	
-	/////////[178]
+	/////////[224]
 #ifdef HTTP_PROXY
 	addMarkModel(REQUEST,new KPortMapMark());
 #endif
@@ -322,7 +334,7 @@ int KAccess::checkPostMap(KHttpRequest *rq,KHttpObject *obj)
 	KJump *jump = default_jump;
 	const char *hitTable = NULL;
 	int hitChain;
-	lock.Lock();
+	lock.RLock();
 	if (postMap) {
 		if (postMap->match(rq, obj, jumpType, &jump, checked_table, &hitTable,
 				&hitChain) && jumpType != JUMP_DEFAULT) {
@@ -333,7 +345,7 @@ int KAccess::checkPostMap(KHttpRequest *rq,KHttpObject *obj)
 			jump = default_jump;
 		}
 	}
-	lock.Unlock();
+	lock.RUnlock();
 	if (jumpType==JUMP_ALLOW) {
 		return JUMP_ALLOW;
 	}
@@ -347,7 +359,7 @@ int KAccess::check(KHttpRequest *rq, KHttpObject *obj) {
 	KPoolableRedirect *as;
 	const char *hitTable = NULL;
 	int hitChain;
-	lock.Lock();
+	lock.RLock();
 	if (!actionParsed) {
 		setChainAction();
 	}
@@ -379,10 +391,10 @@ int KAccess::check(KHttpRequest *rq, KHttpObject *obj) {
 #ifdef ENABLE_WRITE_BACK
 	case JUMP_WBACK:
 		if (jump) {
-			rq->buffer << ((KWriteBack *) jump)->msg.c_str();
+			KWriteBack *wb = (KWriteBack *) jump;
+			wb->buildRequest(rq);
 		}
 		jumpType = JUMP_DENY;
-		SET(rq->flags,RQ_CONNECTION_CLOSE);
 		break;
 #endif
 	case JUMP_PROXY:
@@ -396,16 +408,23 @@ int KAccess::check(KHttpRequest *rq, KHttpObject *obj) {
 		break;
 	case JUMP_DROP:
 		//Ö±½Ó¶ªÆú
-		lock.Unlock();
+		lock.RUnlock();
 		SET(rq->flags,RQ_CONNECTION_CLOSE);
 		stageEndRequest(rq);
 		return JUMP_DENY;
 	}
-	lock.Unlock();
+	lock.RUnlock();
 	if (type==REQUEST){
 #ifdef ENABLE_VH_RS_LIMIT
-		if (jumpType == JUMP_VHS && !TEST(rq->flags,RQ_VH_QUERIED)) {
-			switch (conf.gvm->queryVirtualHost(rq,rq->url->host)) {
+		if (jumpType == JUMP_VHS) {
+			query_vh_result vh_result;
+#ifdef KSOCKET_SSL
+			if (rq->c->sni) {
+				vh_result = rq->c->useSniVirtualHost(rq);
+			} else
+#endif
+				vh_result = conf.gvm->queryVirtualHost(rq->c->ls,&rq->svh,rq->url->host);
+			switch (vh_result) {
 			case query_vh_connect_limit:
 				jumpType = JUMP_DENY;
 				send_error(rq, NULL, STATUS_SERVER_ERROR, "max connect limit.");
@@ -417,19 +436,20 @@ int KAccess::check(KHttpRequest *rq, KHttpObject *obj) {
 			default:
 				break;
 			}
-		}else 
+		} else 
 #endif
 		if (jumpType == JUMP_DENY) {
-			if (rq->send_ctx.header || rq->buffer.getLen() > 0) {
+			if (rq->send_ctx.getBufferSize()>0 || rq->buffer.getLen() > 0) {
 #ifdef ENABLE_TF_EXCHANGE
 				if (rq->tf) {
+/////////[225]
 					delete rq->tf;
 					rq->tf = NULL;
 				}
 #endif
-				SET(rq->flags,RQ_HAS_SEND_HEADER);
+				rq->startResponseBody();
 				stageWriteRequest(rq);
-			} else if (TEST(rq->filter_flags,RQ_SEND_AUTH|RQ_SEND_PROXY_AUTH)) {
+			} else if (TEST(rq->filter_flags,RQ_SEND_AUTH)) {
 				send_auth(rq);
 			} else if (!TEST(rq->flags,RQ_HAS_SEND_HEADER)) {
 				send_error(rq, NULL, STATUS_FORBIDEN, "denied by request access control");
@@ -455,7 +475,7 @@ bool KAccess::newTable(std::string table_name, std::string &err_msg) {
 		}
 	}
 	KTable *m_table = NULL;
-	lock.Lock();
+	lock.WLock();
 #ifndef ENABLE_MULTI_TABLE
 	if (tables.size() > 0) {
 		goto done;
@@ -475,7 +495,7 @@ bool KAccess::newTable(std::string table_name, std::string &err_msg) {
 	}
 	tables.insert(std::pair<std::string,KTable *>(table_name,m_table));
 	result = true;
-	done: lock.Unlock();
+	done: lock.WUnlock();
 	if (!result) {
 		err_msg = LANG_TABLE_NAME_IS_USED;
 	}
@@ -483,44 +503,44 @@ bool KAccess::newTable(std::string table_name, std::string &err_msg) {
 }
 bool KAccess::delTable(std::string table_name, std::string &err_msg) {
 	err_msg = LANG_TABLE_NAME_ERR;
-	lock.Lock();
+	lock.WLock();
 	std::map<std::string,KTable *>::iterator it = tables.find(table_name);
 	if (it==tables.end()) {
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	if ((*it).second->getRef()>1) {
 		err_msg = LANG_TABLE_REFS_ERR;
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
-	if ((*it).second->chain.size()>0) {
+	if ((*it).second->head) {
 		err_msg = LANG_TABLE_NOT_EMPTY;
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	if (begin==(*it).second || postMap==(*it).second) {
 		//system table cann't delete
 		err_msg = LANG_TABLE_NAME_ERR;
-		lock.Unlock();
+		lock.WUnlock();
 		return true;
 	}
 	(*it).second->release();
 	tables.erase(it);
-	lock.Unlock();
+	lock.WUnlock();
 	return true;
 }
 void KAccess::startXml(const std::string &encoding) {
 	//printf("encoding=[%s]\n",encoding.c_str());
 	actionParsed = false;
-	lock.Lock();
+	lock.WLock();
 }
 void KAccess::endXml(bool result) {
-	lock.Unlock();
+	lock.WUnlock();
 }
 void KAccess::copy(KAccess &a)
 {
-	lock.Lock();
+	lock.WLock();
 	default_jump_type = a.default_jump_type;
 	jump_name = a.jump_name;
 	if (default_jump) {
@@ -534,7 +554,7 @@ void KAccess::copy(KAccess &a)
 	a.postMap = NULL;
 	tables.swap(a.tables);
 	actionParsed = a.actionParsed;
-	lock.Unlock();
+	lock.WUnlock();
 }
 bool KAccess::startElement(KXmlContext *context, std::map<std::string,
 		std::string> &attribute) {
@@ -589,11 +609,14 @@ bool KAccess::startCharacter(KXmlContext *context, char *character, int len) {
 void KAccess::setChainAction() {
 	actionParsed = true;
 	std::map<std::string,KTable *>::iterator it;
-	vector<KChain *>::iterator it2;
+	//vector<KChain *>::iterator it2;
 	for (it = tables.begin(); it != tables.end(); it++) {
 		KTable *tb = (*it).second;
-		for (it2 = tb->chain.begin(); it2 != tb->chain.end(); it2++) {
-			setChainAction((*it2)->jumpType, &(*it2)->jump, (*it2)->jumpName);
+		KChain *chain = tb->head;
+		while (chain) {
+		//for (it2 = tb->chain.begin(); it2 != tb->chain.end(); it2++) {
+			setChainAction(chain->jumpType, &chain->jump, chain->jumpName);
+			chain = chain->next;
 		}
 	}
 	if (this->default_jump == NULL) {
@@ -616,7 +639,7 @@ bool KAccess::endElement(KXmlContext *context) {
 	return result;
 }
 void KAccess::buildXML(std::stringstream &s, int flag) {
-	lock.Lock();
+	lock.RLock();
 	if (!actionParsed) {
 		setChainAction();
 	}
@@ -630,7 +653,7 @@ void KAccess::buildXML(std::stringstream &s, int flag) {
 	for (it = tables.begin(); it != tables.end(); it++) {
 		(*it).second->buildXML(s,(CHAIN_XML_DETAIL|flag));
 	}
-	lock.Unlock();
+	lock.RUnlock();
 	s << "\t</" << qName << ">\n";
 }
 std::string KAccess::htmlAccess(const char *vh) {
@@ -659,7 +682,7 @@ std::string KAccess::htmlAccess(const char *vh) {
 	s << "<form action='/accesschangefirst?access_type=" << type << "&vh=" << vh
 			<< "' method=post name=accessaddform>" ;
 	s << (type==REQUEST ? klang["lang_requestAccess"] : klang["lang_responseAccess"]) << " " << LANG_ACCESS_FIRST << ":";
-	lock.Lock();
+	lock.WLock();
 	if (!actionParsed) {
 		setChainAction();
 	}
@@ -677,7 +700,7 @@ std::string KAccess::htmlAccess(const char *vh) {
 		(*it).second->htmlTable(s,vh,type);
 		s << "<br>";
 	}
-	lock.Unlock();
+	lock.WUnlock();
 	if(*vh=='\0'){
 		s << endTag();
 	}
@@ -862,10 +885,10 @@ void KAccess::setChainAction(int &jump_type, KJump **jump, std::string name) {
 }
 void KAccess::changeFirst(int jump_type, std::string name) {
 
-	lock.Lock();
+	lock.WLock();
 	default_jump_type = jump_type;
 	setChainAction(default_jump_type, &default_jump, name);
-	lock.Unlock();
+	lock.WUnlock();
 }
 void KAccess::htmlChainAction(std::stringstream &s, int jump_type, KJump *jump,
 		bool showTable, std::string skipTable) {
@@ -981,9 +1004,9 @@ bool KAccess::renameTable(std::string name_from, std::string name_to,
 		err_msg = "Cann't rename system table";
 		return false;
 	}
-	lock.Lock();
+	lock.WLock();
 	if (getTable(name_to) != NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		err_msg = LANG_TABLE_NAME_IS_USED;
 		return false;
 	}
@@ -995,25 +1018,25 @@ bool KAccess::renameTable(std::string name_from, std::string name_to,
 		tables.insert(std::pair<std::string,KTable *>(name_to,table));
 		result = true;
 	}
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 bool KAccess::emptyTable(std::string table_name, std::string &err_msg) {
 	bool result = false;
 	err_msg = LANG_TABLE_NAME_ERR;
-	lock.Lock();
+	lock.WLock();
 	KTable *tb = getTable(table_name);
 	if (tb) {
 		tb->empty();
 		result = true;
 	}
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 int KAccess::newChain(std::string table_name, int index,KUrlValue *urlValue) {
 	int ret = -1;
 	KChain *chain;
-	lock.Lock();
+	lock.WLock();
 	KTable *m_table = getTable(table_name);
 	if (m_table == NULL) {
 		fprintf(stderr, "cann't get table[%s]", table_name.c_str());
@@ -1024,33 +1047,23 @@ int KAccess::newChain(std::string table_name, int index,KUrlValue *urlValue) {
 		chain->edit(urlValue,this,false);
 	}
 	ret = m_table->insertChain(index,chain);
-	done: lock.Unlock();
+	done: lock.WUnlock();
 	return ret;
 }
 std::string KAccess::addChainForm(const char *vh,std::string table_name, int index, bool add) {
 	stringstream s;
 	KChain *m_chain = NULL;
 	KTable *m_table = NULL;
-	vector<KChain *>::iterator it;
-	lock.Lock();
+	//vector<KChain *>::iterator it;
+
+	lock.WLock();
 	m_table = getTable(table_name);
 	if (m_table == NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		return "";
 	}
 	if (!add) {
-		int p = index;
-		for (it = m_table->chain.begin(); it != m_table->chain.end(); it++) {
-			p--;
-			if (p < 0) {
-				break;
-			}
-		}
-		if (it != m_table->chain.end()) {
-
-			m_chain = (*it);
-		}
-
+		m_chain = m_table->findChain(index);
 	}
 	if(*vh=='\0'){
 		s << "<html><head><title>add "
@@ -1106,80 +1119,80 @@ std::string KAccess::addChainForm(const char *vh,std::string table_name, int ind
 	s << type << "&table_name=" << table_name << "&id=" << index << "\";}'";
 	s << " value=" << LANG_DELETE << ">";
 	s << "</form>";
-	lock.Unlock();
+	lock.WUnlock();
 	return s.str();
 
 }
 bool KAccess::delChain(std::string table_name, std::string name)
 {
-	lock.Lock();
+	lock.WLock();
 	KTable *table = getTable(table_name);
 	if (table == NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	bool result = table->delChain(name);
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 bool KAccess::delChain(std::string table_name, int index) {
-	lock.Lock();
+	lock.WLock();
 	KTable *table = getTable(table_name);
 	if (table == NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	bool result = table->delChain(index);
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 bool KAccess::editChain(std::string table_name, std::string name, KUrlValue *urlValue)
 {
-	lock.Lock();
+	lock.WLock();
 	KTable *table = getTable(table_name);
 	if (table == NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	bool result = table->editChain(name, urlValue,this);
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 bool KAccess::editChain(std::string table_name, int index, KUrlValue *urlValue) {
-	lock.Lock();
+	lock.WLock();
 	KTable *table = getTable(table_name);
 	if (table == NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	bool result = table->editChain(index, urlValue,this);
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 void KAccess::clearImportConfig() {
 }
 bool KAccess::addAcl(std::string table_name, int index, std::string acl,
 		bool mark) {
-	lock.Lock();
+	lock.WLock();
 	KTable *table = getTable(table_name);
 	if (table == NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	bool result = table->addAcl(index, acl, mark,this);
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 bool KAccess::delAcl(std::string table_name, int index, std::string acl,
 		bool mark) {
-	lock.Lock();
+	lock.WLock();
 	KTable *table = getTable(table_name);
 	if (table == NULL) {
-		lock.Unlock();
+		lock.WUnlock();
 		return false;
 	}
 	bool result = table->delAcl(index, acl, mark);
-	lock.Unlock();
+	lock.WUnlock();
 	return result;
 }
 
@@ -1195,25 +1208,25 @@ std::vector<std::string> KAccess::getTableNames(std::string skipName) {
 }
 void KAccess::listTable(KVirtualHostEvent *ctx)
 {
-	lock.Lock();
+	lock.RLock();
 	std::map<std::string,KTable *>::iterator it;
 	for(it=tables.begin();it!=tables.end();it++){
 		ctx->add("table",(*it).first.c_str());
 	}
-	lock.Unlock();
+	lock.RUnlock();
 }
 bool KAccess::listChain(std::string table_name,const char *chain_name,KVirtualHostEvent *ctx,int flag)
 {
 	std::stringstream s;
-	lock.Lock();
+	lock.RLock();
 	KTable *table = getTable(table_name);
 	if (table==NULL) {
-		lock.Unlock();	
+		lock.RUnlock();	
 		ctx->setStatus("cann't find table");
 		return false;
 	}
 	bool result = table->buildXML(chain_name,s,flag);//(detail?CHAIN_XML_DETAIL:CHAIN_XML_SHORT));
-	lock.Unlock();
+	lock.RUnlock();
 	if (result) {
 		ctx->add("table_info",s.str().c_str());
 	}

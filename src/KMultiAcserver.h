@@ -44,27 +44,32 @@ public:
 	static std::string form(KMultiAcserver *mserver);
 	void parse(std::map<std::string,std::string> &attribute);
 	void parseNode(const char *nodeString);
+	/////////[371]
+	void setErrorTryTime(int max_error_count,int errorTryTime);
 	static std::string nodeForm(std::string name,KMultiAcserver *as,unsigned nodeIndex);
 	bool delNode(int nodeIndex);
 	bool isChanged(KPoolableRedirect *rd);
 	void buildVNode();
 	bool ip_hash;
 	bool cookie_stick;
-	int max_error_count;	
+	int max_error_count;
 private:
 	void removeAllNode();
+	bool addNode(std::map<std::string, std::string> &attr);
+	bool addNode(std::map<std::string, std::string> &attr, char *self_ip);
 	void addNode(KSockPoolHelper *sockHelper);
 	unsigned short getNodeIndex(KHttpRequest *rq);
 	int getCookieStick(const char *attr,const char *cookie_stick_name);
 	KSockPoolHelper *getIndexNode(int index);
 	KSockPoolHelper *nextActiveNode(KSockPoolHelper *node,unsigned short &index);
-	void enableAllServer();
-	int errorTryTime;
+	void enableAllServer();	
 	//backup node list
 	std::vector<KSockPoolHelper *> bnodes;
 	std::vector<KSockPoolHelper *> vnodes;
 	KSockPoolHelper *nodes;
+	/////////[372]
 	int nodesCount;
+	int errorTryTime;
 	KMutex lock;
 };
 #endif /* KMULTIACSERVER_H_ */

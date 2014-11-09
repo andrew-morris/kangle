@@ -42,7 +42,7 @@ public:
 	void clean();
 	void refresh(time_t nowTime);
 	void getProcessInfo(std::stringstream &s);
-	/////////[253]
+	/////////[316]
 	void killAllProcess(KVirtualHost *vh=NULL);
 	bool killProcess(const char *user,int pid);
 	bool killProcess2(USER_T user,int pid);

@@ -232,7 +232,37 @@ public:
 	//当前带宽信息
 	KSpeedLimit *sl;
 #endif
-	/////////[99]
+#ifdef ENABLE_VH_FLOW
+	void setFlow(bool fflow,KVirtualHost *ov)
+	{
+		if (flow) {
+			flow->release();
+			flow = NULL;
+		}
+		this->fflow = fflow;
+		if (fflow) {
+			if (ov) {
+				flow = ov->flow;
+			}
+			if (flow) {
+				flow->addRef();
+			} else {
+				flow = new KFlowInfo;
+			}
+		}
+	}
+	int getSpeed(bool reset)
+	{
+		if (flow) {
+			return flow->getSpeed(reset);
+		}
+		return 0;
+	}
+	//统计流量
+	bool fflow;
+	//流量表
+	KFlowInfo *flow;
+#endif
 	/*
 	虚拟主机状态，0表示开通状态，其它表示暂停状态
 	*/
@@ -255,6 +285,13 @@ public:
 	std::list<u_short> ports;
 	std::list<std::string> binds;
 #endif
+	bool empty()
+	{
+		if (!hosts.empty()) {
+			return false;
+		}
+		return true;
+	}
 	std::list<KSubVirtualHost *> hosts;
 #ifdef ENABLE_VH_RUN_AS
 	std::string add_dir;
@@ -302,7 +339,6 @@ public:
 	int app;
 	bool ip_hash;
 	std::vector<std::string> apps;
-	//app use share with other user
 	int app_share;
 	void setApp(int app);
 	std::string getApp(KHttpRequest *rq);
@@ -311,37 +347,6 @@ public:
 	bool inherit;
 	//是否支持串接请求
 	bool concat;
-	/*
-	 是否跟踪链接
-	 FOLLOW_LINK_NO  不跟踪
-	 FOLLOW_LINK_ALL 总是跟踪
-	 FOLLOW_LINK_OWN 只跟踪自已的
-	 */
-	/*
-	int followlink;
-	void setFollowLink(const char *followLink) {
-		if (strcasecmp(followLink, "all") == 0) {
-			followlink = FOLLOW_LINK_ALL;
-		} else if (strcasecmp(followLink, "no") == 0) {
-			followlink = FOLLOW_LINK_NO;
-		} else if (strcasecmp(followLink, "own") == 0) {
-			followlink = FOLLOW_LINK_OWN;
-		} else {
-			followlink = FOLLOW_LINK_ALL;
-		}
-	}
-	const char *getFollowLink() {
-		switch (followlink) {
-		case FOLLOW_LINK_ALL:
-			return "all";
-		case FOLLOW_LINK_NO:
-			return "no";
-		case FOLLOW_LINK_OWN:
-			return "own";
-		}
-		return "unknow";
-	}
-	*/
 	bool loadApiRedirect(KApiPipeStream *st,int workType);
 	bool saveAccess();
 	void setAccess(std::string access_file);
@@ -350,8 +355,11 @@ public:
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 	std::string certfile;
 	std::string keyfile;
+	char *cipher;
+	char *protocols;
+	/////////[137]
 	SSL_CTX *ssl_ctx;
-	bool setSSLInfo(std::string certfile,std::string keyfile);
+	bool setSSLInfo(std::string certfile,std::string keyfile,std::string cipher,std::string protocols);
 	std::string getCertfile();
 	std::string getKeyfile();
 #endif

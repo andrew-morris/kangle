@@ -17,11 +17,10 @@
  */
 #ifndef KEPOLLSELECTOR_H_
 #define KEPOLLSELECTOR_H_
-
 #include "global.h"
-
 #ifdef HAVE_SYS_EPOLL_H
 #include <sys/epoll.h>
+//#define ENABLE_ONESHOT_MODEL   1
 #include "KSelector.h"
 #include "malloc_debug.h"
 
@@ -30,19 +29,20 @@ class KEpollSelector : public KSelector
 public:
 	const char *getName()
 	{
+#ifdef ENABLE_ONESHOT_MODEL
+		return "epoll(one shot)";
+#else
 		return "epoll";
+#endif
 	}
 	KEpollSelector();
 	virtual ~KEpollSelector();
 	void select();
-	bool addListenSocket(KSelectable *st)
-	{
-		//int flag = 1;
-		//setsockopt(st->getSockfd(), IPPROTO_TCP, TCP_NODELAY,(const char *) &flag, sizeof(int));
-		//setnoblock(st->getSockfd());
-		addSocket(st,STAGE_OP_LISTEN);
-		return true;
-	}
+	bool listen(KServer *st,resultEvent result);
+	bool read(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg);
+        bool write(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg);
+        bool next(KSelectable *st,resultEvent result,void *arg);
+	bool connect(KSelectable *st,resultEvent result,void *arg);
 protected:
 	bool addSocket(KSelectable *rq,int op);
 	void removeSocket(KSelectable *rq);

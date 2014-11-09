@@ -17,14 +17,14 @@ public:
 	KExtendProgramString(const char *extendName, KVirtualHost *vh) {
 		this->vh = vh;
 		pid = 0;
-		/////////[34]
+		/////////[55]
 	}
 	void setPid(int pid) {
 		this->pid = pid;
 	}
-	/////////[35]
+	/////////[56]
 	const char *getValue(const char *name) {
-		/////////[36]
+		/////////[57]
 		return interGetValue(name);
 
 	}
@@ -107,7 +107,7 @@ public:
 	}
 	const char *interGetValue(const char *name);	
 	Token_t getToken(bool &result);
-	/////////[37]
+	/////////[58]
 private:
 	KVirtualHost *vh;
 	int pid;

@@ -34,6 +34,7 @@
 #include "KVirtualHostDatabase.h"
 #include "lib.h"
 #include "server.h"
+#include "KHttpFilterManage.h"
 #include "malloc_debug.h"
 #ifndef HTTP_PROXY
 using namespace std;
@@ -130,6 +131,19 @@ bool KHttpServerParser::startElement(KXmlContext *context, std::map<
 	}
 	std::string parent = context->getParentName();
 	if (parent=="vh" || parent=="vhs" || parent=="vh_templete"){
+#ifdef ENABLE_KSAPI_FILTER
+		if (context->qName == "filter") {
+			if (virtualHost==NULL) {
+				//已知的问题是为了性能http filter不加锁，所以这里恢复全局
+				bv = &conf.gvm->globalVh;
+			}
+			if (bv->hfm==NULL) {
+				bv->hfm = new KHttpFilterManage(virtualHost==NULL);
+			}
+			bv->hfm->add(attribute["name"].c_str());
+			return true;
+		}
+#endif
 		if (context->qName == "map" || context->qName == "redirect"
 			|| context->qName == "default_map") {
 			std::string extend = attribute["extend"];
@@ -416,13 +430,22 @@ bool KHttpServerParser::buildVirtualHost(KAttributeHelper *ah,
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 	std::string certfile;
 	std::string keyfile;
+	std::string cipher;
+	std::string protocols;
+	/////////[312]
 	if (!ah->getValue("certificate",certfile) && tm) {
 		certfile = tm->certfile;		
 	}
 	if(!ah->getValue("certificate_key",keyfile) && tm){
 		keyfile = tm->keyfile;
 	}
-	virtualHost->setSSLInfo(certfile,keyfile);
+	if (!ah->getValue("cipher",cipher) && tm && tm->cipher) {
+		cipher = tm->cipher;
+	}
+	if (!ah->getValue("protocols", protocols) && tm && tm->protocols) {
+		protocols = tm->protocols;
+	}
+	virtualHost->setSSLInfo(certfile, keyfile, cipher, protocols);
 #endif
 	if (ah->getValue("concat", value)) {
 		virtualHost->concat = atoi(value.c_str())==1;
@@ -463,10 +486,10 @@ bool KHttpServerParser::buildVirtualHost(KAttributeHelper *ah,
 	} else if (tm) {
 		virtualHost->app_share = tm->app_share;
 	}
-	if(!ah->getValue("app",value) && tm){
-		virtualHost->setApp(tm->app);
-	} else {
+	if (ah->getValue("app", value)) {
 		virtualHost->setApp(atoi(value.c_str()));
+	} else if (tm){
+		virtualHost->setApp(tm->app);
 	}
 	if (ah->getValue("ip_hash", value)) {
 		virtualHost->ip_hash = atoi(value.c_str())==1;
@@ -491,7 +514,14 @@ bool KHttpServerParser::buildVirtualHost(KAttributeHelper *ah,
 	}
 	virtualHost->initConnect(ov);
 #endif
-	/////////[250]
+	/////////[313]
+#ifdef ENABLE_VH_FLOW
+	if (ah->getValue("fflow", value)) {
+		virtualHost->setFlow(value=="1",ov);
+	} else if (tm) {
+		virtualHost->setFlow(tm->fflow,ov);
+	}
+#endif
 #ifdef ENABLE_VH_QUEUE
 	if (ah->getValue("max_worker", value)) {
 		virtualHost->max_worker = atoi(value.c_str());
@@ -523,7 +553,7 @@ bool KHttpServerParser::buildVirtualHost(KAttributeHelper *ah,
 				continue;
 			}
 			KSubVirtualHost *svh = new KSubVirtualHost(virtualHost);
-			svh->host = host;
+			svh->setHost(host);
 			svh->fromTemplete = true;
 			svh->setDocRoot(virtualHost->doc_root.c_str(), (*it)->dir);
 			virtualHost->hosts.push_back(svh);

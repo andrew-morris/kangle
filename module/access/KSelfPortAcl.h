@@ -45,7 +45,7 @@ public:
 		return "self_port";
 	}
 	bool match(KHttpRequest *rq, KHttpObject *obj) {
-		if (rq->server->get_self_port() != port) {
+		if (rq->c->socket->get_self_port() != port) {
 			return false;
 		}
 		return true;

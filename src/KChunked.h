@@ -2,7 +2,7 @@
 #define KCHUNKED_H
 #include "global.h"
 #include "KSendable.h"
-#include "KStream.h"
+#include "KHttpStream.h"
 /*
 定义块大小
 buffer前面要留出5个字节大小,做chunk头,后面要留出2个字节做结尾，结构如下:
@@ -22,7 +22,7 @@ xxxx\r\n******buffer data******\r\n
 /*
 本类和KDeChunked类相反，是以块发送
 */
-class KChunked : public KWUpStream
+class KChunked : public KHttpStream
 {
 public:
 	KChunked(KWStream *st,bool autoDelete);

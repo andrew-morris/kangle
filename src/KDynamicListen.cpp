@@ -19,7 +19,6 @@ void KDynamicListen::add(const char *listen,KVirtualHost *vh)
 	std::list<KListenKey>::iterator it2;
 	for (it2=lk.begin();it2!=lk.end();it2++) {
 		KServer *server = NULL;
-		//lock.Lock();
 		it = listens.find((*it2));
 		if (it==listens.end()) {
 			server = new KServer;
@@ -28,8 +27,11 @@ void KDynamicListen::add(const char *listen,KVirtualHost *vh)
 			if ((*it2).ssl) {
 				server->certificate = vh->getCertfile();
 				server->certificate_key = vh->getKeyfile();
+				server->cipher = (vh->cipher?vh->cipher:"");
+				server->protocols = (vh->protocols ? vh->protocols : "");
 				server->sslParsed = true;
 				server->sni = true;
+/////////[237]				
 				SET(server->model,WORK_MODEL_SSL);
 			}
 #endif
@@ -38,13 +40,17 @@ void KDynamicListen::add(const char *listen,KVirtualHost *vh)
 			initListen((*it2),server);
 		} else {
 			server = (*it).second;
+/////////[238]
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 			if (!server->isOpened() && (*it2).ssl && server->dynamic) {
 				//update ssl certificate and try it again.
 				server->certificate = vh->getCertfile();
 				server->certificate_key = vh->getKeyfile();
+				server->cipher = (vh->cipher?vh->cipher:"");
+				server->protocols = (vh->protocols ? vh->protocols : "");
 				server->sslParsed = true;
 				server->sni = true;
+
 				SET(server->model,WORK_MODEL_SSL);
 				initListen((*it2),server);
 			}
@@ -128,7 +134,7 @@ bool KDynamicListen::add(KListenHost *listen,bool start)
 	for (it2=lk.begin();it2!=lk.end();it2++) {
 		KServer *server = NULL;
 		it = listens.find((*it2));
-		if (it==listens.end()) {
+		if (it == listens.end()) {
 			server = new KServer;
 			server->model = listen->model;
 			server->name = listen->name;
@@ -137,12 +143,15 @@ bool KDynamicListen::add(KListenHost *listen,bool start)
 			if ((*it2).ssl) {
 				server->certificate = listen->certificate;
 				server->certificate_key = listen->certificate_key;
+				server->cipher = listen->cipher;
+				server->protocols = listen->protocols;
 				server->sslParsed = true;
 				server->sni = listen->sni;
+				/////////[239]
 			}
 #endif
-			listens.insert(std::pair<KListenKey,KServer *>((*it2),server));
-			if (initListen((*it2),server)) {
+			listens.insert(std::pair<KListenKey, KServer *>((*it2), server));
+			if (initListen((*it2), server)) {
 				if (start) {
 					conf.gvm->bindVirtualHost(server);
 				}
@@ -150,17 +159,24 @@ bool KDynamicListen::add(KListenHost *listen,bool start)
 		} else {
 			server = (*it).second;
 			server->dynamic = false;
+			/////////[240]
 #ifdef KSOCKET_SSL
-            if (!server->isOpened() && (*it2).ssl) {
-                    //update ssl certificate and try it again.
-                    server->certificate = listen->certificate;
-                    server->certificate_key = listen->certificate_key;
-                    server->sslParsed = true;
-                    server->sni = listen->sni;
-                    SET(server->model,WORK_MODEL_SSL);
-                    initListen((*it2),server);
-            }
+			server->sni = listen->sni;
+			if (!server->isOpened() && (*it2).ssl) {
+				//update ssl certificate and try it again.
+				server->certificate = listen->certificate;
+				server->certificate_key = listen->certificate_key;
+				server->cipher = listen->cipher;
+				server->protocols = listen->protocols;
+				server->sslParsed = true;
+				server->sni = listen->sni;
+
+				SET(server->model, WORK_MODEL_SSL);
+				initListen((*it2), server);
+			}
 #endif
+
+
 		}
 	}
 	return true;
@@ -168,8 +184,7 @@ bool KDynamicListen::add(KListenHost *listen,bool start)
 void KDynamicListen::parseListen(KListenHost *lh,std::list<KListenKey> &lk)
 {
 	if (strcmp(lh->ip.c_str(),"*")==0) {
-		lk.push_back(getListenKey(lh,true));
-	
+		lk.push_back(getListenKey(lh,true));	
 #ifdef KSOCKET_IPV6
 		lk.push_back(getListenKey(lh,false));
 #endif
@@ -361,7 +376,10 @@ void KDynamicListen::getListenHtml(std::stringstream &s)
 			s << "<td>tcp/ipv" << server->server.getIpVer() << "</td>";
 			s << "<td>" << (server->dynamic?"yes":"&nbsp;");
 			if (server->isEmpty()) {
-				s << " E";
+				s << " EMP";
+			}
+			if (server->event_driven) {
+				s << " EV";
 			}
 			s << "</td>";
 			s << "</tr>";

@@ -78,8 +78,6 @@ public:
 	;
 	TRACEBACK where_alloced;
 	int size;
-	int line;
-	const char *file;
 #ifdef MALLOC_CHECK_END
 	char *real_addr;
 	int real_size;
@@ -147,6 +145,10 @@ void free_valloc(void *addr,int len)
 	free(addr);
 }
 #endif
+extern "C" {
+        extern void *__libc_malloc(size_t size);
+        extern void __libc_free(void *p);
+}
 void add_bad_ptr(new_ptr_list_t *ptr) {
 	if (bad_memory_count == 0) {
 		bad_ptr = NULL;
@@ -244,9 +246,9 @@ void dump_memory(int min_time,int max_time) {
 				 */
 				syslog(
 						LOG_NOTICE,
-						"dump memory at %p (size %u, %s:%d,past time:%d,stack: %s)\n",
+						"dump memory at %p (size %u,past time:%d,stack: %s)\n",
 						ptr->user_addr + sizeof(start_magic), ptr->size,
-						ptr->file, ptr->line, ptr_past_time, buf);
+						ptr_past_time, buf);
 				leakSize += ptr->size;
 				leakCount++;
 			}
@@ -261,38 +263,23 @@ void dump_memory(int min_time,int max_time) {
 void list_all_malloc() {
 	dump_memory(0,-1);
 }
-void * xmalloc2(size_t size, const char *file, int line) {
+void * my_malloc(size_t size) {
 	/*
 	if(size>10240000){
 		abort();
 	}
 	*/
 	if (!malloc_started) {
-		return malloc(size);
+		return __libc_malloc(size);
 	}
-	new_ptr_list_t* ptr = (new_ptr_list_t*) malloc(sizeof(new_ptr_list_t));
+	new_ptr_list_t* ptr = (new_ptr_list_t*) __libc_malloc(sizeof(new_ptr_list_t));
 	if (ptr == NULL) {
 		//	fprintf(stderr, "new:  out of memory when allocating %u bytes\n", size);
 		abort();
 		return NULL;
 	}
 
-#ifdef MALLOC_CHECK_END
-	size_t user_piece_size=round_up(size, PGSZ);
-	ptr->real_size=user_piece_size+PGSZ;
-	ptr->real_addr=(char *)do_valloc(ptr->real_size);
-	if (ptr->real_addr==NULL) {
-		perror("valloc:");
-		abort();
-		return NULL;
-	}
-	//	printf("**********\nmalloc size=%d\nreal_addr=%x,real_size=%d\n",size,ptr->real_addr,real_size);
-	void *suffix_addr = (char *)ptr->real_addr + user_piece_size;
-	//	printf("suffix_addr=%x\n",ptr->suffix_addr);
-	zap(suffix_addr,PGSZ);
-	ptr->user_addr = (char *)suffix_addr - size;
-#else
-	char *real_addr = (char *) malloc(size + 2 * sizeof(start_magic));
+	char *real_addr = (char *) __libc_malloc(size + 2 * sizeof(start_magic));
 	if (real_addr == NULL) {
 		perror("malloc:");
 		abort();
@@ -302,13 +289,9 @@ void * xmalloc2(size_t size, const char *file, int line) {
 	ptr->user_addr = real_addr + sizeof(start_magic);
 	memset(ptr->user_addr, 0xcc, size);
 	memcpy(ptr->user_addr + size, end_magic, sizeof(end_magic));
-#endif
-	//	printf("user_addr=%x\n",ptr->user_addr);
 	ptr->next = NULL;
 	ptr->flag = 0;
 	ptr->malloc_time = time(NULL);
-	ptr->file = file;
-	ptr->line = line;
 	ptr->size = size;
 	generate_traceback(ptr->where_alloced);
 	//	void* pointer = (char*)ptr + sizeof(new_ptr_list_t);
@@ -319,7 +302,6 @@ void * xmalloc2(size_t size, const char *file, int line) {
 	new_ptr_list[hash_index] = ptr;
 	malloc_mutex[hash_index].Unlock();
 	return ptr->user_addr;
-
 }
 void check_addr(void *pointer) {
 	if (pointer == NULL) {
@@ -344,11 +326,7 @@ void check_addr(void *pointer) {
 	malloc_mutex[hash_index].Unlock();
 
 }
-void xfree2(void *pointer, const char *file, int line) {
-	if (pointer == NULL) {
-		abort();
-		return;
-	}
+void my_free(void *pointer) {
 	size_t hash_index = DEBUG_NEW_HASH(pointer);
 	assert(hash_index>=0 && hash_index<DEBUG_NEW_HASHTABLESIZE);
 	malloc_mutex[hash_index].Lock();
@@ -367,27 +345,23 @@ void xfree2(void *pointer, const char *file, int line) {
 			} else {
 				malloc_mutex[hash_index].Unlock();
 			}
-#ifdef MALLOC_CHECK_END
-			unzap(ptr->real_addr + (ptr->real_size - PGSZ),PGSZ);
-			free_valloc(ptr->real_addr,ptr->real_size);
-#else
 			memset(ptr->user_addr, 0xee, ptr->size + sizeof(start_magic));
-			free(ptr->user_addr - sizeof(start_magic));
-#endif
-			free(ptr);
+			__libc_free(ptr->user_addr - sizeof(start_magic));
+			__libc_free(ptr);
 			return;
 		}
 		ptr_last = ptr;
 		ptr = ptr->next;
 	}
 	malloc_mutex[hash_index].Unlock();
-	free(pointer);
+	__libc_free(pointer);
 	//	fprintf(stderr, "free: invalid pointer %p\n", pointer);
 	//abort();
 }
+/*
 char * xstrdup2(const char *s, const char * file, int line) {
 	int len = strlen(s);
-	char *tmp = (char *) xmalloc2(len + 1, file, line);
+	char *tmp = (char *) malloc(len + 1);
 	strcpy(tmp, s);
 	return tmp;
 }
@@ -407,7 +381,6 @@ void operator delete[](void *p) {
 void* operator new(size_t size, const std::nothrow_t&) throw () {
 	return operator new(size);
 }
-/*
  void* operator new[](size_t size, const std::nothrow_t&) throw()
  {
  return operator new[](size);

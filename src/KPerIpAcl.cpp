@@ -1,11 +1,11 @@
 #include "KPerIpAcl.h"
 #include "KAccess.h"
-void per_ip_mark_call_back(KHttpRequest *rq,void *data)
+void WINAPI per_ip_mark_call_back(void *data)
 {
 	KPerIpCallBackData *param = (KPerIpCallBackData *)data;
-	param->mark->callBack(rq,param);
+	param->mark->callBack(param);
 }
-void KPerIpAcl::callBack(KHttpRequest *rq,KPerIpCallBackData *data) {
+void KPerIpAcl::callBack(KPerIpCallBackData *data) {
 	std::map<char *, unsigned,lessp>::iterator it_ip;
 	ip_lock.Lock();
 	it_ip = ip_map.find(data->ip);

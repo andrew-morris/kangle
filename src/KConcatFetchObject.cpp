@@ -1,6 +1,7 @@
 #include "KConcatFetchObject.h"
 #include "KHttpObject.h"
 #include "http.h"
+#include "KUrlParser.h"
 void concatCallBack(KHttpRequest *rq,void *data,sub_request_action action)
 {
 	if (action==sub_request_free) {
@@ -30,7 +31,7 @@ void KConcatFetchObject::open(KHttpRequest *rq)
 	obj->index.last_modified = rq->file->getLastModified();
 	char tmp_buf[42];
 	mk1123time(obj->index.last_modified, tmp_buf, 41);
-	obj->insertHttpHeader("Last-Modified",(const char *)tmp_buf);
+	obj->insertHttpHeader(kgl_expand_string("Last-Modified"),(const char *)tmp_buf,29);
 	if (obj->data->status_code==0) {
 		obj->data->status_code = STATUS_OK;
 	}

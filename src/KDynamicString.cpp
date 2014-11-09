@@ -3,7 +3,7 @@
 #include "utils.h"
 #include "KDynamicString.h"
 #include "malloc_debug.h"
-/////////[175]
+/////////[220]
 const char *getSystemEnv(const char *name) {
 	if (strncasecmp(name,"env:",4)==0) {
 		const char *value = getenv(name+4);
@@ -35,7 +35,7 @@ const char *getSystemEnv(const char *name) {
 		return "";
 #endif
 	}
-	/////////[176]
+	/////////[221]
 	return NULL;
 }
 KDynamicString::KDynamicString() {

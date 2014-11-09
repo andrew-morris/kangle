@@ -14,7 +14,6 @@
 #include "KCdnContainer.h"
 #include "KHttpProxyFetchObject.h"
 #include "malloc_debug.h"
-/////////[343]
 std::string htaccess_filename;
 using namespace std;
 KSubVirtualHost::KSubVirtualHost(KVirtualHost *vh) {
@@ -23,18 +22,26 @@ KSubVirtualHost::KSubVirtualHost(KVirtualHost *vh) {
 	dir = NULL;
 	doc_root = NULL;
 #ifdef ENABLE_SUBDIR_PROXY
-	/////////[344]
+	/////////[422]
 	ip = NULL;
 	dst = NULL;
 	type = subdir_local;
 	lifeTime = 0;
+	http_proxy = NULL;
+	https_proxy = NULL;
 #endif	
 	allSuccess = true;
 	fromTemplete = false;
+	bind_host = NULL;
+	bind_host_len = 0;
+	wide = false;
 }
 KSubVirtualHost::~KSubVirtualHost() {
 	if (host) {
 		xfree(host);
+	}
+	if (bind_host) {
+		xfree(bind_host);
 	}
 	if (dir) {
 		xfree(dir);
@@ -47,13 +54,36 @@ KSubVirtualHost::~KSubVirtualHost() {
 		dst->destroy();
 		delete dst;
 	}
+	if (http_proxy) {
+		free(http_proxy);
+	}
+	if (https_proxy) {
+		free(https_proxy);
+	}
 #endif
 
 }
+void KSubVirtualHost::release()
+{
+#ifdef ENABLE_VH_RS_LIMIT
+		vh->releaseConnection();
+#endif
+		vh->destroy();
+}
 void KSubVirtualHost::setHost(const char *host)
 {
-	if (*host=='*' && strcmp(host,"*")!=0) {
+	wide = false;
+	if (bind_host) {
+		xfree(bind_host);
+		bind_host = NULL;
+	}
+	if (*host=='*') {
 		host ++;
+		wide = true;
+	}
+	/* 保险写法,为了兼容之前的以.开头的也算泛绑定 */
+	if (*host=='.') {
+		wide = true;
 	}
 	this->host = xstrdup(host);
 	char *p = strchr(this->host,'|');
@@ -61,7 +91,11 @@ void KSubVirtualHost::setHost(const char *host)
 		*p = '\0';
 		this->dir = strdup(p+1);
 	}
+	bind_host_len = strlen(this->host);
+	this->bind_host = (char *)malloc(bind_host_len+1);
+	revert_string(this->host,bind_host_len,this->bind_host);
 }
+/* 如果setHost里面设置了dir信息(|分隔),以setHost的为准 */
 void KSubVirtualHost::setDocRoot(const char *doc_root, const char *dir) {
 #ifndef ENABLE_SUB_VIRTUALHOST
 	dir = NULL;
@@ -76,6 +110,14 @@ void KSubVirtualHost::setDocRoot(const char *doc_root, const char *dir) {
 #ifdef ENABLE_SUBDIR_PROXY
 	if (strncasecmp(this->dir,"http://",7)==0) {
 		type = subdir_proxy;
+		if (http_proxy) {
+			free(http_proxy);
+			http_proxy = NULL;
+		}
+		if (https_proxy) {
+			free(https_proxy);
+			https_proxy = NULL;
+		}
 		this->doc_root = strdup(doc_root);
 		if (dst) {
 			dst->destroy();
@@ -94,7 +136,7 @@ void KSubVirtualHost::setDocRoot(const char *doc_root, const char *dir) {
 				lifeTime = atoi(t+10);
 			}
 			ip = strstr(dst->param,"ip=");
-		/////////[345]
+		/////////[423]
 			if (ip) {
 				ip += 3;
 				char *t = strchr(ip,'&');
@@ -102,6 +144,25 @@ void KSubVirtualHost::setDocRoot(const char *doc_root, const char *dir) {
 					*t = '\0';
 				}
 			}
+		}
+		return;
+	} else if (strncasecmp(this->dir, "server://", 9) == 0) {
+		type = subdir_proxy;
+		if (http_proxy) {
+			free(http_proxy);
+			http_proxy = NULL;
+		}
+		if (https_proxy) {
+			free(https_proxy);
+			https_proxy = NULL;
+		}
+		http_proxy = strdup(this->dir + 9);
+		char *p = strchr(http_proxy, '|');
+		if (p) {
+			*p = '\0';
+			https_proxy = strdup(p + 1);
+		} else {
+			https_proxy = strdup(http_proxy);
 		}
 		return;
 	}
@@ -194,18 +255,34 @@ bool KSubVirtualHost::bindFile(KHttpRequest *rq, KHttpObject *obj,bool &exsit,KA
 	}
 #endif
 #ifdef ENABLE_SUBDIR_PROXY
-	if (type==subdir_proxy) {
-		if (rq->fetchObj==NULL && dst && dst->host) {
+	if (type == subdir_proxy && rq->fetchObj == NULL) {
+		if (http_proxy) {
+			KRedirect *rd = NULL;
+			if (TEST(rq->workModel, WORK_MODEL_SSL)) {
+				 rd = cdnContainer.refsRedirect(https_proxy);
+			} else {
+				rd = cdnContainer.refsRedirect(http_proxy);
+			}
+			if (rd) {
+				KBaseRedirect *brd = new KBaseRedirect(rd, false);
+				KFetchObject *fo = new KHttpProxyFetchObject();
+				fo->bindBaseRedirect(brd);
+				brd->release();
+				rq->fetchObj = fo;
+				return true;
+			}
+		}
+		if (dst && dst->host) {
 			if (*(dst->host)=='-') {
 				rq->fetchObj = new KHttpProxyFetchObject();
 				return true;
 			}
 			const char *tssl = NULL;
-			/////////[346]
+			/////////[424]
 			int tport = dst->port;
 			if (dst->port == 0) {
 				tport = rq->url->port;
-				/////////[347]
+				/////////[425]
 			}
 			rq->fetchObj = cdnContainer.get(ip,dst->host,tport,tssl,lifeTime);
 			return true;
@@ -242,9 +319,6 @@ bool KSubVirtualHost::makeHtaccess(const char *prefix,KFileName *file,KAccess *r
 	htaccess.setPrefix(prefix);
 	std::stringstream s;
 	if (htaccess.load(file,s)) {
-		//KAccess *access = new KAccess;
-		//access->type = REQUEST;
-		//access->qName = "request";
 		KXml xmlParser;
 		xmlParser.addEvent(request);
 		xmlParser.addEvent(response);

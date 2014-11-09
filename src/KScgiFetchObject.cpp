@@ -11,7 +11,8 @@ void KScgiFetchObject::buildHead(KHttpRequest *rq)
 		addEnv("CONTENT_LENGTH","0");
 	}
 	int len = buffer.getLen();
-	nbuff *buf = (nbuff *)malloc(sizeof(nbuff) + 16);
+	buff *buf = (buff *)malloc(sizeof(buff));
+	buf->data = (char *)malloc(16);
 	len = snprintf(buf->data,16,"%d:",len);
 	buf->used = len;
 	buffer.insertBuffer(buf);

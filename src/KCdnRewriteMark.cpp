@@ -30,7 +30,7 @@ bool KHostRewriteMark::mark(KHttpRequest *rq, KHttpObject *obj, const int chainJ
 		if (port>0) {
 			rq->url->port = port;
 		}
-		SET(rq->flags,RQ_IS_REWRITED);
+		SET(rq->raw_url.flags,KGL_URL_REWRITED);
 	}
 	if (proxy) {	
 		rq->closeFetchObject();
@@ -119,6 +119,7 @@ KHostMark::KHostMark()
 		life_time = 0;
 		port = 0;
 		proxy = false;
+		ssl = false;
 }
 KHostMark::~KHostMark()
 {
@@ -133,11 +134,11 @@ bool KHostMark::mark(KHttpRequest *rq, KHttpObject *obj, const int chainJumpType
 		if (port>0) {
 			rq->url->port = port;
 		}
-		SET(rq->flags,RQ_IS_REWRITED);
+		SET(rq->raw_url.flags,KGL_URL_REWRITED);
 	}
 	if (proxy) {	
 		rq->closeFetchObject();
-		rq->fetchObj = cdnContainer.get(NULL,(rewrite?rq->url->host:host.c_str()),(port>0?port:rq->url->port),NULL,life_time);
+		rq->fetchObj = cdnContainer.get(NULL,(rewrite?rq->url->host:host.c_str()),(port>0?port:rq->url->port),(ssl?"s":NULL),life_time);
 		jumpType = JUMP_ALLOW;
 	}
 	return true;
@@ -155,7 +156,11 @@ std::string KHostMark::getHtml(KModel *model)
 	KHostMark *mark = static_cast<KHostMark *>(model);
 	stringstream s;
 	s << "host: <input name='host' value='" << (mark?mark->host.c_str():"") << "'>";
-	s << "port: <input name='port' value='" << (mark?mark->port:80) << "' size=6><br>";
+	s << "port: <input name='port' value='" << (mark?mark->port:80);
+	if (ssl) {
+		s << "s";
+	}
+	s << "' size=6><br>";
 	s << "life_time: <input name='life_time' size=5 value='" << (mark?mark->life_time:10) << "'>";
 	s << "<input type=checkbox name='proxy' value='1' ";
 	if (mark  && mark->proxy) {
@@ -173,6 +178,9 @@ std::string KHostMark::getDisplay()
 {
 	stringstream s;
 	s << host << ":" << port;
+	if (ssl) {
+		s << "s";
+	}
 	s << "[";
 	if (proxy) {
 		s << "P";
@@ -188,6 +196,11 @@ void KHostMark::editHtml(std::map<std::string, std::string> &attribute)
 {
 	host = attribute["host"];
 	port = atoi(attribute["port"].c_str());
+	if (strchr(attribute["port"].c_str(),'s')) {
+		ssl = true;
+	} else {
+		ssl = false;
+	}
 	life_time = atoi(attribute["life_time"].c_str());
 	if (attribute["proxy"] == "1" || attribute["proxy"]=="on" ) {
 		proxy = true;
@@ -202,7 +215,11 @@ void KHostMark::editHtml(std::map<std::string, std::string> &attribute)
 }
 void KHostMark::buildXML(std::stringstream &s)
 {
-	s << " host='" << host << "' port='" << port << "' ";
+	s << " host='" << host << "' port='" << port;
+	if (ssl) {
+		s << "s";
+	}
+	s << "' ";
 	if (proxy) {
 		s << "proxy='1' ";
 	}

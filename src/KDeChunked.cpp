@@ -30,7 +30,7 @@
 #define		CHUNKED_ERROR			-1
 #define		CHUNKED_CONTINUE		0
 #define		CHUNKED_END				1
-KDeChunked::KDeChunked(KWStream *st,bool autoDelete) : KWUpStream(st,autoDelete)
+KDeChunked::KDeChunked(KWStream *st,bool autoDelete) : KHttpStream(st,autoDelete)
 {
 	chunk_size = 0;
 	work_len = 0;
@@ -157,7 +157,7 @@ StreamState KDeChunked::write_all(const char *buf, int buf_len) {
 				return CHUNKED_DF_ERROR;
 			}
 			*/
-			if(!KWUpStream::write_all(buf,read_len)){
+			if(!KHttpStream::write_all(buf,read_len)){
 				return STREAM_WRITE_FAILED;
 			}
 			buf_len -= read_len;

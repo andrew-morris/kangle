@@ -22,7 +22,6 @@ static int loadStreamHead(KStream *stream, KHttpRequest *rq, KHttpObject *obj,
 	int r;
 	int len = ANSW_SIZE;
 	int head_status = LOAD_HEAD_FAILED;
-	//	KHttpObjectParserHook hook(obj, rq);
 	KHttpProtocolParser parser;
 	if (!answer) {
 		obj->data->status_code = STATUS_SERVER_ERROR;
@@ -30,22 +29,14 @@ static int loadStreamHead(KStream *stream, KHttpRequest *rq, KHttpObject *obj,
 		goto error;
 	}
 	rq->state = STATE_RECV;
-	forever
-	() {
+	for (;;) {
 		r = stream->read(buf, len);
 		if (r <= 0) {
 			obj->data->status_code = STATUS_BAD_GATEWAY;
-			//if (stream->isNew()) {
-				send_error(rq, NULL, STATUS_BAD_GATEWAY,
-						"Didn't recv complete http head.");
-			//} else {
-			//	head_status = LOAD_HEAD_RETRY;
-			//}
-			//			klog(KLOG_DEBUG, "recv server data error,errno=%d\n", errno);
+			send_error(rq, NULL, STATUS_BAD_GATEWAY,
+					"Didn't recv complete http head.");
 			goto error;
 		}
-		//		printf("recv r = %d\n", r);
-		//	buf[r] = 0;	printf("**%s", buf);
 		buf += r;
 		len -= r;
 		int result = parser.parse(answer, cursize - len, &hook);
@@ -61,15 +52,6 @@ static int loadStreamHead(KStream *stream, KHttpRequest *rq, KHttpObject *obj,
 				SET(obj->index.flags,FLAG_DEAD|OBJ_INDEX_UPDATE);
 				break;
 			}
-			/*
-			 //内容没有chunked,也没有content-length头,内容长度就未知,就不能keep-alive了。
-			 if (rq->meth != METH_HEAD
-			 && !TEST(obj->index.flags,ANSW_CHUNKED|ANSW_HAS_CONTENT_LENGTH)) {
-			 if (as == NULL || !as->fastcgi) {
-			 SET(rq->flags,RQ_CONNECTION_CLOSE);
-			 }
-			 }
-			 */
 			break;
 		}
 		assert(len>=0);
@@ -100,7 +82,7 @@ static int loadStreamHead(KStream *stream, KHttpRequest *rq, KHttpObject *obj,
 		if (TEST(obj->index.flags,ANSW_HAS_CONTENT_LENGTH)
 				&& obj->index.content_length > 0) {
 			all_siz = (int) MIN(obj->index.content_length, (INT64) 32768);
-			rq->buffer.setChunkSize(all_siz);
+			//rq->buffer.setChunkSize(all_siz);
 		}
 	}
 	if (parser.bodyLen > 0) {
@@ -253,7 +235,7 @@ void KCgiFetchObject::process(KHttpRequest *rq)
 #endif
 #endif
 	if (!cmdModel && rq->content_length > 0) {
-		if (!sync_send_post_data(rq)) {
+		if (!readPostData(rq)) {
 			klog(KLOG_DEBUG, "send post data error!");
 			return ;
 		}
@@ -276,4 +258,32 @@ void KCgiFetchObject::process(KHttpRequest *rq)
 	send_error(rq,NULL,STATUS_SERVER_ERROR,"Cann't run cgi");
 #endif
 	return;
+}
+bool KCgiFetchObject::readPostData(KHttpRequest *rq)
+{
+	rq->state = STATE_SEND;
+	if (rq->pre_post_length > 0) {
+		if (!this->write(rq->parser.body, rq->pre_post_length)){
+			goto error;
+		}
+		rq->left_read -= rq->parser.bodyLen;
+		rq->parser.body += rq->pre_post_length;
+		rq->parser.bodyLen -= rq->pre_post_length;
+		rq->pre_post_length = 0;
+	}
+	char buf[1024];
+	for (;;) {
+		int rest = rq->read(buf, sizeof(buf));
+		if (rest == 0) {
+			break;
+		}
+		if (rest<0) {
+			goto error;
+		}
+		if (!this->write(buf, rest)) {
+			goto error;
+		}
+	}
+	return this->writeComplete();
+	error: return false;
 }

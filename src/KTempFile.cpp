@@ -5,22 +5,42 @@
 #include "http.h"
 #include "directory.h"
 #include "forwin32.h"
+#include "KHttpFilterStream.h"
+#include "KHttpFilterManage.h"
+#include "KTempFileStream.h"
 #ifdef ENABLE_TF_EXCHANGE
-
 #ifdef _WIN32
 #define tunlink(f)             
 #else
 #define tunlink(f)             unlink(f)
 #endif
+//临时文件读post的处理器
+void resultTempFileReadPost(void *arg,int got)
+{
+	KHttpRequest *rq = (KHttpRequest *)arg;
+	rq->tf->readPostResult(rq,got);
+}
+void bufferTempFileReadPost(void *arg,LPWSABUF buf,int &bufCount)
+{
+	KHttpRequest *rq = (KHttpRequest *)arg;
+	bufCount = 1;
+	int len;
+	buf[0].iov_base = (char *)rq->tf->getPostBuffer(len);
+	buf[0].iov_len = len;
+}
 KTempFile::KTempFile()
 {
 	total_size = 0;
 	writeModel = true;
+	post_ctx = NULL;
 }
 KTempFile::~KTempFile()
 {
 	if (fp.opened()) {
 		tunlink(file.c_str());
+	}
+	if (post_ctx) {
+		delete post_ctx;
 	}
 }
 void KTempFile::init(INT64 length)
@@ -38,7 +58,7 @@ bool KTempFile::writeBuffer(KHttpRequest *rq,const char *buf,int len)
 {
 	while (len>0) {
 		int size;
-		char *t = writeBuffer(size);
+		char *t = buffer.getWBuffer(size);
 		if (t==NULL || size==0) {
 			return false;
 		}
@@ -61,14 +81,27 @@ char *KTempFile::writeBuffer(int &size)
 	}
 	return t;
 }
+char *KTempFile::getPostBuffer(int &size)
+{
+	if (post_ctx && post_ctx->post_stream) {
+		INT64 left = length - total_size;
+		size = (int)MIN(left,TEMPFILE_POST_CHUNK_SIZE);
+		return post_ctx->buffer;
+	} else {
+		return writeBuffer(size);
+	}
+}
 bool KTempFile::writeSuccess(KHttpRequest *rq,int got)
 {
-	total_size += got;
 	buffer.writeSuccess(got);
-	if (length>0 && total_size>=length) {
-		return false;
+	total_size += got;
+	if ((post_ctx == NULL || post_ctx->post_stream==NULL) &&
+		length > 0) {		
+		if (total_size >= length) {
+			return false;
+		}
 	}
-	if (buffer.getLen() < conf.buffer) {
+	if (buffer.getLen() < 16384) {
 		return true;
 	}
 	if (!openFile(rq)) {
@@ -78,7 +111,7 @@ bool KTempFile::writeSuccess(KHttpRequest *rq,int got)
 }
 bool KTempFile::dumpOutBuffer()
 {
-	nbuff *head = buffer.getHead();
+	buff *head = buffer.getHead();
 	while (head) {
 		if (head->used>0) {
 			if ((int)head->used!=(int)fp.write(head->data,head->used)) {
@@ -93,13 +126,16 @@ bool KTempFile::dumpOutBuffer()
 bool KTempFile::dumpInBuffer()
 {
 	kassert(buffer.getHead()==NULL);
-	while(buffer.getLen()<conf.buffer){
-		nbuff *buf = (nbuff *)malloc(NBUFF_SIZE);
-		buf->used = fp.read(buf->data,NBUFF_CHUNK);
-		if (buf->used<=0) {
-			free(buf);
+	while (buffer.getLen()<16384) {
+		char *data = (char *)malloc(NBUFF_SIZE);
+		int used = fp.read(data,NBUFF_CHUNK);
+		if (used<=0) {
+			free(data);
 			break;
 		}
+		buff *buf = (buff *)malloc(sizeof(buff));
+		buf->data = data;
+		buf->used = used;
 		buffer.appendBuffer(buf);
 	}
 	buffer.startRead();
@@ -115,7 +151,7 @@ bool KTempFile::openFile(KHttpRequest *rq)
 	s.str().swap(file);
 	return fp.open(file.c_str(),fileWriteRead,KFILE_TEMP_MODEL);
 }
-void KTempFile::switchRead()
+INT64 KTempFile::switchRead()
 {	
 	writeModel = false;
 	if (fp.opened()) {
@@ -125,6 +161,7 @@ void KTempFile::switchRead()
 	} else {
 		buffer.startRead();
 	}
+	return total_size;
 }
 char *KTempFile::readBuffer(int &size)
 {
@@ -140,11 +177,7 @@ bool KTempFile::readSuccess(int got)
 		return false;
 	}
 	buffer.destroy();
-	result = dumpInBuffer();
-	if (!result) {
-		return false;
-	}
-	return true;
+	return dumpInBuffer();
 }
 void KTempFile::resetRead()
 {
@@ -172,74 +205,153 @@ int KTempFile::readBuffer(char *buf,int size)
 	}
 	return 0;
 }
-inline bool tempFileReadPostResult(KHttpRequest *rq,int got)
+StreamState KTempFile::writePostSuccess(KHttpRequest *rq,int got)
 {
-	kassert(rq->tf!=NULL);
-	int buf_size;
-	char *buf = rq->tf->writeBuffer(buf_size);
-	if (got==0) {		
-		got = rq->server->read(buf,buf_size);
-#ifdef KSOCKET_SSL
-		if (got<=0 &&  TEST(rq->workModel,WORK_MODEL_SSL)) {
-			KSSLSocket *sslsocket = static_cast<KSSLSocket *>(rq->server);
-			if (sslsocket->get_ssl_error(got)==SSL_ERROR_WANT_READ) {
-				rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_TF_READ);
-				return false;
-			}
+	if (post_ctx==NULL || post_ctx->post_stream==NULL) {
+		if (!writeSuccess(rq,got)) {
+			return STREAM_WRITE_END;
 		}
-#endif
+		return STREAM_WRITE_SUCCESS;
 	}
+	total_size += got;
+	StreamState ret = post_ctx->post_stream->write_all(post_ctx->buffer,got);
+	if (ret == STREAM_WRITE_SUCCESS &&
+		length>0 &&
+		total_size>=length) {
+		ret = post_ctx->post_stream->write_end();
+		if (ret!=STREAM_WRITE_SUCCESS) {
+			return ret;
+		}
+		return STREAM_WRITE_END;
+	}
+	return ret;
+}
+/* 返回true，表示可能还有数据，还要再执行,false表示已经处理了 */
+bool KTempFile::readPostResult(KHttpRequest *rq,int got)
+{
+	int buf_size;
+	char *buf = getPostBuffer(buf_size);
 	if (got<=0) {
 		SET(rq->flags,RQ_CONNECTION_CLOSE);
 		stageTempFileWriteEnd(rq);
 		return false;
 	}
-	/*
-	if (!TEST(rq->flags,RQ_POST_UPLOAD) && !rq->tf->countPostParams(buf,got)) {
-		klog(KLOG_ERR,"POST params is too big,drop it. src %s:%d\n",rq->server->get_remote_ip().c_str(),rq->server->get_remote_port());
-		SET(rq->flags,RQ_CONNECTION_CLOSE);
-		send_error(rq,NULL,STATUS_BAD_REQUEST,"POST params is too big");
-		return false;
-	}
-	*/
 #ifdef ENABLE_INPUT_FILTER
-	if (rq->if_ctx && JUMP_DENY==rq->if_ctx->check(buf,got,rq->tf->checkLast(got))) {
+	if (rq->if_ctx && JUMP_DENY==rq->if_ctx->check(buf,got,checkLast(got))) {
 		denyInputFilter(rq);
 		return false;
 	}
 #endif
-	if (!rq->tf->writeSuccess(rq,got)) {
-		//已经读完了post数据，开始处理请求，视情况放入队列中
-		rq->tf->switchRead();
-		asyncLoadHttpObject(rq);
-	} else {
-#ifdef KSOCKET_SSL
-		if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-			return true;
+	switch (writePostSuccess(rq,got)) {
+	case STREAM_WRITE_END:
+		switchRead();
+		if (post_ctx && post_ctx->post_stream) {
+			adjustPostContentLength(rq);
 		}
-#endif
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_TF_READ);
+		if (post_ctx && post_ctx->handle) {
+			AfterPostHandle handle = post_ctx->handle;
+			void *arg = post_ctx->arg;
+			//提前清理post上下文，尽可能节省内存。
+			delete post_ctx;
+			post_ctx = NULL;
+			handle(rq,arg);
+		} else {
+			processQueueRequest(rq);
+		}
+		break;
+	case STREAM_WRITE_SUCCESS:
+		rq->c->read(rq,resultTempFileReadPost,bufferTempFileReadPost);
+		break;
+	case STREAM_WRITE_HANDLED:
+		break;
+	default:
+		stageEndRequest(rq);
+		break;
 	}
 	return false;
 }
-//临时文件读post的处理器
-void handleTempFileReadPost(KSelectable *st,int got)
+void KTempFile::startPost(KHttpRequest *rq,AfterPostHandle handle,void *arg)
 {
-	KHttpRequest *rq = static_cast<KHttpRequest *>(st);
-	while (tempFileReadPostResult(rq,got)) {
-		got = 0;
-	}
-}
-void stageReadTempFile(KHttpRequest *rq)
-{
-	rq->handler = handleTempFileReadPost;
-#ifdef KSOCKET_SSL
-	if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-		handleTempFileReadPost(rq,0);
-		return;
+	KHttpStream *head = NULL;
+	KHttpStream *end = NULL;
+#ifdef ENABLE_KSAPI_FILTER
+	KHttpFilterManage::buildReadStream(rq,&head,&end);
+	if (head==NULL) {
+		assert(end==NULL);
+#endif
+		if (rq->fetchObj && !rq->fetchObj->needTempFile()) {
+			//无post数据过滤，上游又不用临时文件
+			rq->closeTempFile();
+			handle(rq,arg);
+			return;
+		}
+		if (length<=0) {
+			//没有了post数据要读
+			handle(rq,arg);
+			return;
+		}
+#ifdef ENABLE_KSAPI_FILTER
 	}
 #endif
-	rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_TF_READ);
+	if (post_ctx==NULL) {
+		post_ctx = new KTempFilePostContext;
+	}
+	post_ctx->handle = handle;
+	post_ctx->arg = arg;
+	if (head) {
+		assert(end);
+		post_ctx->buffer = (char *)xmalloc(TEMPFILE_POST_CHUNK_SIZE);
+		post_ctx->post_stream = head;
+		KTempFileStream *tf_stream = new KTempFileStream(rq);
+		end->connect(tf_stream,true);
+		if (rq->pre_post_length>0) {
+			StreamState result = post_ctx->post_stream->write_all(rq->parser.body,rq->pre_post_length);
+			rq->parser.bodyLen -= rq->pre_post_length;
+			rq->parser.body += rq->pre_post_length;
+			rq->pre_post_length = 0;
+			switch (result) {
+			case STREAM_WRITE_END:
+			case STREAM_WRITE_FAILED:
+				stageEndRequest(rq);
+				return;
+			case STREAM_WRITE_HANDLED:
+				return;
+			default:
+				break;
+			}
+		}
+	}
+	if (length<=0) {
+		//没有了post数据要读
+		if (post_ctx->post_stream) {
+			StreamState result = post_ctx->post_stream->write_end();
+			switch (result) {
+			case STREAM_WRITE_END:
+			case STREAM_WRITE_FAILED:
+				stageEndRequest(rq);
+				return;
+			case STREAM_WRITE_HANDLED:
+				return;
+			default:
+				break;
+			}
+		}
+		switchRead();
+		adjustPostContentLength(rq);
+		handle(rq,arg);
+		return;
+	}
+	rq->c->read(rq,resultTempFileReadPost,bufferTempFileReadPost);
+	return;
+}
+void KTempFile::adjustPostContentLength(KHttpRequest *rq)
+{
+	rq->content_length = total_size;
+	rq->left_read = total_size;
+}
+void stageTempFileReadPost(KHttpRequest *rq,AfterPostHandle handle,void *arg)
+{
+	rq->tf->startPost(rq,handle,arg);
 }
 int listHandleTempFile(const char *file,void *param)
 {
@@ -247,7 +359,7 @@ int listHandleTempFile(const char *file,void *param)
 		return 0;
 	}
 	int pid = atoi(file+3);
-	if (pid==m_ppid) {
+	if (pid == m_ppid) {
 		return 0;
 	}
 	std::stringstream s;

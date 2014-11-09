@@ -49,7 +49,7 @@ typedef int socklen_t;
 #define SHUT_RD     0
 #define SHUT_WR     1
 #define SHUT_RDWR   2
-/////////[259]
+/////////[323]
 #ifndef bzero
 #define bzero(X,Y)      memset(X,0,Y)
 #endif
@@ -174,6 +174,15 @@ union sockaddr_i {
 #ifdef _WIN32
 	SOCKADDR_STORAGE vwin;
 #endif
+	int get_addr_len()
+	{
+#ifdef KSOCKET_IPV6
+		if (v4.sin_family == PF_INET)
+			return sizeof(v4);
+		return sizeof(v6);
+#endif
+		return sizeof(v4);
+	}
 	bool operator <(const sockaddr_i &a) const {
 #ifdef KSOCKET_IPV6
 		if (v4.sin_family < a.v4.sin_family) {
@@ -356,6 +365,7 @@ public:
 	 * flag = 1 wait write
 	 */
 	//	static bool WaitForReadWrite(SOCKET sockfd, int flag, int timeo);
+	static struct addrinfo *getaddr(const char *host, int port, int ai_family = AF_UNSPEC, int ai_flags = 0);
 	static bool getaddr(const char *host, int port, sockaddr_i *m_a,int ai_family=AF_UNSPEC,int ai_flags=0);
 	static bool getaddr(const char *host, ip_addr *ip);
 	static u_short getportinfo(sockaddr_i *m_a);
@@ -378,21 +388,19 @@ protected:
 class KClientSocket: public KSocket
 {
 public:
-#ifdef KSOCKET_SSL
 	virtual ~KClientSocket() {
 
 	}
-#endif
 	inline bool set_time(int tmo) {
 		return set_time(tmo, tmo);
 	}
 	inline bool set_time(int snd_tmo, int recv_tmo) {
 		struct timeval msec;
-	#ifdef _WIN32
+#ifdef _WIN32
 		msec.tv_sec= snd_tmo * 1000;
-	#else
+#else
 		msec.tv_sec = snd_tmo;
-	#endif
+#endif
 		msec.tv_usec = 0;
 		int ret = setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char *) &msec,
 				sizeof(msec));
@@ -400,11 +408,11 @@ public:
 			//debug("set send time_out error errno=%d\n", errno);
 			return false;
 		}
-	#ifdef _WIN32
+#ifdef _WIN32
 		msec.tv_sec= recv_tmo * 1000;
-	#else
+#else
 		msec.tv_sec = recv_tmo;
-	#endif
+#endif
 
 		ret = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *) &msec,
 				sizeof(msec));
@@ -447,13 +455,14 @@ public:
 		make_ip(&addr,ips,ips_len);
 	}
 	void get_remote_addr(ip_addr *to);
-	bool connect(sockaddr_i &m_adr, int tmo);
-	bool connect(const char *host, int port, int tmo);
+	bool connect(sockaddr_i &m_adr, int tmo, sockaddr_i *bind_addr = NULL);
+	bool connect(const char *host, int port, int tmo, sockaddr_i *bind_addr = NULL);
 	/**
 	* 半连接，即非阻socket，连接没有完成，要测试可写才算连上。
 	*/
 	bool halfconnect(const char *host, int port,int ai_family=0,sockaddr_i *bind_addr=NULL,bool tproxy=false);
 	bool halfconnect(sockaddr_i &m_addr,sockaddr_i *bind_addr=NULL,bool tproxy=false);
+	bool halfconnect(sockaddr_i *bind_addr=NULL,bool tproxy=false);
 #ifdef KSOCKET_UNIX	
 	bool connect(const char *unixfile,int tmo);
 	bool halfconnect(const char *unixfile);

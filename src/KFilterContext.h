@@ -27,22 +27,27 @@ public:
 			delete st_head;
 		}
 	}
-	void registerFilterStream(KWUpStream *st,bool autoDelete=true)
+	void registerFilterStreamEx(KHttpStream *head,KHttpStream *end,bool autoDelete = true)
 	{
 		if (st_last==NULL) {
 			assert(st_head==NULL);
-			st_head = st_last = st;
+			st_head = head;
+			st_last = end;
 			this->autoDelete = autoDelete;
 		} else {
-			st_last->connect(st,autoDelete);
-			st_last = st;
+			st_last->connect(head,autoDelete);
+			st_last = end;
 		}
 	}
-	KWUpStream *getFilterStreamEnd()
+	void registerFilterStream(KHttpStream *st,bool autoDelete=true)
+	{
+		return registerFilterStreamEx(st,st,autoDelete);
+	}
+	KHttpStream *getFilterStreamEnd()
 	{
 		return st_last;
 	}
-	KWUpStream *getFilterStreamHead()
+	KHttpStream *getFilterStreamHead()
 	{
 		return st_head;
 	}
@@ -169,8 +174,8 @@ public:
 	KFilterHelper *head;
 	KFilterHelper *last;
 
-	KWUpStream *st_head;
-	KWUpStream *st_last;
+	KHttpStream *st_head;
+	KHttpStream *st_last;
 	bool autoDelete;
 };
 #endif

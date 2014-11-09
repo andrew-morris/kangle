@@ -39,32 +39,7 @@
 #endif
 #define KBuffedWStream KWStream
 #define WSTR(x) write_all(x,sizeof(x)-1)
-/*
-namespace stream {
 
-	enum Format {
-	def, hex, dec, uns, uppercase, lowercase
-};
-
-inline const char *getFormat(Format fmt) {
-	switch (fmt) {
-	case hex:
-		return "%x";
-	case dec:
-		return "%d";
-	case uns:
-		return "%u";
-	case uppercase:
-	case lowercase:
-	case def:
-		return "%d";
-	}
-	return "%d";
-}
-;
-}
-;
-*/
 #define INT2STRING_LEN	32
 inline INT64 string2int(const char *buf) {
 #ifdef _WIN32
@@ -95,7 +70,7 @@ inline char *upstrdup(const char *val)
 	return buf;
 }
 enum StreamState {
-	STREAM_WRITE_FAILED, STREAM_WRITE_SUCCESS, STREAM_WRITE_END,STREAM_WRITE_SUBREQUEST
+	STREAM_WRITE_FAILED, STREAM_WRITE_SUCCESS, STREAM_WRITE_END,STREAM_WRITE_HANDLED
 };
 class KRStream {
 public:
@@ -133,14 +108,6 @@ public:
 	StreamState write_all(const char *buf);
 	inline KWStream & operator <<(const char *str)
 	{
-		/*
-		if (sfmt == stream::uppercase) {
-			char *buf = upstrdup(str);
-			write_all(buf, (int)strlen(buf));
-			free(buf);
-			return *this;
-		}
-		*/
 		if (!write_all(str, (int)strlen(str))) {
 			//fprintf(stderr, "cann't write to stream\n");
 		}
@@ -148,6 +115,14 @@ public:
 	}
 	inline bool add(const int c, const char *fmt) {
 		char buf[16];
+		int len = snprintf(buf, sizeof(buf) - 1, fmt, c);
+		if (len > 0) {
+			return write_all(buf, len) == STREAM_WRITE_SUCCESS;
+		}
+		return false;
+	}
+	inline bool add(const INT64 c,const char *fmt) {
+		char buf[INT2STRING_LEN];
 		int len = snprintf(buf, sizeof(buf) - 1, fmt, c);
 		if (len > 0) {
 			return write_all(buf, len) == STREAM_WRITE_SUCCESS;
@@ -202,75 +177,12 @@ public:
 		}
 		return *this;
 	}
-
-	/*
-	KWStream & operator <<(stream::Format fmt) {
-		sfmt = fmt;
-		return *this;
-	}
-	*/
-	friend class KWUpStream;
+	friend class KHttpStream;
 	bool preventWriteEnd;
 protected:
 	virtual int write(const char *buf, int len) {
 		return -1;
 	}
-};
-/*
- 支持串级的流
- */
-class KWUpStream: public KWStream {
-public:
-	KWUpStream() {
-		st = NULL;
-	}
-	KWUpStream(KWStream *st) {
-		this->st = st;
-		autoDelete = true;
-	}
-	KWUpStream(KWStream *st, bool autoDelete) {
-		this->st = st;
-		this->autoDelete = autoDelete;
-	}
-	void connect(KWStream *st, bool autoDelete) {
-		if (this->st && this->autoDelete) {
-			delete this->st;
-		}
-		this->st = st;
-		this->autoDelete = autoDelete;
-	}
-	virtual ~KWUpStream() {
-		if (autoDelete && st) {
-			delete st;
-		}
-	}
-	virtual StreamState flush() {
-		if (st) {
-			return st->flush();
-		}
-		return STREAM_WRITE_FAILED;
-	}
-	virtual StreamState write_all(const char *buf, int len) {
-		if (st) {
-			return st->write_all(buf, len);
-		}
-		return STREAM_WRITE_FAILED;
-	}
-	virtual StreamState write_end() {
-		if (!preventWriteEnd && st) {
-			return st->write_end();
-		}
-		return STREAM_WRITE_SUCCESS;
-	}
-protected:
-	virtual int write(const char *buf, int len) {
-		if (st) {
-			return st->write(buf, len);
-		}
-		return -1;
-	}
-	KWStream *st;
-	bool autoDelete;
 };
 class KConsole: public KWStream {
 public:

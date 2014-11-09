@@ -78,14 +78,14 @@ void KAjpFetchObject::buildHead(KHttpRequest *rq)
 		b.putString(rq->client_ip);
 	} else {
 		char ips[MAXIPLEN];
-		rq->server->get_remote_ip(ips,sizeof(ips));
+		rq->c->socket->get_remote_ip(ips,sizeof(ips));
 		b.putString(ips);
 	}
 	//remote host
 	b.putShort(0xffff);
-	//b.putString(rq->server->get_remote_ip());
+	//b.putString(rq->c->socket->get_remote_ip());
 	b.putString("localhost");
-	b.putShort(rq->server->get_self_port());
+	b.putShort(rq->c->socket->get_self_port());
 	//is secure
 	b.putByte(0);
 	KHttpHeader *header = rq->parser.getHeaders();
@@ -136,10 +136,8 @@ void KAjpFetchObject::buildHead(KHttpRequest *rq)
 	}
 	b.putByte(0xFF);
 	b.end();
-	int pre_post_len = (int)MIN(rq->left_read,(INT64)rq->parser.bodyLen);
-	//printf("pre_post_len=%d\n",pre_post_len);
-	while (pre_post_len>0) {
-		int len = MIN(pre_post_len,AJP_PACKAGE);
+	while (rq->pre_post_length>0) {
+		int len = MIN(rq->pre_post_length,AJP_PACKAGE);
 		unsigned char h[6];
 		h[0] = 0x12;h[1] = 0x34;
 		int dlen = len + 2;
@@ -152,7 +150,7 @@ void KAjpFetchObject::buildHead(KHttpRequest *rq)
 		rq->left_read -= len;
 		rq->parser.bodyLen -= len;
 		rq->parser.body += len;
-		pre_post_len-=len;
+		rq->pre_post_length -= len;
 	}
 	if (rq->left_read==0) {
 		appendPostEnd();
@@ -160,7 +158,8 @@ void KAjpFetchObject::buildHead(KHttpRequest *rq)
 }
 void KAjpFetchObject::appendPostEnd()
 {
-	nbuff *ebuff = (nbuff *)malloc(sizeof(nbuff) + 4);
+	buff *ebuff = (buff *)malloc(sizeof(buff));
+	ebuff->data = (char *)malloc(4);
 	ebuff->used = 4;
 	char *d = ebuff->data;
 	d[0] = 0x12;
@@ -258,8 +257,9 @@ unsigned char KAjpFetchObject::parseMessage(KHttpRequest *rq,KAjpMessage *msg)
 			//printf("attr=%s\n",attr);
 			//printf("val=%s\n",val);
 			if(attr){
-				if(hook.parseHeader(attr,val,false)==HTTP_PARSE_SUCCESS){
-					obj->insertHttpHeader(attr,val);
+				int val_len = strlen(val);
+				if(hook.parseHeader(attr,val,val_len,false)==HTTP_PARSE_SUCCESS){
+					obj->insertHttpHeader(attr,strlen(attr),val,val_len);
 				}
 			}
 		}
@@ -276,7 +276,9 @@ void KAjpFetchObject::buildPost(KHttpRequest *rq)
 	unsigned len = buffer.getLen();
 	//printf("buildpost len = %d\n",len);
 	assert(len>0 && len<=AJP_PACKAGE);
-	nbuff *nbuf = (nbuff  *)malloc(sizeof(nbuff) + 6);//[6];
+
+	buff *nbuf = (buff *)malloc(sizeof(buff));
+	nbuf->data = (char  *)malloc(6);
 	nbuf->used = 6;
 	unsigned char *h = (unsigned char *)nbuf->data;
 	h[0] = 0x12;

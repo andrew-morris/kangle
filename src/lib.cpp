@@ -203,6 +203,15 @@ time_t parse1123time(const char *str) {
 #endif
 	return t;
 }
+int make_http_time(time_t time,char *buf,int size)
+{
+	struct tm tm;
+	time_t holder = time;
+	gmtime_r(&holder, &tm);
+	return snprintf(buf, size, "%s, %02d %s %d %02d:%02d:%02d GMT", days[tm.tm_wday],
+			tm.tm_mday, months[tm.tm_mon], tm.tm_year + 1900, tm.tm_hour,
+			tm.tm_min, tm.tm_sec);
+}
 const char * mk1123time(time_t time, char *buf, int size) {
 	struct tm tm;
 	time_t holder = time;

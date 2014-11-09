@@ -30,8 +30,8 @@ public:
 	}
 	std::string ip;
 	int port;
-	bool ssl;
 	bool ipv4;
+	bool ssl;
 };
 /**
 * 由virtualHostManager加锁调用

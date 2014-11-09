@@ -1,8 +1,9 @@
 #AM_CXXFLAGS=-I../module/access -DKSOCKET_SSL
 #AM_LDFLAGS=-rdynamic -lssl -lcrypto
 AM_CXXFLAGS=-I../module/access -I../module/whm
-AM_LDFLAGS=-rdynamic -L../lib 
+AM_LDFLAGS=-L../lib 
 bin_PROGRAMS=kangle
+AUTOMAKE_OPTIONS=subdir-objects
 kangle_SOURCES =  \
 global.h\
 cache.cpp\
@@ -176,7 +177,7 @@ KEnvInterface.h KEnvInterface.cpp\
 KRedirect.h KRedirect.cpp KCgiRedirect.h KCgiRedirect.cpp KCgiFetchObject.cpp KCgiFetchObject.h KPipeStream.cpp KPipeStream.h KCgi.cpp KCgi.h KStream.h\
 KCgiEnv.cpp KCgiEnv.h KApiRedirect.cpp KApiRedirect.h KApiEnv.cpp KApiEnv.h HttpExt.cpp KApiFetchObject.cpp KApiFetchObject.h KHttpHeadPull.cpp KHttpHeadPull.h\
 KSockFastcgiFetchObject.cpp KSockFastcgiFetchObject.h KApiFastcgiFetchObject.cpp KApiFastcgiFetchObject.h\
-KPathRedirect.cpp KPathRedirect.h KWinCgiEnv.h httpext.h httpfilt.h ksapi.h fastcgi.h export.h KLogManage.h KLogManage.cpp KBaseVirtualHost.h KBaseVirtualHost.cpp\
+KPathRedirect.cpp KPathRedirect.h KWinCgiEnv.h httpext.h ksapi.h fastcgi.h export.h KLogManage.h KLogManage.cpp KBaseVirtualHost.h KBaseVirtualHost.cpp\
 process.cpp \
 KContentTransfer.h KContentTransfer.cpp KChunked.h KChunked.cpp KCacheStream.h KCacheStream.cpp KHttpField.h KHttpField.cpp KHttpDigestAuth.h KHttpDigestAuth.cpp KHttpAuth.h KHttpAuth.cpp KHttpBasicAuth.h KHttpBasicAuth.cpp KAuthMark.cpp\
 KObjectList.h KObjectList.cpp\
@@ -187,7 +188,7 @@ KSSICommandCondition.h    KSSICommandEcho.h    KSSICommandInclude.h     KSSIComm
 KSSICommand.cpp           KSSICommand.h        KSSICommandPrintEnv.cpp  KSSICommandSet.h       KSSIFetchObject.cpp  KSSIProcess.h\
 KServiceProvider.h KServiceProvider.cpp KISAPIServiceProvider.h KISAPIServiceProvider.cpp directory.cpp directory.h\
 KSSICommandExec.h KSSICommandExec.cpp KSSICommandConfig.h KSSICommandConfig.cpp ssl_utils.h ssl_utils.cpp\
- KApiPipeStream.cpp KApiPipeStream.h KPoolableSocket.cpp KPoolableSocket.h  KPoolableSocketContainer.cpp  KPoolableSocketContainer.h KProcessManage.cpp KProcessManage.h\
+ KApiPipeStream.cpp KApiPipeStream.h KPoolableSocketContainer.cpp  KPoolableSocketContainer.h KProcessManage.cpp KProcessManage.h\
 KCmdPoolableRedirect.cpp  KCmdPoolableRedirect.h\
 KSubVirtualHost.h KSubVirtualHost.cpp KIpVirtualHost.cpp KIpVirtualHost.h\
 KHttpPost.cpp KHttpPost.h KHtAccess.cpp KHtAccess.h KHtModule.cpp KHtModule.h KHtRewriteModule.h KHtRewriteModule.cpp KRewriteMarkEx.cpp KRewriteMarkEx.h\
@@ -232,4 +233,12 @@ KDiskCacheIndex.h KDiskCacheIndex.cpp KSqliteDiskCacheIndex.h KSqliteDiskCacheIn
 ../module/whm/WhmUrl.h ../module/whm/WhmUrl.cpp ../module/whm/WhmShellContext.h ../module/whm/WhmShell.cpp ../module/whm/WhmShell.h ../module/whm/WhmShellProcess.cpp ../module/whm/WhmShellProcess.h ../module/whm/WhmShellSession.cpp ../module/whm/WhmShellSession.h\
 ../module/whm/whmdso/core/core.cpp\
 KVaryMark.h KTimeoutMark.h KKeepConnectionAcl.h\
-KCounterMark.h KConnectionCloseMark.h KRandAcl.h
+KCounterMark.h KConnectionCloseMark.h\
+KTimer.cpp      KTimer.h KUrlParser.cpp  KUrlParser.h\
+KHttpFilterContext.cpp  KHttpFilterDso.cpp  KHttpFilterDsoManage.cpp  KHttpFilterHookCollectRequest.cpp  KHttpFilterHook.cpp  KHttpFilterManage.cpp\
+KHttpFilterContext.h    KHttpFilterDso.h    KHttpFilterDsoManage.h    KHttpFilterHookCollectRequest.h    KHttpFilterHook.h    KHttpFilterManage.h\
+KTempFileStream.cpp KHttpFilterStream.cpp KHttpFilterHookCollectResponse.cpp\
+KAccessDso.h KAccessDso.cpp KHttpStream.h KHttpFilterHookCollectResponse.h KHttpFilterStream.h KTempFileStream.h\
+KRandAcl.h KConnectionSelectable.cpp KConnectionSelectable.h KReadWriteBuffer.cpp KReadWriteBuffer.h KResponseContext.h KResponseContext.cpp\
+KUpstreamSelectable.h KUpstreamSelectable.cpp KRequestList.h KAsyncSelectable.h KSimulateRequest.cpp  KSimulateRequest.h KMinObjVerifiedMark.h KCloudIpAcl.cpp
+

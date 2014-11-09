@@ -19,6 +19,7 @@
 #include "utils.h"
 #include "http.h"
 #include "KUrlValue.h"
+#include "KUrlParser.h"
 #include "malloc_debug.h"
 
 using namespace std;

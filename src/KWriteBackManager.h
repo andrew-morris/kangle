@@ -14,7 +14,7 @@ public:
 	void copy(KWriteBackManager &a) {
 		lock.WLock();
 		writebacks.swap(a.writebacks);
-		lock.Unlock();
+		lock.WUnlock();
 	}
 	void destroy();
 	bool delWriteBack(std::string name, std::string &err_msg);

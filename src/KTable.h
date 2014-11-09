@@ -43,7 +43,6 @@ public:
 			const char **hitTable, int *hitChain);
 	std::string addChain();
 	std::string addChainForm(KChain *chain,u_short accessType);
-	int getChain(const char *chain);
 	void htmlTable(std::stringstream &s,const char *vh,u_short accessType);
 	int insertChain(int index, KChain *newChain);
 	bool delChain(std::string name);
@@ -68,8 +67,15 @@ public:
 
 private:
 	KChain *findChain(const char *name);
+	KChain *findChain(int index);
+	void removeChain(KChain *chain);
+	void pushChain(KChain *chain);
+	void chainChangeName(std::string oname,KChain *chain);
 	//ÐÂµÄÁ´
-	std::vector<KChain *> chain;
+	//std::vector<KChain *> chain;
+	KChain *head;
+	KChain *end;
+	std::map<std::string,KChain *> chain_map;
 	KChain *curChain;
 	bool ext;
 };

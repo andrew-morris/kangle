@@ -18,10 +18,14 @@ public:
 	KKqueueSelector();
 	virtual ~KKqueueSelector();
 	void select();
-	bool addListenSocket(KSelectable *st);
 protected:
-	bool addSocket(KSelectable *rq,int op);
-	void removeSocket(KSelectable *rq);
+	bool next(KSelectable *st,resultEvent result,void *arg);
+	bool listen(KServer *st,resultEvent result);
+	void removeSocket(KSelectable *st);
+	bool read(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg) ;
+	bool write(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg);
+	bool connect(KSelectable *st,resultEvent result,void *arg);
+
 private:
 	int kdpfd;
 

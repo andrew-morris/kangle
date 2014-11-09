@@ -32,6 +32,8 @@
 #include "KApiFastcgiFetchObject.h"
 #include "KSelectorManager.h"
 #include "KProcessManage.h"
+#include "KSimulateRequest.h"
+#include "KTimer.h"
 #define   MAX_CRON_THREAD   5
 #ifdef WHM_MODULE
 #include "whm.h"
@@ -40,6 +42,7 @@ DLL_PUBLIC  DWORD WINAPI Whm_HttpExtensionProc(EXTENSION_CONTROL_BLOCK *pECB);
 DLL_PUBLIC  BOOL  WINAPI Whm_TerminateExtension( DWORD dwFlags);
 #endif
 #include "extern.h"
+#include "ksapi.h"
 #include "malloc_debug.h"
 
 using namespace std;
@@ -77,7 +80,7 @@ static BOOL WINAPI apiServerSupportFunction(HCONN hConn, DWORD dwHSERequest,
 		}
 	case KGL_REQ_COMMAND:
 		{
-			kgl_command_t *command = (kgl_command_t *)lpvBuffer;
+			kgl_command *command = (kgl_command *)lpvBuffer;
 			Token_t token = NULL;
 			if (command->vh) {
 				KVirtualHost *vh = conf.gvm->refsVirtualHostByName(command->vh);
@@ -95,7 +98,7 @@ static BOOL WINAPI apiServerSupportFunction(HCONN hConn, DWORD dwHSERequest,
 			KCmdEnv *env = NULL;			
 			if (command->env) {
 				env = new KCmdEnv;
-				kgl_command_env_t *ce = command->env;
+				kgl_command_env *ce = command->env;
 				while (ce) {
 					env->addEnv(ce->name,ce->val);
 					ce = ce->next;
@@ -116,7 +119,7 @@ static BOOL WINAPI apiServerSupportFunction(HCONN hConn, DWORD dwHSERequest,
 		}
 	case KGL_REQ_THREAD:
 		{
-			kgl_thread_t *thread = (kgl_thread_t *)lpvBuffer;
+			kgl_thread *thread = (kgl_thread *)lpvBuffer;
 			if (thread->worker) {
 				KAsyncWorker *worker = (KAsyncWorker *)thread->worker;
 				worker->start(thread->param,thread->thread_function);
@@ -127,6 +130,22 @@ static BOOL WINAPI apiServerSupportFunction(HCONN hConn, DWORD dwHSERequest,
 			}
 			return FALSE;
 		}
+	case KGL_REQ_TIMER:
+		{
+			kgl_timer *ctx = (kgl_timer *)lpvBuffer;
+			timer_run(ctx->timer_run,ctx->arg,ctx->msec,ctx->selector);
+			return TRUE;
+		}
+#ifdef ENABLE_SIMULATE_HTTP
+	case KGL_REQ_ASYNC_HTTP:
+		{
+			kgl_async_http *ctx = (kgl_async_http *)lpvBuffer;
+			if (asyncHttpRequest(ctx)==0) {
+				return TRUE;
+			}
+			return FALSE;
+		}
+#endif
 	default:
 		return FALSE;
 	}
@@ -144,6 +163,11 @@ KApiRedirect::KApiRedirect() {
 }
 KApiRedirect::~KApiRedirect() {
 	
+}
+void KApiRedirect::setFile(std::string file)
+{
+	apiFile = file;
+	dso.path = dso.path + apiFile;
 }
 bool KApiRedirect::load(std::string file)
 {

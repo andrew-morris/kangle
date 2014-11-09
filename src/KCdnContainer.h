@@ -5,58 +5,15 @@
 #include "KList.h"
 #include "KSingleAcserver.h"
 #include "KMutex.h"
-
-struct CdnTarget
+#include "rbtree.h"
+struct KRedirectNode
 {
-	const char *ip;
-	const char *host;
-	int port;
-	/////////[279]
-	Proto_t proto;
-	int lifeTime;
-};
-struct less_target {
-	bool operator()(const CdnTarget * __x, const CdnTarget * __y) const {
-		if (__x->ip) {
-			if (__y->ip==NULL) {
-				return false;
-			}
-			int ret = strcmp(__x->ip,__y->ip);
-			if (ret<0) {
-				return true;
-			}
-			if (ret>0) {
-				return false;
-			}
-		} else {
-			if (__y->ip) {
-				return true;
-			}
-		}
-		int ret=strcasecmp(__x->host,__y->host);
-		if (ret<0) {
-			return true;
-		}
-		if (ret>0) {
-			return false;
-		}
-		ret = __x->port - __y->port;
-		if (ret<0) {
-			return true;
-		}
-		if (ret>0) {
-			return false;
-		}
-		ret = __x->lifeTime - __y->lifeTime;
-		if (ret<0) {
-			return true;
-		}
-		if (ret>0) {
-			return false;
-		}
-		/////////[280]
-		return __x->proto < __y->proto;
-	}
+	char *name;
+	KRedirect *rd;
+	rb_node *node;
+	time_t lastActive;
+	KRedirectNode *next;
+	KRedirectNode *prev;
 };
 class KCdnContainer
 {
@@ -64,12 +21,16 @@ public:
 	KCdnContainer();
 	~KCdnContainer();
 	KFetchObject *get(const char *ip,const char *host,int port,const char *ssl,int life_time,Proto_t proto=Proto_http);
-	KSingleAcserver *refsRedirect(const char *ip,const char *host,int port,const char *ssl,int life_time,Proto_t proto,bool isIp=false);
+	KRedirect *refsRedirect(const char *ip,const char *host,int port,const char *ssl,int life_time,Proto_t proto,bool isIp=false);
+	KRedirect *refsRedirect(const char *val);
 	void flush(time_t nowTime);
 private:
+	KRedirect *findRedirect(const char *name);
+	void addRedirect(KRedirectNode *rn);
 	KMutex lock;
-	std::map<CdnTarget *,KSingleAcserver *,less_target> serverMap;
 	KList serverList;
+	KRedirectNode rd_list;
+	rb_tree *rd_map;
 };
 extern KCdnContainer cdnContainer;
 #endif

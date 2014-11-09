@@ -41,8 +41,9 @@ class KRequestQueue;
 #endif
 class KHttpObject;
 class KHttpRequest;
-class buff;
+struct buff;
 class KContext;
+class KConnectionSelectable;
 /**
 数据源类(静态数据，动态数据，除缓存的数据外，所有请求的数据均来源于数据源)
 所有数据源的基类
@@ -82,6 +83,10 @@ public:
 	{
 		return false;
 	}
+	virtual KConnectionSelectable *getSelectable()
+	{
+		return NULL;
+	}
 	//关闭数据源
 	virtual void close(KHttpRequest *rq)
 	{
@@ -104,6 +109,10 @@ public:
 		return brd;
 	}
 	virtual KFetchObject *clone(KHttpRequest *rq);
+	virtual bool needTempFile()
+	{
+		return true;
+	}
 #ifdef ENABLE_REQUEST_QUEUE
 	//此数据源是否需要队列功能。对于本地数据不用该功能。
 	//对于上游数据和动态的则返回true

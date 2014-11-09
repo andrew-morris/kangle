@@ -43,6 +43,10 @@ public:
 		}
 		return new KHttpProxyFetchObject();
 	}
+	bool needTempFile()
+	{
+		return false;
+	}
 protected:
 	void buildHead(KHttpRequest *rq);
 	Parse_Result parseHead(KHttpRequest *rq,char *buf,int len);
@@ -87,12 +91,10 @@ protected:
 	{
 		expectDone();
 	}
-	void reset()
-	{
-		parser.restart();
-	}
 	KHttpProtocolParser parser;
 	KHttpObjectParserHook hook;
+private:
+	/////////[379]
 };
 
 #endif /* KHTTPPROXYFETCHOBJECT_H_ */

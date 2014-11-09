@@ -1,54 +1,126 @@
 #include "KCdnContainer.h"
 #include "KHttpProxyFetchObject.h"
+#include "KMultiAcserver.h"
+#include "KAcserverManager.h"
+#ifdef ENABLE_TCMALLOC
+#include "google/heap-checker.h"
+#endif
 KCdnContainer cdnContainer;
 using namespace std;
+static int redirect_node_cmp(void *k1, void *k2)
+{
+	const char *name = (const char *)k1;
+	KRedirectNode *rd = (KRedirectNode *)k2;
+	return strcasecmp(name, rd->name);
+}
 KCdnContainer::KCdnContainer()
 {
+#ifdef ENABLE_TCMALLOC
+	HeapLeakChecker::Disabler disabler;
+#endif
+	memset(&rd_list, 0, sizeof(rd_list));
+	klist_init(&rd_list);
+	rd_map = rbtree_create();
 }
 KCdnContainer::~KCdnContainer()
 {
 }
-KSingleAcserver *KCdnContainer::refsRedirect(const char *ip,const char *host,int port,const char *ssl,int life_time,Proto_t proto,bool isIp)
+KRedirect *KCdnContainer::refsRedirect(const char *ip, const char *host, int port, const char *ssl, int life_time, Proto_t proto, bool isIp)
 {
-	CdnTarget ttarget;
-	ttarget.ip = ip;
-	ttarget.host = host;
-	ttarget.port = port;
-	ttarget.proto = proto;
-	ttarget.lifeTime = life_time;
-	/////////[354]
-	KSingleAcserver *server = NULL;
-
-	lock.Lock();
-	std::map<CdnTarget *,KSingleAcserver *,less_target>::iterator it = serverMap.find(&ttarget);
-	if (it!=serverMap.end()) {
-		server = (*it).second;
-		serverList.remove(server);
-	} else {
-		server = new KSingleAcserver;
-		server->proto = proto;
-		server->sockHelper->setHostPort(host,port,ssl);
-		server->sockHelper->setLifeTime(life_time);
-		server->sockHelper->setIp(ip);
-		server->sockHelper->isIp = isIp;
-		CdnTarget *target = new CdnTarget;
-		target->ip = server->sockHelper->getIp();
-		target->host = server->sockHelper->host.c_str();
-		target->port = port;
-		target->proto = proto;
-		target->lifeTime = life_time;
-		/////////[355]
-		serverMap.insert(pair<CdnTarget *,KSingleAcserver *>(target,server));
+	KStringBuf s;
+	s << "s://";
+	if (ip) {
+		s << ip << "_";
 	}
-	serverList.push_back(server);
-	server->lastActive = kgl_current_sec;
+	if (host) {
+		s << host << ":";
+	}
+	s << port;
+	if (ssl) {
+		s << ssl;
+	}
+	s << "_" << (int)proto;
+	lock.Lock();
+	KRedirect *rd = findRedirect(s.getString());
+	if (rd) {
+		rd->addRef();
+		lock.Unlock();
+		return rd;
+	}
+	KSingleAcserver *server = new KSingleAcserver;
+	server->proto = proto;
+	server->sockHelper->setHostPort(host,port,ssl);
+	server->sockHelper->setLifeTime(life_time);
+	server->sockHelper->setIp(ip);
+	server->sockHelper->isIp = isIp;
+	KRedirectNode *rn = new KRedirectNode;
+	rn->name = s.stealString();
+	rn->rd = server;
+	addRedirect(rn);
+	server->addRef();
+	lock.Unlock();
+	return server;
+}
+KRedirect *KCdnContainer::refsRedirect(const char *name)
+{
+	if (*name == '$') {
+		return conf.gam->refsMultiAcserver(name + 1);
+	}
+	lock.Lock();
+	KRedirect *rd = findRedirect(name);
+	if (rd) {
+		rd->addRef();
+		lock.Unlock();
+		return rd;
+	}
+	char *buf = strdup(name);
+	KMultiAcserver *server = new KMultiAcserver();
+	int max_error_count = 3;
+	int error_try_time = 0;
+	char *hot = buf;
+	for (;;) {
+		char *p = strchr(hot, '/');
+		if (p) {
+			*p = '\0';
+		}
+		char *eq = strchr(hot, '=');
+		
+		if (eq) {
+			*eq = '\0';
+			char *val = eq + 1;
+			if (strcasecmp(hot, "proto") == 0) {
+				server->proto = KPoolableRedirect::parseProto(val);
+			} else if (strcasecmp(hot, "ip_hash") == 0) {
+				server->ip_hash = atoi(val)>0;
+			} else if (strcasecmp(hot, "cookie_stick") == 0) {
+				server->cookie_stick = atoi(val)>0;
+			} else if (strcasecmp(hot, "error_try_time") == 0) {
+				error_try_time = atoi(val);
+				/////////[430]
+			} else if (strcasecmp(hot, "error_count") == 0) {
+				max_error_count = atoi(val);
+			} else if (strcasecmp(hot, "nodes") == 0) {
+				server->parseNode(val);
+			}
+		}
+		if (p == NULL) {
+			break;
+		}
+		hot = p + 1;
+	}
+	server->setErrorTryTime(max_error_count,error_try_time);
+	free(buf);
+	KRedirectNode *rn = new KRedirectNode;
+	rn->name = strdup(name);
+	rn->rd = server;
+	addRedirect(rn);
 	server->addRef();
 	lock.Unlock();
 	return server;
 }
 KFetchObject *KCdnContainer::get(const char *ip,const char *host,int port,const char *ssl,int life_time,Proto_t proto)
 {
-	KSingleAcserver *server = refsRedirect(ip,host,port,ssl,life_time,proto);
+	KRedirect *server = refsRedirect(ip,host,port,ssl,life_time,proto);
 	KBaseRedirect *brd = new KBaseRedirect(server,false);
 	KFetchObject *fo = new KHttpProxyFetchObject();
 	fo->bindBaseRedirect(brd);
@@ -58,32 +130,42 @@ KFetchObject *KCdnContainer::get(const char *ip,const char *host,int port,const 
 void KCdnContainer::flush(time_t nowTime)
 {
 	lock.Lock();
-	KSingleAcserver *server = static_cast<KSingleAcserver *>(serverList.getHead());
-	while(server){
-		if (nowTime-server->lastActive < 60) {
+	KRedirectNode *rn = rd_list.next;
+	while (rn != &rd_list) {
+		if (nowTime - rn->lastActive < 300) {
 			break;
 		}
-		KSingleAcserver *next = static_cast<KSingleAcserver *>(server->next);
-		if (server->getRefFast()>1) {
-			server = next;
-			continue;
-		}		
-		serverList.remove(server);
-		CdnTarget ttarget;
-		ttarget.ip = server->sockHelper->getIp();
-		ttarget.host = server->sockHelper->host.c_str();
-		ttarget.port = server->sockHelper->port;
-		ttarget.proto = server->proto;
-		ttarget.lifeTime = server->sockHelper->getLifeTime();
-		/////////[356]
-		std::map<CdnTarget *,KSingleAcserver *,less_target>::iterator it = serverMap.find(&ttarget);
-		assert(it!=serverMap.end());
-		CdnTarget *target = (*it).first;
-		serverMap.erase(it);
-		delete target;
-		server->release();
-		server = next;
+		//if (rn->rd->getRefFast()<=1) {
+		rn->rd->release();
+		KRedirectNode *next = rn->next;
+		klist_remove(rn);
+		rbtree_remove(rd_map, rn->node);
+		free(rn->name);
+		delete rn;
+		rn = next;
+		//}
+		//rn = rn->next;
 	}
 	lock.Unlock();
 }
-
+KRedirect *KCdnContainer::findRedirect(const char *name)
+{
+	rb_node *node = rbtree_find(rd_map, (void *)name, redirect_node_cmp);
+	if (node == NULL) {
+		return NULL;
+	}
+	KRedirectNode *rn = (KRedirectNode *)node->data;
+	rn->lastActive = kgl_current_sec;
+	klist_remove(rn);
+	klist_append(&rd_list, rn);
+	return rn->rd;
+}
+void KCdnContainer::addRedirect(KRedirectNode *rn)
+{
+	int new_flags = 0;
+	rn->node = rbtree_insert(rd_map, (void *)rn->name, &new_flags,redirect_node_cmp);
+	assert(new_flags);
+	rn->lastActive = kgl_current_sec;
+	klist_append(&rd_list, rn);
+	rn->node->data = rn;
+}

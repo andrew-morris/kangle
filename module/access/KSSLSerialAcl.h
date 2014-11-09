@@ -17,7 +17,7 @@ public:
 	}
 	bool match(KHttpRequest *rq, KHttpObject *obj) {
 		if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-			KSSLSocket *sslSocket = static_cast<KSSLSocket *> (rq->server);
+			KSSLSocket *sslSocket = static_cast<KSSLSocket *> (rq->c->socket);
 			char *serial = ssl_var_lookup_ssl(sslSocket->getSSL(),
 					"CERT_SERIALNUMBER");
 			if (serial == NULL) {

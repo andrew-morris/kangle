@@ -45,13 +45,14 @@
 #include "KSelector.h"
 #include "malloc_debug.h"
 #include "KPathRedirect.h"
-/////////[305]
+/////////[369]
 
 
 enum {
 	LOAD_HEAD_SUCCESS, LOAD_HEAD_FAILED, LOAD_HEAD_RETRY
 };
 bool is_attr(KHttpHeader *av, const char *attr);
+int attr_casecmp(const char *s1,const char *s2);
 bool asyncSendHttpObject(KHttpRequest *rq);
 bool asyncSendCache(KHttpRequest *context);
 bool asyncLoadHttpObject(KHttpRequest *context);
@@ -59,12 +60,11 @@ bool async_http_start(KHttpRequest *context);
 bool sendHttpObject(KHttpRequest *rq, KHttpObject *obj);
 void sendMemoryObject(KHttpRequest *rq,KHttpObject *obj);
 bool send_not_modify_from_mem(KHttpRequest *rq);
-int url_decode(char *url_msg, int url_len = 0,int *flag=NULL,bool space2plus=true);
+
 char *url_encode(const char *s, size_t len, size_t *new_length);
 std::string url_encode(const char *s, size_t len = 0);
 bool parse_url(const char *src, KUrl *url);
-bool sync_send_post_data(KHttpRequest *rq);
-bool try_send_request(KHttpRequest *rq,bool skip_header = false);
+bool try_send_request(KHttpRequest *rq);
 void stage_rdata_end(KHttpRequest *rq,StreamState result);
 bool send_error(KHttpRequest *rq, KHttpObject *obj,int code, const char* reason);
 void prepare_load_body(KHttpRequest *rq);
@@ -72,15 +72,11 @@ bool chunked_send(KSendable *socket, const char *str, int len);
 bool chunked_send(KSendable *socket, buff *buf, int len);
 bool send_chunked_head(KSendable *socket, int len);
 StreamState send_buff(KSendable *socket, buff *buf , INT64 &start,INT64 &send_len);
-bool send_auth(KHttpRequest *rq,KBuffer *body=NULL);
+bool send_auth(KHttpRequest *rq,KReadWriteBuffer *body=NULL);
 bool check_need_gzip(KHttpRequest *rq, KHttpObject *obj);
 bool stageContentType(KHttpRequest *rq,KHttpObject *obj);
-bool build_obj_header(KHttpRequest *rq, KHttpObject *obj, KBuffer &b,
-		INT64 content_len, INT64 &start, INT64 &send_len);
-bool build_obj_header(KHttpRequest *rq, KHttpObject *obj, KBuffer &b,
-		INT64 content_len);
-void send_redirect(KHttpRequest *rq,const char *url,int code=STATUS_FOUND);
-void send_redirect(KHttpRequest *rq, const char *url,int &code, KBuffer &s);
+bool build_obj_header(KHttpRequest *rq, KHttpObject *obj,INT64 content_len, INT64 &start, INT64 &send_len);
+void send_redirect(KHttpRequest *rq,const char *url,int url_len,int code);
 bool https_start(KHttpRequest *rq);
 bool http_start(KHttpRequest *rq);
 bool processHttpRequest(KHttpRequest *rq);
@@ -94,57 +90,12 @@ KWStream *makeWriteStream(KHttpRequest *rq,KHttpObject *obj,KWStream *st,bool &a
 bool stored_obj(KHttpObject *obj,KHttpObject *old_obj,int list_state);
 bool stored_obj(KHttpRequest *rq, KHttpObject *obj,KHttpObject *old_obj);
 bool adjust_range(KHttpRequest *rq,INT64 &len);
-bool send_http(KHttpRequest *rq, KHttpObject *obj, int code,const char *header, KBuffer *body = NULL);
+bool send_http(KHttpRequest *rq, KHttpObject *obj, int code, KReadWriteBuffer *body = NULL);
 void handleUpstreamRecvedHead(KHttpRequest *rq);
-void handleTempFileReadPost(KSelectable *st,int got);
 void handleError(KHttpRequest *rq,int code,const char *msg) ;
 void set_obj_size(KHttpObject *obj, INT64 content_length);
-inline int checkResponse(KHttpRequest *rq,KHttpObject *obj, int flag, KAccess *access) {
-	if (TEST(obj->index.flags,flag)) {
-		if (TEST(obj->index.flags,FLAG_FILTER_DENY)) {
-			return JUMP_DENY;
-		}
-		return JUMP_ALLOW;
-	}
-	SET(obj->index.flags,flag);
-	int action = access->check(rq, obj);
-#if 0
-	if (action != JUMP_DENY) {
-		if (rq->globalFilter.size() > 0
-#ifdef ENABLE_USER_ACCESS
-				|| rq->userFilter.size() > 0
-#endif
-		) {
-			rq->getCharset(obj->data->headers);
-		}
-	}
-#endif
-	return action;
-}
+int checkResponse(KHttpRequest *rq,KHttpObject *obj);
 
-inline int checkResponse(KHttpRequest *rq,KHttpObject *obj) {
-	int action = JUMP_ALLOW;
-	KMutex *lock = obj->getLock();
-	lock->Lock();
-	action = checkResponse(rq,obj, GLOBAL_KEY_CHECKED, &kaccess[RESPONSE]);
-#ifndef HTTP_PROXY
-#ifdef ENABLE_USER_ACCESS
-	if (action == JUMP_ALLOW && rq->svh) {
-		action = rq->svh->vh->checkResponse(rq);
-	}
-#endif
-#endif
-	if (action == JUMP_DENY) {
-		if (obj->refs == 1) {
-			KBuffer::destroy(obj->data->bodys);
-			obj->data->bodys = NULL;
-			set_obj_size(obj, 0);
-		}
-		SET(obj->index.flags,FLAG_FILTER_DENY);
-	}
-	lock->Unlock();
-	return action;
-}
 inline bool check_need_gzip(KHttpRequest *rq, KHttpObject *obj) {
         //如果obj标记为已经压缩过，或者标记了不用压缩，则不压缩数据
 		if (TEST(obj->index.flags,FLAG_GZIP)) {
@@ -187,7 +138,7 @@ inline void processReadyedRequest(KHttpRequest *rq)
 inline void processQueueRequest(KHttpRequest *rq)
 {
 	if (rq->fetchObj->isSync()) {
-		rq->selector->removeRequest(rq);
+		rq->c->removeRequest(rq);
 		SET(rq->flags,RQ_SYNC);
 	} else {
 		CLR(rq->flags,RQ_SYNC);
@@ -214,52 +165,19 @@ inline void processQueueRequest(KHttpRequest *rq)
 	return;
 #endif
 }
+void afterPostHandleForUpstream(KHttpRequest *rq,void *arg);
 inline void processNotCacheRequest(KHttpRequest *rq)
 {
-		/////////[306]
-#ifdef ENABLE_TF_EXCHANGE
-	if (!TEST(rq->workModel,WORK_MODEL_INTERNAL) && rq->content_length>0) {
-		//有post数据，要前置处理rq->tf
-		if (TEST(rq->flags,RQ_TEMPFILE_HANDLED)) {
-			if (rq->tf==NULL) {
-				asyncLoadHttpObject(rq);
-				return;
-			}
-		} else {
-			SET(rq->flags,RQ_TEMPFILE_HANDLED);
-			kassert(rq->tf==NULL);
-			if (conf.tmpfile<=0) {
-				asyncLoadHttpObject(rq);
-				return;
-			}
-			rq->tf = new KTempFile;
-		}		
-		kassert(rq->tf!=NULL);
-		INT64 left_read = rq->left_read - rq->parser.bodyLen;
-		if (left_read>0) {
-			//还有post数据
-			if (rq->content_length>conf.max_post_size) {
-				send_error(rq,NULL,STATUS_BAD_REQUEST,"POST size is too big");
-				return;
-			}
-			//rq->tf = new KTempFile;
-			rq->tf->init(left_read);
-			stageReadTempFile(rq);
-			return;
-		}
-	}
-#endif
 	asyncLoadHttpObject(rq);
 }
 //准备好了数据源，根据数据源的特点处理请求，看是否启用临时文件
 inline void processRequest(KHttpRequest *rq)
 {
 	kassert(rq->fetchObj!=NULL);
-
 #ifdef ENABLE_REQUEST_QUEUE
 	if(TEST(rq->workModel,WORK_MODEL_MANAGE|WORK_MODEL_INTERNAL) || !rq->fetchObj->needQueue()){
 		if (rq->fetchObj->isSync()) {
-			rq->selector->removeRequest(rq);
+			rq->c->removeRequest(rq);
 			SET(rq->flags,RQ_SYNC);
 		} else {
 			CLR(rq->flags,RQ_SYNC);
@@ -269,57 +187,42 @@ inline void processRequest(KHttpRequest *rq)
 		return;
 	}
 #endif
+	/////////[370]
 #ifdef ENABLE_TF_EXCHANGE
-	/*
-	* 为了性能,KTempFile的创建在两个地方，对于有POST数据，要前置创建，在processNotCacheRequest
-	* 无post数据，则在此创建
-	*/
-    if (!TEST(rq->flags,RQ_TEMPFILE_HANDLED) && conf.tmpfile>0 && rq->tf==NULL) {
-		rq->tf = new KTempFile;
+	if (!TEST(rq->workModel,WORK_MODEL_INTERNAL) && rq->content_length>0) {
+		if (rq->hasInputFilter() || rq->fetchObj->needTempFile()) {
+			//有post数据
+			INT64 left_read = rq->left_read - rq->parser.bodyLen;
+			if (rq->tf==NULL) {
+				rq->tf = new KTempFile;
+			}
+			rq->tf->init(left_read);
+			stageTempFileReadPost(rq ,afterPostHandleForUpstream, NULL);
+			return;
+		}
 	}
 #endif
 	processQueueRequest(rq);
 }
+
 /*
 判断是否限速下载，op=STAGE_OP_WRITE,或者是STAGE_OP_TF_WRITE
 返回
 true 限速下载，
 false 没有限速下载
 */
-inline bool limitWrite(KHttpRequest *rq,int op=STAGE_OP_WRITE)
-{
-	if (rq->slh==NULL) {
-		return false;
-	}
-	int len = 0;
-	//得到发送长度
-	if (op==STAGE_OP_WRITE) {
-		rq->get_write_buf(len);	
-	} else {
-#ifdef ENABLE_TF_EXCHANGE
-		kassert(rq->tf!=NULL);
-		rq->tf->readBuffer(len);
-#endif
-	}
-	//限速，计算发送时间
-	INT64 sendTime = rq->getSendTime((int)len);
-	if (sendTime>0) {
-		rq->selector->addBlock(rq,op,sendTime);
-		return true;
-	}
-	return false;
-}
+/*
 inline void limitWrite(KHttpRequest *rq,int op,int len)
 {
 	if (rq->slh) {		
 		//限速，计算发送时间
 		INT64 sendTime = rq->getSendTime((int)len);
 		if (sendTime>0) {
-			rq->selector->addBlock(rq,op,sendTime);
+			rq->c->addBlock(rq,op,sendTime);
 			return;
 		}
 	}
-	rq->selector->addRequest(rq,KGL_LIST_RW,op);
+	rq->c->addRequest(rq,KGL_LIST_RW,op);
 }
 inline bool limitWrite(KHttpRequest *rq,KSelectable *st,int op,int len)
 {
@@ -327,12 +230,13 @@ inline bool limitWrite(KHttpRequest *rq,KSelectable *st,int op,int len)
 		//限速，计算发送时间
 		INT64 sendTime = rq->getSendTime((int)len);
 		if (sendTime>0) {
-			rq->selector->addBlock(rq,st,op,sendTime);
+			rq->c->addBlock(rq,st,op,sendTime);
 			return true;
 		}
 	}
 	return false;
 }
+*/
 inline void attach_av_pair_to_buff(const char* attr, const char *val, KBuffer *buffer) {
 	assert(attr && val && buffer);
 	if (*attr) {
@@ -373,11 +277,12 @@ inline bool async_send_valide_object(KHttpRequest *rq, KHttpObject *obj)
 //检查obj是否过期1
 inline bool check_object_expiration(KHttpRequest *rq,KHttpObject *obj) {
 	assert(obj);
-	if (!obj){
-		return false;
-	}
 	if (TEST(obj->index.flags,OBJ_MUST_REVALIDATE)) {
 		//有must-revalidate,则每次都要从源上验证
+		return true;
+	}
+	if (rq->min_obj_verified > 0 && obj->index.last_verified < rq->min_obj_verified) {
+		//设置了最小验证时间
 		return true;
 	}
 	unsigned freshness_lifetime;
@@ -394,10 +299,6 @@ inline bool check_object_expiration(KHttpRequest *rq,KHttpObject *obj) {
 	//debug("current_age=%d,refreshness_lifetime=%d\n",current_age,freshness_lifetime);
 	unsigned current_age = obj->getCurrentAge(kgl_current_sec);
 	if (current_age >= freshness_lifetime){
-#ifdef ENABLE_STATIC_ENGINE
-		//如果是静态化的页面,则要重新生成过
-		CLR(obj->index.flags,OBJ_IS_STATIC2);
-#endif
 		return true;
 	}
 	return false;
@@ -405,6 +306,10 @@ inline bool check_object_expiration(KHttpRequest *rq,KHttpObject *obj) {
 inline void asyncSendCache2(KHttpRequest *rq,KHttpObject *obj)
 {
 	if (check_object_expiration(rq,obj)) {
+#ifdef ENABLE_STATIC_ENGINE
+		//如果是静态化的页面,则要重新生成过
+		CLR(obj->index.flags, OBJ_IS_STATIC2);
+#endif
 		goto revalidate;
 	}
 	if (TEST(rq->flags , RQ_HAS_NO_CACHE)) {

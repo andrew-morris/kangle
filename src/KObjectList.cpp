@@ -175,13 +175,13 @@ void KObjectList::move(INT64 m_size,bool swapout)
 		is_dead = (TEST(obj->index.flags,FLAG_DEAD)>0);
 		if (is_dead || m_size>0) {
 			INT64 decSize;	
-			/////////[293]
+			/////////[356]
 				decSize = obj->index.have_length;
 				if (swapout && TEST(obj->index.flags,FLAG_NO_DISK_CACHE)) {
 					//标记为不使用磁盘缓存的，直接dead
 					is_dead = true;
 				}
-				/////////[294]
+				/////////[357]
 			m_size -= decSize;
 			//加入到临时链表中
 			KTempHttpObject *to = new KTempHttpObject;
@@ -281,7 +281,7 @@ void KObjectList::getSize(INT64 &csize,INT64 &cdsiz)
 	KHttpObject *obj = l_head;
 	while (obj) {
 		if (TEST(obj->index.flags,FLAG_IN_MEM)) {
-			/////////[295]
+			/////////[358]
 				csize += obj->index.have_length;
 			
 		}

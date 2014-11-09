@@ -24,6 +24,7 @@
 #define KSELECTABLE_H_
 #include "forwin32.h"
 #include "KSocket.h"
+#include "global.h"
 #ifdef _WIN32
 #include "mswsock.h"
 #define ENABLE_IOCP   1
@@ -34,93 +35,100 @@
 #include <list>
 #include "log.h"
 #include "KMutex.h"
+#include "KSelector.h"
+#include "ksapi.h"
 #include "malloc_debug.h"
-
-class KSelectable;
-typedef void (*handleEvent)(KSelectable *st,int got);
-
-class KSelector;
-enum ReadState {
-	READ_FAILED, READ_CONTINUE, READ_SUCCESS, READ_SSL_CONTINUE
-};
-enum WriteState {
-	WRITE_FAILED, WRITE_CONTINUE, WRITE_SUCCESS
-};
-
-#define STATE_IDLE     0
-#define STATE_CONNECT  1
-#define STATE_SEND     2
-#define STATE_RECV     3
-#define STATE_QUEUE    4
-class KSecondHandler;
-class KSelectable {
-public:
-	KSelectable() {
-/////////[348]
-		selector = NULL;
-		//op = 0;
-		sockop = 0;
-		handler = NULL;
-		active_msec = 0;
-		secondHandler = NULL;
-#ifndef NDEBUG
-		klog(KLOG_DEBUG,"new st=%p\n",this);
+#ifdef ENABLE_ATOM
+#include "katom.h"
 #endif
-	}
-	virtual ~KSelectable();
-	virtual SOCKET getSockfd() = 0;
-	INT64 active_msec;
-public:
-	union {
-		struct {
-			unsigned client_read:1;
-			unsigned client_write:1;
-			unsigned upstream_read:1;
-			unsigned upstream_write:1;
-		};
-		struct {
-			unsigned client_op:2;
-			unsigned upstream_op:2;
-		};
-		unsigned sockop : 4;
-	};
-/////////[349]
-	KSelector *selector;
-	KSecondHandler *secondHandler;
-	handleEvent handler;
-};
-class KSecondHandler : public KSelectable
+#define STF_READ       0x1
+#define STF_WRITE      0x2
+#define STF_CLOSED     0x4
+#define STF_SSL        0x8
+#define STF_ET         0x10
+#define STF_EV         0x20
+#define STF_ONE_SHOT   0x40
+#define STF_RQ_OK      0x80
+#define STF_RQ_PER_IP  0x100
+#define STF_READ_LOCK  0x200
+#define STF_WRITE_LOCK 0x400
+#define STF_MANAGE     0x800
+#define STF_ERR        0x1000
+struct kgl_event
 {
-public:
-	KSecondHandler()
-	{
-#ifdef _WIN32
-		lp.hEvent = CreateEvent(NULL,FALSE,FALSE,NULL);
-#endif
-	}
-	~KSecondHandler()
-	{
-#ifdef _WIN32
-		CloseHandle(lp.hEvent);
-#endif
-	}
 #ifdef _WIN32
 	WSAOVERLAPPED lp;
 #endif
-	KSelectable *main;
-	SOCKET getSockfd()
-	{
-		return main->getSockfd();
+	void *arg;
+	bufferEvent buffer;
+	resultEvent result;
+};
+class KSelectable {
+public:
+	KSelectable() {
+#ifndef NDEBUG
+		klog(KLOG_DEBUG,"new st=%p\n",this);
+#endif
+		memset(this,0,sizeof(*this));
 	}
+	virtual ~KSelectable();
+	virtual KSocket *getSocket() = 0;
+public:
+	void set_flag(int flag)
+	{
+		SET(st_flags,flag);
+	}
+	bool isClosed()
+	{
+		return TEST(st_flags,STF_CLOSED)>0;
+	}
+	bool isSSL()
+	{
+		return TEST(st_flags,STF_SSL)>0;
+	}
+	uint16_t st_flags;
+	uint16_t stack_level;
+/////////[426]
+	KSelector *selector;
+	kgl_event e[2];
+	friend class KHttpSpdy;
+	friend class KEpollSelector;
+	friend class KIOCPSelector;
+	friend class KKqueueSelector;
+	friend class KPortSelector;
+protected:
+	void asyncRead(void *arg,resultEvent result,bufferEvent buffer)
+	{
+		if (TEST(st_flags,STF_ET) && buffer && stack_level++<256) {
+			//ssl有可能在ssl缓冲层还有数据可读,所以要一直读,直到读到了want_read错误
+			eventRead(arg,result,buffer);
+			return;
+		}
+		if (!selector->read(this,result,buffer,arg)) {
+			result(arg,-1);
+		}
+	}
+	void asyncWrite(void *arg,resultEvent result,bufferEvent buffer)
+	{
+		if (TEST(st_flags,STF_ET) && buffer && stack_level++<256) {
+			eventWrite(arg,result,buffer);
+			return;
+		}
+		if (!selector->write(this,result,buffer,arg)) {
+			result(arg,-1);
+		}
+	}
+	void eventRead(void *arg,resultEvent result,bufferEvent buffer);
+	void eventWrite(void *arg,resultEvent result,bufferEvent buffer);
 };
 class KHttpRequest;
 struct KBlockRequest
 {
 	KHttpRequest *rq;
-	KSelectable *st;
+	void *arg;
 	int op;
-	handleEvent handler;
-	INT64 active_msec;
+	timer_func func;
+	INT64 active_msec;	
 	KBlockRequest *next;
 	KBlockRequest *prev;
 };

@@ -55,7 +55,7 @@ public:
 	 * 查找虚拟主机并绑定在rq上。
 	 */
 	void bindVirtualHost(KServer *server);
-	query_vh_result queryVirtualHost(KHttpRequest *rq,const char *site);
+	query_vh_result queryVirtualHost(KServer *ls,KSubVirtualHost **rq_svh,const char *site,int site_len=0);
 	void getAllVh(std::list<std::string> &vhs,bool status,bool onlydb);
 	bool getAllTempleteVh(const char *templeteGroup,std::list<std::string> &vhs);
 	void getAllGroupTemplete(std::list<std::string> &vhs);
@@ -64,7 +64,11 @@ public:
 	KTempleteVirtualHost *refsTempleteVirtualHost(std::string name);
 	bool updateTempleteVirtualHost(KTempleteVirtualHost *tvh);
 	bool removeTempleteVirtualHost(std::string name);
-	/////////[232]
+#ifdef ENABLE_VH_FLOW
+	//导出所有虚拟主机流量
+	void dumpFlow();
+	void dumpFlow(KVirtualHostEvent *ctx,bool revers,const char *prefix,int prefix_len,int extend);
+#endif
 	/*
 	把所有的virtualHost的updatedFlag=false,准备更新vh.xml文件。
 	*/

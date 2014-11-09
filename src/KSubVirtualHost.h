@@ -38,6 +38,7 @@ public:
 		}
 		return true;
 	}
+	void release();
 	void setHost(const char *host);
 	/**
 	* 完成url到物理文件的转换
@@ -52,15 +53,19 @@ public:
 	char *dir;
 	char *doc_root;
 	KVirtualHost *vh;
+	char *bind_host;
+	int  bind_host_len;
+	bool wide;
 	bool allSuccess;
 	bool fromTemplete;
-
 #ifdef ENABLE_SUBDIR_PROXY
 	subdir_type type;
 	KUrl *dst;
 	char *ip;
-	/////////[320]
+	/////////[391]
 	int lifeTime;
+	char *http_proxy;
+	char *https_proxy;
 #endif
 private:
 	bool makeHtaccess(const char *prefix,KFileName *file,KAccess *request,KAccess *response);

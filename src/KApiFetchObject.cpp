@@ -97,7 +97,7 @@ bool KApiFetchObject::execUrl(HSE_EXEC_URL_INFO *urlInfo) {
 		//rq2.fetchObj = new KHttpProxyFetchObject();
 	}
 	rq2.auth = rq->auth;
-	rq2.server = rq->server;
+	rq2.server = rq->c->socket;
 	rq2.out = &sa.tr;
 #if 0
 	bool upStreamEnd = rq2.out->upStreamEnd;
@@ -169,21 +169,15 @@ bool KApiFetchObject::initECB(EXTENSION_CONTROL_BLOCK *ecb) {
 	if (ecb->cbTotalBytes > 0) {
 		ecb->lpbData = (LPBYTE) (rq->parser.body);
 	}
-	ecb->cbAvailable = (int)MIN((INT64)rq->parser.bodyLen,rq->content_length);
+	ecb->cbAvailable = rq->pre_post_length;
 	leftRead = ecb->cbTotalBytes - ecb->cbAvailable;
 	rq->left_read-=ecb->cbAvailable;
-
 	ecb->lpszContentType = (env.contentType ? env.contentType : (char *) "");
 	ecb->dwHttpStatusCode = STATUS_OK;
 	ecb->lpszQueryString = (char *) env.getEnv("QUERY_STRING");
 	if (ecb->lpszQueryString == NULL) {
 		ecb->lpszQueryString = (char *) "";
 	}
-	//ecb->lpszQueryString = xstrdup(ecb->lpszQueryString);
-	//ecb->lpszPathTranslated = xstrdup(ecb->lpszPathTranslated);
-	//ecb->lpszMethod = xstrdup(ecb->lpszMethod);
-
-
 	ecb->ServerSupportFunction = ServerSupportFunction;
 	ecb->GetServerVariable = GetServerVariable;
 	ecb->WriteClient = WriteClient;

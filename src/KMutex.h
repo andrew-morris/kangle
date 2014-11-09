@@ -22,7 +22,7 @@
 #include<pthread.h>
 #else
 #include "forwin32.h"
-#define DEAD_LOCK   1
+//#define DEAD_LOCK   1
 #endif
 #include <assert.h>
 #include <stdlib.h>
@@ -138,5 +138,20 @@ public:
 	};
 };
 #endif
+class KLocker
+{
+public:
+	KLocker(KMutex *lock)
+	{
+		lock->Lock();
+		this->lock = lock;
+	}
+	~KLocker()
+	{
+		lock->Unlock();
+	}
+private:
+	KMutex *lock;
+};
 #endif
 

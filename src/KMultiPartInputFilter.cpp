@@ -1,6 +1,7 @@
 #include "KMultiPartInputFilter.h"
 #include "KHttpProtocolParser.h"
 #include "http.h"
+#include "KUrlParser.h"
 #ifdef ENABLE_INPUT_FILTER
 char *my_strndup(const char *s, int length)
 {

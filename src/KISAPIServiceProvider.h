@@ -9,7 +9,7 @@
 #define KISAPISERVICEPROVIDER_H_
 #include <sstream>
 #include <vector>
-#include "KApiFetchObject.h"
+//#include "KApiFetchObject.h"
 #include "KServiceProvider.h"
 #include "httpext.h"
 #include "KHttpKeyValue.h"
@@ -48,17 +48,8 @@ public:
 		meth = KHttpKeyValue::getMethod(pECB->lpszMethod);
 		return meth;
 	}
-	const char *getRemoteAddr() {
-		return NULL;
-	}
-	int getRemotePort() {
-		return 0;
-	}
 	const char *getFileName() {
 		return pECB->lpszPathTranslated;
-	}
-	const char *getDocumentRoot() {
-		return NULL;
 	}
 	const char *getQueryString() {
 		return pECB->lpszQueryString;
@@ -112,8 +103,6 @@ private:
 	char header_val[512];
 	void checkHeaderSend();
 	char meth;
-	char *remoteAddr;
-	int remote_port;
 	char *docRoot;
 	bool headSended;
 	EXTENSION_CONTROL_BLOCK *pECB;

@@ -2,13 +2,20 @@
 #include "http.h"
 #include "KContentType.h"
 #include "KVirtualHostManage.h"
-/////////[28]
-void handleAsyncRead(KSelectable *st,int got)
+/////////[50]
+void bufferStaticAsyncRead(void *arg,iovec *buf,int &bufCount)
 {
-	KHttpRequest *rq = static_cast<KHttpRequest *>(st);
+	KHttpRequest *rq = (KHttpRequest *)arg;
+	KStaticFetchObject *fo = static_cast<KStaticFetchObject *>(rq->fetchObj);
+	fo->getAsyncBuffer(rq,buf,bufCount);
+}
+void resultStaticAsyncRead(void *arg,int got)
+{
+	KHttpRequest *rq = (KHttpRequest *)arg;
 	KStaticFetchObject *fo = static_cast<KStaticFetchObject *>(rq->fetchObj);
 	fo->handleAsyncReadBody(rq,got);
 }
+
 KTHREAD_FUNCTION simulateAsyncRead(void *param)
 {
 	KHttpRequest *rq = (KHttpRequest *)param;
@@ -33,7 +40,7 @@ void KStaticFetchObject::open(KHttpRequest *rq)
 	}
 	assert(rq->file);
 #ifdef _WIN32
-	/////////[29]
+	/////////[51]
 #else
 	const char *filename = rq->file->getName();
 	if (filename) {
@@ -44,7 +51,7 @@ void KStaticFetchObject::open(KHttpRequest *rq)
 		handleError(rq,STATUS_NOT_FOUND,"file not found");
 		return;
 	}
-	/////////[30]
+	/////////[52]
 	if (!rq->sr) {
 #ifdef ENABLE_TF_EXCHANGE
 		if (rq->tf) {
@@ -64,7 +71,7 @@ void KStaticFetchObject::open(KHttpRequest *rq)
 		obj->index.last_modified = rq->file->getLastModified();
 		char tmp_buf[42];
 		mk1123time(obj->index.last_modified, tmp_buf, 41);
-		obj->insertHttpHeader("Last-Modified",(const char *)tmp_buf);
+		obj->insertHttpHeader(kgl_expand_string("Last-Modified"),(const char *)tmp_buf,29);
 	}
 	if (TEST(rq->flags,RQ_HAVE_RANGE)) {
 		//处理部分数据请求
@@ -75,19 +82,20 @@ void KStaticFetchObject::open(KHttpRequest *rq)
 			handleError(rq,416,"range error");
 		    return;
 		}
-		/////////[31]
+		/////////[53]
 		if (!fp.seek(rq->range_from,seekBegin)) {
 			handleError(rq,500,"cann't seek to right position");
 			return ;
 		}
-		if (!TEST(rq->flags,RQ_URL_RANGED)) {
+		if (!TEST(rq->url->flags,KGL_URL_RANGED)) {
 			KStringBuf b;
 			char buf[INT2STRING_LEN];
 			b.WSTR("bytes ");
 			b << int2string(rq->range_from, buf) << "-" ;
 			b << int2string(rq->range_to, buf) << "/" ;
 			b << int2string(content_length, buf);
-			obj->insertHttpHeader2(xstrdup("Content-Range"),b.stealString());
+			int len = b.getSize();
+			obj->insertHttpHeader2(xstrdup("Content-Range"),sizeof("Content-Range")-1,b.stealString(),len);
 			obj->index.content_length = rq->file->fileSize;
 			obj->data->status_code = STATUS_CONTENT_PARTIAL;
 		}
@@ -105,12 +113,6 @@ void KStaticFetchObject::readBody(KHttpRequest *rq)
 {
 	assert(rq->file);
 	assert(fp.opened());
-#if 0
-	if (!fp.opened()) {
-		stage_rdata_end(rq,STREAM_WRITE_FAILED);
-		return ;
-	}
-#endif
 #ifdef _WIN32
 	if (ad) {
 		asyncReadBody(rq);
@@ -119,7 +121,7 @@ void KStaticFetchObject::readBody(KHttpRequest *rq)
 #else
 	//simulate async
 	if (conf.async_io) {
-		rq->selector->removeSocket(rq);
+		rq->c->removeSocket();
 		conf.ioWorker->start(rq,simulateAsyncRead);
 		return;
 	}
@@ -157,7 +159,7 @@ void KStaticFetchObject::handleAsyncReadBody(KHttpRequest *rq,int got)
 		return;
 	}
 	rq->file->fileSize -= got;
-	/////////[32]
+	/////////[54]
 	if (!pushHttpBody(rq,ad->buf,got)) {
 		return;
 	}
@@ -172,8 +174,10 @@ void KStaticFetchObject::asyncReadBody(KHttpRequest *rq)
 		stage_rdata_end(rq,STREAM_WRITE_SUCCESS);
 		return;
 	}
-	/////////[33]
-	rq->handler = handleAsyncRead;
-	rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_ASYNC_READ);
+#ifdef _WIN32
+	ad->as->read(rq,resultStaticAsyncRead,bufferStaticAsyncRead);
+#else
+	assert(false);
+#endif
 	return;
 }

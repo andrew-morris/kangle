@@ -33,6 +33,8 @@ KHttpObjectBody::KHttpObjectBody(KHttpObjectBody *data)
 		}else{
 			new_t->val = NULL;
 		}
+		new_t->attr_len = tmp->attr_len;
+		new_t->val_len = tmp->val_len;
 		new_t->next = NULL;
 		if(hot==NULL){
 			headers = new_t;
@@ -79,7 +81,7 @@ void KHttpObject::unlinkDiskFile()
 		if (0!=unlink(name)) {
 			klog(KLOG_ERR,"cann't unlink file=[%s] errno=%d\n",name,errno);
 		}
-		/////////[208]
+		/////////[263]
 		free(name);
 	}
 #endif
@@ -153,7 +155,7 @@ int KHttpObject::saveHead(KFile *fp)
 	bodyStart += writeString(fp,NULL);
 	fileHeader.head_size = bodyStart;
 	memcpy(fileHeader.fix_str,CACHE_FIX_STR,sizeof(CACHE_FIX_STR));
-	/////////[209]
+	/////////[264]
 	fp->seek(0,seekBegin);
 	fp->write((char *)&fileHeader,sizeof(KHttpObjectFileHeader));
 	return bodyStart;
@@ -200,7 +202,7 @@ bool KHttpObject::swapout()
 		}
 		tmp=tmp->next;
 	}
-	/////////[210]
+	/////////[265]
 		cache.getHash(h)->incDiskSize(index.content_length);
 	if (filename) {
 		free(filename);
@@ -240,6 +242,7 @@ bool KHttpObject::swapinBody(KFile *fp,KHttpObjectBody *data)
 		buff *tmp = (buff *)malloc(sizeof(buff));
 		tmp->used = this_read;
 		tmp->data = buf;
+		tmp->flags = 0;
 		tmp->next = NULL;
 		if (last==NULL) {
 			data->bodys = tmp;
@@ -295,16 +298,16 @@ bool KHttpObject::swapin(KHttpObjectBody *data)
 	}
 	//assert(hotlen==0);
 	if (fileHeader.body_complete) {
-		/////////[211]
+		/////////[266]
 			//load memory object
 			if (!swapinBody(&fp,data)) {
 				goto failed;
 			}
 			result = true;
 			goto success;
-		/////////[212]
+		/////////[267]
 	}
-	/////////[213]
+	/////////[268]
 failed:
 	fp.close();
 	if (unlink(filename)!=0) {

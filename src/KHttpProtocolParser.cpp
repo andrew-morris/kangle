@@ -20,35 +20,11 @@
 #include "log.h"
 #include <assert.h>
 #include <stdio.h>
-/*
-void KHttpProtocolParser::adjustHeader(INT64 offset)
-{
-	assert(!strdup_flag);
-	KHttpHeader *tmp = headers;
-	while(tmp){
-		tmp->attr += offset;
-		tmp->val += offset;
-		tmp = tmp->next;
-	}	
-}
-*/
 KHttpProtocolParser::~KHttpProtocolParser() {
 	destroy();
 }
-bool KHttpProtocolParser::insertHeader(const char *attr,const char *val,bool tail)
+bool KHttpProtocolParser::insertHeader(KHttpHeader *new_t,bool tail)
 {
-	KHttpHeader *new_t = (struct KHttpHeader *) xmalloc(sizeof(KHttpHeader));
-	if (new_t == NULL) {
-		return false;
-	}
-	//if(strdup_flag){
-	new_t->attr = xstrdup(attr);
-	new_t->val = xstrdup(val);
-	//} else {
-	//	new_t->attr = (char *)attr;
-	//	new_t->val = (char *)val;
-	//}
-	new_t->next = NULL;
 	if (headers == NULL) {
 		headers = last = new_t;
 		return true;
@@ -63,7 +39,21 @@ bool KHttpProtocolParser::insertHeader(const char *attr,const char *val,bool tai
 	}
 	return true;
 }
-bool KHttpProtocolParser::parseHeader(char *header, bool isFirst,
+bool KHttpProtocolParser::insertHeader(const char *attr,int attr_len,const char *val,int val_len,bool tail)
+{
+	KHttpHeader *new_t = (struct KHttpHeader *) xmalloc(sizeof(KHttpHeader));
+	if (new_t == NULL) {
+		return false;
+	}
+	new_t->attr = xstrdup(attr);
+	new_t->attr_len = attr_len;
+	new_t->val = xstrdup(val);
+	new_t->val_len = val_len;
+	new_t->next = NULL;
+	return insertHeader(new_t,tail);
+
+}
+bool KHttpProtocolParser::parseHeader(char *header, char *end,bool isFirst,
 		KHttpProtocolParserHook *hook) {
 	char *val;
 	if (isFirst && hook && hook->proto==Proto_http) {
@@ -82,13 +72,15 @@ bool KHttpProtocolParser::parseHeader(char *header, bool isFirst,
 		return false;
 		*/
 	}
+	int attr_len = val - header;
 	*val = 0;
 	val++;
 	while (*val && IS_SPACE((unsigned char)*val))
 		val++;
 	int ret = 1;
+	int val_len = end - val;
 	if (hook) {
-		ret = hook->parseHeader(header, val, isFirst);
+		ret = hook->parseHeader(header, val,val_len,isFirst);
 	}
 	switch(ret){
 		case PARSE_HEADER_FAILED:
@@ -96,9 +88,9 @@ bool KHttpProtocolParser::parseHeader(char *header, bool isFirst,
 		case PARSE_HEADER_NO_INSERT:
 			return true;
 		case PARSE_HEADER_INSERT_BEGIN:
-			return insertHeader(header,val,false);
+			return insertHeader(header,attr_len,val,val_len,false);
 		default:
-			return insertHeader(header,val);
+			return insertHeader(header,attr_len,val,val_len);
 	}
 }
 int KHttpProtocolParser::parse(char *buf, int len,
@@ -157,12 +149,15 @@ int KHttpProtocolParser::parse(char *buf, int len,
 	}
 	checked = pn + 1 - buf;
 	char *pr = (char *) memchr(start, '\r', pn - start);
+	char *end;
 	if (pr) {
 		*pr = '\0';
+		end = pr;
 	} else {
 		*pn = '\0';
+		end = pn;
 	}
-	if (!parseHeader(start, !started, hook)) {
+	if (!parseHeader(start, end,!started, hook)) {
 		//klog(KLOG_DEBUG,
 		//		"httpparse:cann't parse header,checked=%d,start=[%s]\n",
 		//		checked, start);
@@ -172,3 +167,4 @@ int KHttpProtocolParser::parse(char *buf, int len,
 	goto restart;
 	return HTTP_PARSE_CONTINUE;
 }
+/////////[274]

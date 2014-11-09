@@ -42,6 +42,7 @@ public:
 	}
 	friend class KCgiRedirect;
 private:
+	bool readPostData(KHttpRequest *rq);
 	KPipeStream stream;
 	bool cmdModel;
 

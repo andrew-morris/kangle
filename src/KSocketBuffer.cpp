@@ -33,7 +33,7 @@ void KSocketBuffer::getRBuffer(LPWSABUF buffer,int &bufferCount)
 		return;
 	}
 	assert(hot_buf);
-	nbuff *tmp = hot_buf;
+	buff *tmp = hot_buf;
 	buffer[0].iov_base = hot;
 	buffer[0].iov_len = hot_buf->used - (hot - hot_buf->data);
 	int i;
@@ -64,7 +64,7 @@ char *KSocketBuffer::getWBuffer(int &len)
 	}
 	len = NBUFF_CHUNK - hot_buf->used;
 	if (len == 0) {
-		nbuff *nbuf = newbuff();
+		buff *nbuf = newbuff();
 		assert(hot_buf->next==NULL);
 		hot_buf->next = nbuf;
 		hot_buf = nbuf;
@@ -124,4 +124,28 @@ StreamState KSocketBuffer::write_all(const char *buf, int len)
 		writeSuccess(wlen);
 	}
 	return STREAM_WRITE_SUCCESS;
+}
+int KSocketBuffer::read(char *buf,int len)
+{
+	char *hot = buf;
+	int got = 0;
+	while (len>0) {
+		int length;
+		char *read_data = getRBuffer(length);
+		if (read_data==NULL) {
+			return 0;
+		}
+		length = MIN(length,len);
+		if (length<=0) {
+			break;
+		}
+		memcpy(hot,read_data,length);
+		hot += length;
+		len -= length;
+		got += length;
+		if (!readSuccess(length)) {
+			break;
+		}
+	}
+	return got;
 }

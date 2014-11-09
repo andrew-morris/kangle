@@ -20,7 +20,7 @@ public:
 	bool match(KHttpRequest *rq, KHttpObject *obj) {
 		if (rq->client_ip==NULL) {
 			rq->client_ip = (char *)malloc(MAXIPLEN);
-			rq->server->get_remote_ip(rq->client_ip,MAXIPLEN);
+			rq->c->socket->get_remote_ip(rq->client_ip,MAXIPLEN);
 		}
 		return KMultinAcl::match(rq->client_ip);
 	}

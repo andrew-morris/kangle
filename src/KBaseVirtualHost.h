@@ -11,10 +11,10 @@
 #include "global.h"
 #include "KXml.h"
 #include "KContentType.h"
-/////////[274]
+/////////[338]
 class KApiPipeStream;
 class KVirtualHost;
-
+class KHttpFilterManage;
 class KVirtualHostEvent
 {
 public:
@@ -219,8 +219,10 @@ public:
 	void getIndexFileEnv(const char *split,KStringBuf &s);
 	//void buildEnvXml(std::stringstream &s);
 	KMimeType *mimeType;
-	/////////[275]
-
+	/////////[339]
+#ifdef ENABLE_KSAPI_FILTER
+	KHttpFilterManage *hfm;
+#endif
 private:
 	void copyTo(KVirtualHost *vh, bool copyInherit, int changeInherit);
 	/*

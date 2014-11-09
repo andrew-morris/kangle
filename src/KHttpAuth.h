@@ -61,6 +61,7 @@ public:
 		return realm;
 	}
 	virtual void insertHeader(KWStream &s) = 0;
+	virtual void insertHeader(KHttpRequest *rq) = 0;
 	virtual bool parse(KHttpRequest *rq, const char *str) = 0;
 	virtual bool verify(KHttpRequest *rq, const char *password,
 			int passwordType) = 0;

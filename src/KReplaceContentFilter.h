@@ -1,11 +1,11 @@
 #ifndef KREPLACECONTENTFILTER_H
 #define KREPLACECONTENTFILTER_H
-#include "KStream.h"
+#include "KHttpStream.h"
 #include "KHttpRequest.h"
 class KReplaceContentMark;
 typedef bool (*replaceContentCallBack)(void *param,KRegSubString *sub_string,int *ovector,KStringBuf *st);
 typedef void (*replaceContentEndCallBack)(void *param);
-class KReplaceContentFilter : public KWUpStream
+class KReplaceContentFilter : public KHttpStream
 {
 public:
 	KReplaceContentFilter();

@@ -34,11 +34,16 @@
 #define HAVE_SOCKLEN_T 1
 #define ENABLE_DETECT_WORKER_LOCK    1
 #endif
-/////////[42]
+/////////[64]
+#ifndef PROGRAM_NAME
+#ifdef HTTP_PROXY
+#define PROGRAM_NAME    "kangle-proxy"
+#else
 #define PROGRAM_NAME     "kangle"
-/////////[43]
+#endif
+#endif
 #ifndef VERSION
-#define VERSION         "3.2.8"
+#define VERSION         "3.4.0"
 #endif
 #define VER_ID   VERSION
 #ifndef MAX
@@ -49,7 +54,6 @@
 #endif
 #define	 GC_SLEEP_TIME	10
 
-//#define  NBUFF_SIZE     16384
 //不能超过8K,ajp协议最大的包为8k
 #define  NBUFF_SIZE     8192
 
@@ -68,23 +72,24 @@
 #define  JUMP_DEFAULT   12
 #define  JUMP_CMD       13
 #define  JUMP_DROP       16
+#define  JUMP_FINISHED  17
 #define  JUMP_UNKNOW    100
 
 #define  REQUEST          0
 #define  RESPONSE         1
 #define  REQUEST_RESPONSE 2
 /***********************************/
-#define WORK_MODEL_KA       (1)
-#define WORK_MODEL_MANAGE   (1<<1)
-#define WORK_MODEL_SSL      (1<<2)
-#define WORK_MODEL_INTERNAL (1<<3)
-#define WORK_MODEL_PER_IP   (1<<4)
-#define WORK_MODEL_REPLACE  (1<<5)
-#define WORK_MODEL_RQOK     (1<<6)
+#define WORK_MODEL_KA        (1)
+#define WORK_MODEL_MANAGE    (1<<1)
+#define WORK_MODEL_SSL       (1<<2)
+#define WORK_MODEL_INTERNAL  (1<<3)
+#define WORK_MODEL_REPLACE   (1<<5)
 #ifdef  ENABLE_TPROXY
-#define WORK_MODEL_TPROXY   (1<<7)
+#define WORK_MODEL_TPROXY    (1<<7)
 #endif
-#define WORK_MODEL_PORTMAP  (1<<8)
+#define WORK_MODEL_PORTMAP   (1<<8)
+#define WORK_MODEL_SIMULATE  (1<<9)
+#define WORK_MODEL_SPDY      (1<<10)
 /************************************/
 
 #ifdef _WIN32
@@ -105,7 +110,7 @@
 //#define DEAD_LOCK   1
 #endif
 #endif
-#define PID_FILE   "/var/kangle.pid"
+#define PID_FILE   "/kangle.pid"
 
 #include <assert.h>
 
@@ -130,6 +135,9 @@
 
 #define NET_HASH_SIZE (1024)
 #define NET_HASH_MASK (NET_HASH_SIZE-1)
+#define ENABLE_VH_RS_LIMIT         1
+#define ENABLE_VH_FLOW             1
+/////////[65]
 
 #define AND_PUT  1
 #define AND_USE  2
@@ -164,28 +172,16 @@
 #define FLAG_NEED_GZIP          (1<<20)  /* 需要gzip压缩 */
 #define FLAG_NEED_CACHE         (1<<21)  /* 需要缓存(仅需要,如果同时存在ANSW_NO_CACHE,以no-cache为谁) */
 /////////////////////////////////////////////////////////////////////
-/*
- * GLOBAL_KEY_CHECKED 和　USER_KEY_CHECKED　系统的处理策略。
- * 两个只要有一个设置了，并且设置了FLAG_FILTER_DENY，则deny掉
- * @deprecated
- */
-#define GLOBAL_KEY_CHECKED      (1<<22)
-#define USER_KEY_CHECKED        (1<<23)
+#define OBJ_IS_SD               (1<<22)
+#define OBJ_USE_SD              (1<<23)
 /////////////////////////////////////////////////////////////////////
-#define FLAG_FILTER_DENY        (1<<24) /* 被过滤拒绝 */
+#define OBJ_CACHE_RESPONSE      (1<<24) /* 缓存了也要检查response检查 */
 #define ANSW_LOCAL_SERVER       (1<<25) /* 本地应用(fastcgi等) */
 #define ANSW_XSENDFILE          (1<<26) /* x-accel-redirect */
 /////////////////////////////////////////////////////////////////////
-/////////[44]
+/////////[66]
 #define OBJ_INDEX_UPDATE         (1<<30)
 #define OBJ_NOT_OK               (1<<31)
-/*
-#define ST_GZIP              (1<<22)
-#define ST_CACHE             (1<<23)
-#define ST_CHUNK             (1<<24)
-#define ST_SPLIMIT           (1<<25)
-#define ST_CONTENT           (1<<26)
-*/
 
 #define STATUS_OK               200
 #define STATUS_CREATED          201
@@ -217,8 +213,6 @@
 */
 #define RQ_QUEUED              1
 #define RQ_HAS_IF_MOD_SINCE    (1<<1)
-#define RQ_VH_QUERIED          (1<<2)
-//#define RQ_REPLACE_IP          (1<<2)
 #define RQ_HAS_NO_CACHE        (1<<3)
 #define RQ_NET_BIG_OBJECT      (1<<4)
 #define RQ_BIG_OBJECT_CTX      (1<<5)
@@ -228,17 +222,13 @@
 #define RQ_HAS_AUTHORIZATION   (1<<9)
 #define RQ_HAS_PROXY_AUTHORIZATION (1<<10)
 #define RQ_HAS_KEEP_CONNECTION (1<<11)
-#define RQ_URL_RANGED          (1<<12)
-#define RQ_IS_REWRITED         (1<<13)
-#define RQ_IS_BAD              (1<<14)
-#define RQ_URL_ENCODE          (1<<15)
+/////////[67]
 #define RQ_OBJ_VERIFIED        (1<<16)
 #define RQ_IF_RANGE            (1<<17)
 #define RQ_HAVE_RANGE          (1<<18)
 #define RQ_TE_CHUNKED          (1<<19)
 #define RQ_TE_GZIP             (1<<20)
 #define RQ_HAS_SEND_HEADER     (1<<21)
-#define RQ_URL_VARIED          (1<<22)
 #define RQ_POST_UPLOAD         (1<<23)
 #define RQ_CONNECTION_CLOSE    (1<<24)
 #define RQ_OBJ_STORED          (1<<25)
@@ -275,8 +265,7 @@
 #define  RF_NO_DISK_CACHE    (1<<16)
 #define  MOD_NO_LOG          (1<<17)
 #define  RQ_SEND_AUTH        (1<<18)
-#define  RQ_SEND_PROXY_AUTH  (1<<19)
-#define  RQ_CGI              (1<<20)
+/////////[68]
 #define  RF_FOLLOWLINK_ALL   (1<<21)
 #define  RF_FOLLOWLINK_OWN   (1<<22)
 #define  RF_NO_X_SENDFILE    (1<<23)
@@ -305,21 +294,8 @@
 #define CLR(a,b)   ((a)&=~(b))
 #define TEST(a,b)  ((a)&(b))
 
-/**
-* url协议
-*/
-#define PROTO_NONE  0
-#define PROTO_HTTP  1
-#define PROTO_FTP   2
-#define PROTO_OTHER 4
-#define PROTO_HTTPS 8
-
-#define PROTO_IPV6  (1<<7)
-
 #define        IS_SPACE(a)     isspace((unsigned char)a)
 #define        IS_DIGIT(a)     isdigit((unsigned char)a)
-
-
 #define  CONNECT_TIME_OUT    20
 #if defined(FREEBSD) || defined(NETBSD) || defined(OPENBSD)
 #define BSD_OS 1
@@ -334,43 +310,39 @@
 #define ENABLE_MULTI_TABLE         1
 #define ENABLE_DIGEST_AUTH         1
 #define ENABLE_MULTI_SERVER        1
-
-/////////[45]
+#define ENABLE_SIMULATE_HTTP       1
 #ifdef ENABLE_DISK_CACHE
-//开启sqlite磁盘索引
-#define ENABLE_DB_DISK_INDEX       1
-#define ENABLE_SQLITE_DISK_INDEX   1
+	//开启sqlite磁盘索引
+	#define ENABLE_DB_DISK_INDEX       1
+	#define ENABLE_SQLITE_DISK_INDEX   1
 #endif
 #ifndef HTTP_PROXY
-#define WHM_MODULE                 1
-#define ENABLE_VH_QUEUE            1
-#define ENABLE_TF_EXCHANGE         1
-//#define ENABLE_BASED_IP_VH         1
-#define ENABLE_SUBDIR_PROXY        1
+	#define WHM_MODULE                 1
+	#define ENABLE_VH_QUEUE            1
+	#define ENABLE_TF_EXCHANGE         1
+	#define ENABLE_SUBDIR_PROXY        1
 #endif
 #define ENABLE_INPUT_FILTER        1
 #define ENABLE_FORCE_CACHE         1
 #define ENABLE_REQUEST_QUEUE       1
 #define ENABLE_USER_ACCESS         1
-//#define ENABLE_SSL_VERIFY_CLIENT   1
 #define ENABLE_VH_RUN_AS           1
 #define ENABLE_MANY_VH             1
 #ifdef ENABLE_VH_RS_LIMIT
-#define ENABLE_VH_LOG_FILE         1
+	#define ENABLE_VH_LOG_FILE         1
 #endif
 #define ENABLE_SUB_VIRTUALHOST     1
 #define ENABLE_BASED_PORT_VH       1
-/////////[46]
 
 
 //#define ENABLE_PIPE_LOG            1
 #if defined(ENABLE_FORCE_CACHE) || defined(ENABLE_STATIC_URL)
-#define ENABLE_STATIC_ENGINE       1
+	#define ENABLE_STATIC_ENGINE       1
 #endif
 #define DEFAULT_COOKIE_STICK_NAME  "kangle_runat"
 #define VARY_URL_KEY               1
 enum Proto_t {
-	Proto_http, Proto_fcgi, Proto_ajp,Proto_uwsgi,Proto_scgi,Proto_hmux
+	Proto_http, Proto_fcgi, Proto_ajp,Proto_uwsgi,Proto_scgi,Proto_hmux,Proto_spdy
 };
 /**
 * HASH_SIZE 只能为2的n次方,要启用多hash,还要定义MULTI_HASH为1
@@ -378,8 +350,24 @@ enum Proto_t {
 #define	HASH_SIZE	(1024)
 #define	HASH_MASK	(HASH_SIZE-1)
 #define MULTI_HASH      1
-#ifdef LINUX
-#define ENABLE_SENDFILE      1
-#endif
+#ifdef  LINUX
+	//unix开启sendfile功能
+	#define ENABLE_SENDFILE      1
 #endif
 
+//define likely and unlikely
+#if defined(__GNUC__) && (__GNUC__ > 2)
+	# define likely(x)   __builtin_expect((x),1)
+	# define unlikely(x) __builtin_expect((x),0)
+#else
+	# define likely(x)   (x)
+	# define unlikely(x) (x)
+#endif
+//end define likely and unlikely
+
+#ifndef DISABLE_KSAPI_FILTER
+	//打开ksapi filter
+	#define ENABLE_KSAPI_FILTER 1
+#endif //DISABLE_KSAPI_FILTER
+
+#endif //global.h

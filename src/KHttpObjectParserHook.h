@@ -8,7 +8,7 @@ public:
 	KHttpObjectParserHook();
 	void init(KHttpObject *obj, KHttpRequest *rq);
 	virtual ~KHttpObjectParserHook();
-	int parseHeader(const char *attr, char *val, bool isFirst);
+	int parseHeader(const char *attr, char *val, int &val_len,bool isFirst);
 
 	void startParse();
 	void endParse();

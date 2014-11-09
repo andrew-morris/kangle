@@ -41,6 +41,7 @@
 #include "KApiRedirect.h"
 #include "KApiPipeStream.h"
 #include "KTempleteVirtualHost.h"
+#include "KHttpFilterManage.h"
 #include "server.h"
 volatile bool cur_config_vh_db = false;
 using namespace std;
@@ -87,7 +88,10 @@ KVirtualHost::KVirtualHost() {
 	speed_limit = 0;
 	sl = NULL;
 #endif
-/////////[260]
+#ifdef ENABLE_VH_FLOW
+	flow = NULL;
+	fflow = false;
+#endif
 #ifdef ENABLE_VH_QUEUE
 	queue = NULL;
 	max_queue = 0;
@@ -102,9 +106,12 @@ KVirtualHost::KVirtualHost() {
 	}
 	tvh = NULL;
 	app_share = 1;
+	app = 0;
 	ip_hash = false;
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 	ssl_ctx = NULL;
+	cipher = NULL;
+	protocols = NULL;
 #endif
 }
 KVirtualHost::~KVirtualHost() {
@@ -133,7 +140,11 @@ KVirtualHost::~KVirtualHost() {
 		cur_connect->destroy();
 	}
 #endif
-/////////[261]
+#ifdef ENABLE_VH_FLOW
+	if (flow) {
+		flow->release();
+	}
+#endif
 #ifdef ENABLE_VH_QUEUE
 	if(queue){
 		queue->release();
@@ -145,6 +156,12 @@ KVirtualHost::~KVirtualHost() {
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 	if(ssl_ctx){
 		KSSLSocket::clean_ctx(ssl_ctx);
+	}
+	if (cipher) {
+		xfree(cipher);
+	}
+	if (protocols) {
+		xfree(protocols);
 	}
 #endif
 }
@@ -514,6 +531,11 @@ bool KVirtualHost::saveAccess()
 	return true;
 }
 int KVirtualHost::checkRequest(KHttpRequest *rq) {
+#ifdef ENABLE_KSAPI_FILTER
+	if (hfm && !hfm->check_request(rq)) {
+		return JUMP_DENY;
+	}
+#endif
 	if (!loadAccess()) {
 		return JUMP_ALLOW;
 	}
@@ -524,7 +546,7 @@ int KVirtualHost::checkResponse(KHttpRequest *rq)
 	if (user_access.size()==0) {
 		return JUMP_ALLOW;
 	}
-	return ::checkResponse(rq,rq->ctx->obj,USER_KEY_CHECKED,&access[RESPONSE]);
+	return access[RESPONSE].check(rq,rq->ctx->obj);
 }
 int KVirtualHost::checkPostMap(KHttpRequest *rq)
 {
@@ -672,7 +694,11 @@ void KVirtualHost::buildXML(std::stringstream &s) {
 		s << " speed_limit='" << speed_limit << "'";
 	}
 #endif
-	/////////[262]
+#ifdef ENABLE_VH_FLOW
+	if (fflow) {
+		s << " fflow='" << fflow << "'";
+	}
+#endif
 #ifdef ENABLE_VH_QUEUE
 	if(max_worker>0){
 		s << " max_worker='" << max_worker << "'";
@@ -688,6 +714,13 @@ void KVirtualHost::buildXML(std::stringstream &s) {
 	if (keyfile.size()>0) {
 		s << " certificate_key='" << keyfile << "'";
 	}
+	if (cipher) {
+		s << " cipher='" << cipher << "'";
+	}
+	if (protocols) {
+		s << " protocols='" << protocols << "'";
+	}
+	/////////[324]
 #endif
 	if(status != 0 || tvh){
 		s << " status='" << status << "'";
@@ -725,7 +758,7 @@ void KVirtualHost::buildXML(std::stringstream &s) {
 			s << " dir='" << (*it)->dir << "'";
 		}
 		s << ">" ;
-		if (*(*it)->host == '.') {
+		if ((*it)->wide) {
 			s << "*";
 		}
 		s << (*it)->host ;
@@ -759,7 +792,6 @@ bool KVirtualHost::loadApiRedirect(KApiPipeStream *st, int workType) {
 	lock.Unlock();
 	return true;
 }
-
 bool KVirtualHost::loadApiRedirect(KRedirect *rd, KApiPipeStream *st,
 		int workType) {
 	if(rd==NULL){
@@ -880,12 +912,12 @@ std::string KVirtualHost::getApp(KHttpRequest *rq)
 	}
 	kassert((int)apps.size() == app);
 	//todo:以后根据ip做hash
-	int index = (ip_hash?rq->server->addr.get_hash():rand()) % app;
+	int index = (ip_hash?rq->c->socket->addr.get_hash():rand()) % app;
 	return apps[index];
 }
 void KVirtualHost::setApp(int app)
 {
-	if (app<=0) {
+	if (app<=0 || app>512) {
 		app = 1;
 	}
 	apps.clear();
@@ -920,10 +952,24 @@ std::string KVirtualHost::getKeyfile()
 	}
 	return keyfile;
 }
-bool KVirtualHost::setSSLInfo(std::string certfile,std::string keyfile)
+bool KVirtualHost::setSSLInfo(std::string certfile,std::string keyfile,std::string cipher,std::string protocols)
 {
 	this->certfile = certfile;
 	this->keyfile = keyfile;
+	if (this->cipher) {
+		xfree(this->cipher);
+		this->cipher = NULL;
+	}
+	if (cipher.size()>0) {
+		this->cipher = strdup(cipher.c_str());
+	}
+	if (this->protocols) {
+		xfree(this->protocols);
+		this->protocols = NULL;
+	}
+	if (protocols.size() > 0) {
+		this->protocols = strdup(protocols.c_str());
+	}
 	if (certfile.size()==0) {
 		return true;
 	}
@@ -948,6 +994,17 @@ bool KVirtualHost::setSSLInfo(std::string certfile,std::string keyfile)
 			 klog(KLOG_WARNING, "kangle was built with SNI support, however, now it is linked "
 					"dynamically to an OpenSSL library which has no tlsext support, "
 					"therefore SNI is not available");
+		}
+		/////////[325]
+	}
+	if (ssl_ctx) {
+		if (this->cipher) {
+			if (SSL_CTX_set_cipher_list(ssl_ctx, this->cipher) != 1) {
+				klog(KLOG_WARNING, "cipher [%s] is not support\n", this->cipher);
+			}
+		}
+		if (this->protocols) {
+			KSSLSocket::set_ssl_protocols(ssl_ctx, this->protocols);
 		}
 	}
 	return ssl_ctx!=NULL;

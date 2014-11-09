@@ -31,6 +31,7 @@ public:
 	KFetchObject *makeFetchObject(KHttpRequest *rq, KFileName *file);
 	void connect(KHttpRequest *rq);
 	bool load();
+	void setFile(std::string file);
 	bool load(std::string file);
 
 	//KClientSocket *createConnection(KHttpRequest *rq);

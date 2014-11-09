@@ -15,6 +15,9 @@
 #include "KSSICommandConfig.h"
 #include "http.h"
 #include "malloc_debug.h"
+#ifdef ENABLE_TCMALLOC
+#include "google/heap-checker.h"
+#endif
 using namespace std;
 std::map<char *, KSSICommand *, lessp_icase> KSSIProcess::commands;
 
@@ -30,6 +33,9 @@ KSSIProcess::~KSSIProcess() {
 }
 
 void KSSIProcess::init() {
+#ifdef ENABLE_TCMALLOC
+	HeapLeakChecker::Disabler disabler;
+#endif
 	KSSICommand *command = new KSSICommandInclude;
 	KSSIProcess::commands.insert(pair<char *, KSSICommand *> (
 			(char *) "include", command));
@@ -97,7 +103,7 @@ void KSSIProcess::readBody(KHttpRequest *rq)
 				}
 			}
 		}
-		if(try_send_request(rq,true)){
+		if(try_send_request(rq)){
 			return;
 		}
 	}

@@ -2,6 +2,7 @@
 #define KURLVALUE_H_
 #include<map>
 #include<string>
+/* @deprecated ”√KUrlParser */
 class KUrlValue
 {
 public:

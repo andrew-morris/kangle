@@ -34,7 +34,6 @@
 #include "KHttpManage.h"
 #include "KRequestQueue.h"
 #include "time_utils.h"
-
 inline rb_node *rbInsertRequest(rb_root *root,KBlockRequest *brq,bool &isfirst)
 {
 	struct rb_node **n = &(root->rb_node), *parent = NULL;
@@ -67,15 +66,17 @@ inline rb_node *rbInsertRequest(rb_root *root,KBlockRequest *brq,bool &isfirst)
 }
 FUNC_TYPE FUNC_CALL selectorThread(void *param) {
 	KSelector *selector = (KSelector*) param;
-	//debug("selector = %p\n",selector);
-#ifdef MALLOCDEBUG
-	selector->closeFlag = false;
-#endif
-	selector->select();
+	selector->selectThread();
 	KTHREAD_RETURN;
 }
-//KMutex KSelector::workLock;
-//RequestList KSelector::workRequest;
+void KSelector::selectThread()
+{
+	thread_id = pthread_self();
+#ifdef MALLOCDEBUG
+	closeFlag = false;
+#endif
+	select();
+}
 KSelector::KSelector() {
 	utm = false;
 	tmo_msec = 1000;
@@ -91,21 +92,28 @@ KSelector::~KSelector() {
 bool KSelector::startSelect() {
 	return m_thread.start((void *) this, selectorThread);
 }
-void KSelector::addBlock(KHttpRequest *rq,KSelectable *st,int op,INT64 sendTime)
+void KSelector::adjustTime(INT64 t)
 {
-	assert(st);
-	removeSocket(st);
-	KBlockRequest *brq = new KBlockRequest;
-	brq->st = st;
-	brq->rq = rq;
-	brq->op = op;
-	brq->handler = st->handler;
-	brq->active_msec = sendTime;
-#ifndef NDEBUG
-	klog(KLOG_DEBUG,"add request to block list st=%p\n",(KSelectable *)rq);
-#endif
 	listLock.Lock();
-	if (rq->list!=KGL_LIST_NONE) {		
+	rb_node *node = rb_first(&blockList);
+	while (node) {
+		KBlockRequest *brq = (KBlockRequest *)node->data;
+		assert(brq);
+		brq->active_msec += t;
+		node = rb_next(node);
+	}
+	listLock.Unlock();
+}
+void KSelector::addTimer(KHttpRequest *rq,timer_func func,void *arg,int msec)
+{
+	KBlockRequest *brq = new KBlockRequest;
+	brq->rq = rq;
+	brq->op = STAGE_OP_TIMER;
+	brq->active_msec = kgl_current_msec + msec;
+	brq->func = func;
+	brq->arg = arg;
+	listLock.Lock();
+	if (rq && rq->list!=KGL_LIST_NONE) {		
 		requests[rq->list].remove(rq);
 		rq->list = KGL_LIST_NONE;
 	}
@@ -116,21 +124,13 @@ void KSelector::addBlock(KHttpRequest *rq,KSelectable *st,int op,INT64 sendTime)
 	}
 	listLock.Unlock();
 }
-void KSelector::addBlock(KHttpRequest *rq,int op,INT64 sendTime)
-{
-	KSelectable *st = rq;
-	if (IS_SECOND_OPERATOR(op)) {
-		st = rq->secondHandler;
-	}
-	addBlock(rq,st,op,sendTime);	
-}
 void KSelector::addList(KHttpRequest *rq,int list)
 {
 	rq->active_msec = kgl_current_msec;
 	rq->tmo_left = rq->tmo;
 	assert(list>=0 && list<KGL_LIST_NONE);
 	listLock.Lock();
-	if (rq->list!=KGL_LIST_NONE) {		
+	if (rq->list!=KGL_LIST_NONE) {
 		requests[rq->list].remove(rq);
 	}
 	requests[list].pushBack(rq);
@@ -149,32 +149,6 @@ void KSelector::removeList(KHttpRequest *rq)
 	requests[list].remove(rq);
 	rq->list = KGL_LIST_NONE;
 	listLock.Unlock();	
-}
-void KSelector::removeRequest(KHttpRequest *rq)
-{
-	removeSocket(rq);
-	addList(rq,KGL_LIST_SYNC);
-}
-void KSelector::addRequest(KHttpRequest *rq,int list,int op) {
-	rq->active_msec = kgl_current_msec;
-	rq->tmo_left = rq->tmo;
-	listLock.Lock();
-	if (rq->list!=KGL_LIST_NONE) {		
-		requests[rq->list].remove(rq);
-	}
-	requests[list].pushBack(rq);
-	rq->list = list;
-	bool result = addSocket(rq,op);
-	listLock.Unlock();
-	if (!result) {
-		if (IS_SECOND_OPERATOR(op)) {
-			assert(rq->secondHandler);
-			assert(rq->secondHandler->main == static_cast<KSelectable *>(rq));
-			rq->secondHandler->handler(rq->secondHandler,-1);
-			return;
-		}
-		rq->handler(rq,-1);
-	}
 }
 void KSelector::checkTimeOut() {
 	listLock.Lock();
@@ -200,7 +174,7 @@ void KSelector::checkTimeOut() {
 				assert(rq->list==i);
 				rq->list = KGL_LIST_NONE;
 #ifdef _WIN32
-				rq->bindcpio_flag = false;				
+				CLR(rq->c->st_flags,STF_EV);			
 #endif
 				rq = next;
 				continue;
@@ -233,27 +207,23 @@ void KSelector::checkTimeOut() {
 	while (activeRequest) {
 		last = activeRequest->next;
 		//debug("%p is active\n",activeRequest);
-		//activeRequest->list = KGL_LIST_NONE;
-		addList((KHttpRequest *)activeRequest->rq,KGL_LIST_RW);
+		if (activeRequest->rq) {
+			addList(activeRequest->rq,KGL_LIST_RW);
+		}
 		int op = activeRequest->op;
+		assert(op==STAGE_OP_TIMER);
 		if (op==STAGE_OP_TIMER) {
 			//自定义的定时器
-			activeRequest->handler(activeRequest->st,0);
+			activeRequest->func(activeRequest->arg);
 			delete activeRequest;
 			activeRequest = last;
 			continue;
 		}
-#ifndef _WIN32
-		if (op==STAGE_OP_PM_READ || op==STAGE_OP_PM_WRITE) {
-			if (!addSocket(activeRequest->st,op)) {
-				activeRequest->handler(activeRequest->st,-1);
-			}	
-		} else
-#endif
-		if (!addSocket(activeRequest->rq,op)) {
-			activeRequest->handler(activeRequest->st,-1);
-		}
 		delete activeRequest;
 		activeRequest = last;
 	}
+}
+void KSelector::bindSelectable(KSelectable *st)
+{
+	st->selector = this;
 }

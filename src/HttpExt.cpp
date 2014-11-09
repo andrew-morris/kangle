@@ -45,7 +45,7 @@ BOOL setVariable(LPVOID lpvBuffe, LPDWORD lpdwSize, const char *val,
 	}
 
 	unsigned len = strlen(val);
-/////////[287]
+/////////[350]
 	if (*lpdwSize > len || buffer == NULL) {
 		*lpdwSize = len + 1;
 		if (buffer) {
@@ -57,7 +57,7 @@ BOOL setVariable(LPVOID lpvBuffe, LPDWORD lpdwSize, const char *val,
 		return FALSE;
 		
 	}
-/////////[288]
+/////////[351]
 	return TRUE;
 }
 BOOL WINAPI GetServerVariable(HCONN hConn, LPSTR lpszVariableName,
@@ -156,11 +156,11 @@ BOOL WINAPI ReadClient(HCONN hConn, LPVOID lpvBuffer, LPDWORD lpdwSize) {
 		return FALSE;
 	}
 	//	debug("try to readClient size=%d\n",*lpdwSize);
-	//int len = fo->tr.rq->server->read((char *) lpvBuffer, *lpdwSize);
+	//int len = fo->tr.rq->c->socket->read((char *) lpvBuffer, *lpdwSize);
 	int len = fo->readClient((char *) lpvBuffer,
 			MIN(*lpdwSize,(unsigned)fo->leftRead));
 	//	debug("success readClient size=%d\n",*lpdwSize);
-	if (len < 0) {
+	if (len <= 0) {
 		return FALSE;
 	}
 	*lpdwSize = len;
@@ -256,7 +256,7 @@ BOOL WINAPI ServerSupportFunction(HCONN hConn, DWORD dwHSERequest,
 		}
 		return true;
 	}
-/////////[289]
+/////////[352]
 	if (dwHSERequest == HSE_REQ_GET_IMPERSONATION_TOKEN) {
 		Token_t token = fo->getToken();
 		if (token) {

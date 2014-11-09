@@ -83,14 +83,14 @@ void KFastcgiFetchObject::buildHead(KHttpRequest *rq)
 		buffer.destroy();
 		return;
 	}
-	int pre_post_len = (int)MIN(rq->left_read,(INT64)rq->parser.bodyLen);
-	if (pre_post_len>0) {
+	if (rq->pre_post_length>0) {
 		//处理pre loaded post数据
 		//printf("pre_post_len=%d\n",pre_post_len);
-		fbuf.write_data(rq->parser.body,pre_post_len);
-		rq->parser.body += pre_post_len;
-		rq->parser.bodyLen -= pre_post_len;
-		rq->left_read -= pre_post_len;
+		fbuf.write_data(rq->parser.body,rq->pre_post_length);
+		rq->parser.body += rq->pre_post_length;
+		rq->parser.bodyLen -= rq->pre_post_length;
+		rq->left_read -= rq->pre_post_length;
+		rq->pre_post_length = 0;
 	}
 	if (rq->left_read==0) {
 		appendPostEnd();
@@ -104,7 +104,8 @@ void KFastcgiFetchObject::appendPostEnd()
 		return;
 	}
 	//最后的post数据
-	nbuff *fcgibuff = (nbuff *)malloc(sizeof(nbuff) + sizeof(FCGI_Header));
+	buff *fcgibuff = (buff *)malloc(sizeof(buff));
+	fcgibuff->data = (char *)malloc(sizeof(FCGI_Header));
 	fcgibuff->used = sizeof(FCGI_Header);
 	FCGI_Header *fcgiheader = (FCGI_Header *)fcgibuff->data;
 	memset(fcgiheader, 0, sizeof(FCGI_Header));
@@ -118,7 +119,9 @@ void KFastcgiFetchObject::buildPost(KHttpRequest *rq)
 {
 	unsigned postLen = buffer.getLen();
 	assert(postLen>0);
-	nbuff *fcgibuff = (nbuff *)malloc(sizeof(nbuff) + sizeof(FCGI_Header));
+	buff *fcgibuff = (buff *)malloc(sizeof(buff));
+	fcgibuff->data = (char *)malloc(sizeof(FCGI_Header));
+	//nbuff *fcgibuff = (nbuff *)malloc(sizeof(nbuff) + sizeof(FCGI_Header));
 	fcgibuff->used = sizeof(FCGI_Header);
 	FCGI_Header *fcgiheader = (FCGI_Header *)fcgibuff->data;
 	memset(fcgiheader, 0, sizeof(FCGI_Header));

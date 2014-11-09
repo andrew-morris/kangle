@@ -59,7 +59,9 @@
 #include "KHttpDigestAuth.h"
 #include "KHttpBasicAuth.h"
 #include "KSubRequest.h"
-/////////[11]
+/////////[10]
+#include "KHttpFilterManage.h"
+#include "ksapi.h"
 using namespace std;
 
 void free_url(KUrl *url) {
@@ -78,14 +80,19 @@ inline bool in_stop_cache(KHttpRequest *rq) {
  return 0=close 1=yes 2=continue 3=no next request but continue
  */
 inline int checkHaveNextRequest(KHttpRequest *rq) {
-	INT64 bodyLen = rq->parser.bodyLen;
-	bodyLen -= rq->content_length;
+	if (rq->pre_post_length>0) {
+		//如果还有pre_post数据没处理，跳过忽略
+		rq->parser.bodyLen -= rq->pre_post_length;
+		rq->parser.body += rq->pre_post_length;
+		rq->pre_post_length = 0;
+	}
+	int bodyLen = rq->parser.bodyLen;
 	if (bodyLen > 0) {
-		memcpy(rq->readBuf, rq->parser.body + rq->content_length, (int)bodyLen);
+		memcpy(rq->readBuf, rq->parser.body , bodyLen);
 		rq->clean();
 		rq->init();
 		rq->hot = rq->readBuf + bodyLen;
-		return rq->parser.parse(rq->readBuf, (int)bodyLen, rq);
+		return rq->parser.parse(rq->readBuf, bodyLen, rq);
 	}
 	return HTTP_PARSE_NO_NEXT_BUT_CONTINUE;
 }
@@ -95,16 +102,17 @@ inline int checkHaveNextRequest(KHttpRequest *rq) {
 void nextRequest(KHttpRequest *rq,bool switchThread)
 {
 	if (switchThread) {
-		rq->handler = handleStartRequest;
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_NEXT);
-		//rq->selector->addSocket(rq,STAGE_OP_NEXT);		
+		rq->c->next(rq,resultRequestRead);
+		//rq->c->handler = handleStartRequest;
+		//rq->c->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_NEXT);
+		//rq->c->selector->addSocket(rq,STAGE_OP_NEXT);		
 	} else {
-		handleStartRequest(rq,0);
+		resultRequestRead(rq,0);
 	}
 }
-void handleEndSubRequest(KSelectable *st ,int got)
+void resultEndSubRequest(void *arg ,int got)
 {
-	KHttpRequest *rq = (KHttpRequest *)st;
+	KHttpRequest *rq = (KHttpRequest *)arg;
 	rq->endSubRequest();
 }
 /*
@@ -116,36 +124,47 @@ void stageEndRequest(KHttpRequest *rq)
 {
 #ifndef _WIN32	
 #ifndef NDEBUG
-	assert(!rq->server->isBlock());
+	assert(!rq->c->socket->isBlock());
 #endif
 #endif
-/////////[12]
+/////////[11]
 	if (!TEST(rq->flags,RQ_CONNECTION_CLOSE) && rq->sr) {
 		//子请求结束
-		rq->handler = handleEndSubRequest;
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_NEXT);
+		rq->c->next(rq,resultEndSubRequest);
 		return;
 	}
 #ifdef ENABLE_TF_EXCHANGE
-	if (rq->tf) {
+	if (rq->tf && rq->tf->switchRead()) {
 		//有临时文件，此时发送临时文件
-		rq->tf->switchRead();
+#ifndef NDEBUG
+		int len = 0;
+		char *buf = rq->tf->readBuffer(len);
+		assert(len>0 && buf);
+#endif
 		kassert(!rq->tf->isWrite());
-		rq->handler = handleRequestTempFileWrite;
-		if(!limitWrite(rq,STAGE_OP_TF_WRITE)){
-			rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_TF_WRITE);
-		}
+		startTempFileWriteRequest(rq);
 		return;
 	}
 #endif
 	CLR(rq->workModel,WORK_MODEL_INTERNAL|WORK_MODEL_REPLACE);
-	//KContext *context = &rq->ctx;
 	int status  = HTTP_PARSE_FAILED;
-	//http pipe line 循环
-	//freeContextObject(rq);
-	rq->ctx->clean_obj(rq);
 	log_access(rq);
-	//context->rq = rq;
+	rq->ctx->clean_obj(rq);
+#ifdef ENABLE_KSAPI_FILTER
+	/* http filter end request hook */
+	if (rq->svh && rq->svh->vh->hfm) {
+		KHttpFilterHookCollect *end_request = rq->svh->vh->hfm->hook.end_request;
+		if (end_request) {
+			end_request->process(rq,KF_NOTIFY_END_REQUEST,NULL);
+		}
+	}
+	if (conf.gvm->globalVh.hfm) {
+		KHttpFilterHookCollect *end_request = conf.gvm->globalVh.hfm->hook.end_request;
+		if (end_request) {
+			end_request->process(rq,KF_NOTIFY_END_REQUEST,NULL);
+		}
+	}
+#endif
 	if (!TEST(rq->flags,RQ_CONNECTION_CLOSE) && TEST(rq->flags,RQ_HAS_KEEP_CONNECTION)) {
 		//检测http pipe line，查看是否还有请求要处理
 		status = checkHaveNextRequest(rq);
@@ -158,13 +177,6 @@ void stageEndRequest(KHttpRequest *rq)
 	对下一次状态不同做出不同的处理
 	*/
 	if (status == HTTP_PARSE_FAILED || rq->list == KGL_LIST_NONE) {
-		//selectorManager.closeRequest(rq);
-#ifdef KSOCKET_SSL
-		if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-			stageSSLShutdown(rq);
-			return;
-		}
-#endif
 		delete rq;
 		return;
 	}
@@ -172,28 +184,14 @@ void stageEndRequest(KHttpRequest *rq)
 		rq->clean();
 		rq->init();
 	}
-	rq->handler = handleRequestRead;
-#ifdef KSOCKET_SSL
-	if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-		//ssl因为上一次SSL_read有可能只读了一部分数据，所以要继续读，直到没有数据返回。
-		//已知的bug是ssl无法使用长连接超时，只能使用超时
-		handleRequestRead(rq,0);
-		return;
-	}
-#endif
-	rq->selector->addRequest(rq,KGL_LIST_KA,STAGE_OP_READ);
+	rq->c->read(rq,resultRequestRead,bufferRequestRead,KGL_LIST_KA);
 }
 
 void log_access(KHttpRequest *rq) {
-	/*
-	if (TEST(rq->workModel ,WORK_MODEL_MANAGE) || rq->isBad()) {
-		return;
-	}
-	*/
 	if (rq->isBad()) {
 		return;
 	}
-	INT64 sended_length = rq->send_ctx.getSendedBodyLen();
+	INT64 sended_length = rq->send_size;
 	if (!TEST(rq->flags,RQ_BIG_OBJECT_CTX)) {
 		rq->addFlow(sended_length,(TEST(rq->flags,RQ_HIT_CACHE)>0?FLOW_UPDATE_TOTAL|FLOW_UPDATE_CACHE:FLOW_UPDATE_TOTAL));
 	}
@@ -201,7 +199,7 @@ void log_access(KHttpRequest *rq) {
 	KLogElement *s = &accessLogger;
 #ifndef HTTP_PROXY
 	if (rq->svh) {
-/////////[13]
+/////////[12]
 #ifdef ENABLE_VH_LOG_FILE
 		if (rq->svh->vh->logger) {
 			s = rq->svh->vh->logger;
@@ -219,14 +217,9 @@ void log_access(KHttpRequest *rq) {
 	if (TEST(rq->workModel,WORK_MODEL_SSL)) {
 		default_port = 443;
 	}
-	if (rq->client_ip) {
-		l << rq->client_ip;
-	} else {
-		rq->server->get_remote_ip(tmp,64);
-		l << tmp ;
-	}
-	l.WSTR(":");
-	l << rq->server->get_remote_port();
+	l << rq->getClientIp();	
+	//l.WSTR(":");
+	//l << rq->c->socket->get_remote_port();
 	l.WSTR(" - ");
 	if (rq->auth && rq->auth->getUser()) {
 		l << rq->auth->getUser();
@@ -258,8 +251,9 @@ void log_access(KHttpRequest *rq) {
 	l << url->path;
 	if (url->param) {
 		l << "?" << url->param;
-	}	
-	l.WSTR(" HTTP/1.1\" ");
+	}
+	/////////[13]		
+		l.WSTR(" HTTP/1.1\" ");
 	l << rq->status_code << " " ;
 #ifdef _WIN32
     const char *formatString="%I64d";
@@ -315,9 +309,6 @@ void log_access(KHttpRequest *rq) {
 		free(referer);
 	}
 	/////////[14]
-	//if (TEST(rq->flags,RQ_TIME_OUT)) {
-	//	l << "T";
-	//}
 	if (TEST(rq->flags,RQ_QUEUED)) {
 		l.WSTR("t");
 		INT64 t = kgl_current_msec - rq->request_msec;
@@ -327,6 +318,7 @@ void log_access(KHttpRequest *rq) {
 		l.WSTR("m");
 		l << (int)rq->mark;
 	}
+
 	l.WSTR("]\n");
 	//*/
 	s->startLog();
@@ -335,19 +327,36 @@ void log_access(KHttpRequest *rq) {
 }
 inline int checkRequest(KHttpRequest *rq)
 {
+#ifdef ENABLE_KSAPI_FILTER
+	if (conf.gvm->globalVh.hfm &&
+		!conf.gvm->globalVh.hfm->check_request(rq)) {
+		return JUMP_DENY;
+	}
+#endif
 	int jumpType = kaccess[REQUEST].check(rq, NULL);
 	if (jumpType == JUMP_DENY) {
 		return jumpType;
 	}
+	if (rq->svh) {
+#ifdef ENABLE_VH_RS_LIMIT
+		/* 带宽限制 */
+		if (rq->svh->vh->sl) {
+			rq->addSpeedLimit(rq->svh->vh->sl);
+		}
+#endif
+#ifdef ENABLE_VH_FLOW
+		/* 流量统计 */
+		if (rq->svh->vh->flow) {
+			rq->addFlowInfo(rq->svh->vh->flow);
+		}
+#endif
 #ifndef HTTP_PROXY
 #ifdef ENABLE_USER_ACCESS
-	if (rq->svh) {
 		return rq->svh->vh->checkRequest(rq);
+#endif
+#endif
 	}
-#endif
-#endif
 	return jumpType;
-
 }
 void handleConnectMethod(KHttpRequest *rq)//https代理
 {
@@ -387,10 +396,10 @@ void stageHttpManage(KHttpRequest *rq)
 	if (!checkManageLogin(rq)) {
 		conf.admin_lock.Unlock();
 		char ips[MAXIPLEN];
-		rq->server->get_remote_ip(ips,sizeof(ips));
+		rq->c->socket->get_remote_ip(ips,sizeof(ips));
 		klog(KLOG_WARNING, "[ADMIN_FAILED]%s:%d %s\n",
 				ips,
-				rq->server->get_remote_port(), rq->raw_url.path);
+				rq->c->socket->get_remote_port(), rq->raw_url.path);
 		stageHttpManageLogin(rq);
 		return;
 	}
@@ -402,10 +411,10 @@ void stageHttpManage(KHttpRequest *rq)
 	}
 	*/
 	char ips[MAXIPLEN];
-	rq->server->get_remote_ip(ips,sizeof(ips));
+	rq->c->socket->get_remote_ip(ips,sizeof(ips));
 	klog(KLOG_NOTICE, "[ADMIN_SUCCESS]%s:%d %s%s%s\n",
 			ips,
-			rq->server->get_remote_port(), rq->raw_url.path,
+			rq->c->socket->get_remote_port(), rq->raw_url.path,
 			(rq->raw_url.param?"?":""),(rq->raw_url.param?rq->raw_url.param:""));
 	if(strstr(rq->url->path,".whm") 
 		|| strcmp(rq->url->path,"/logo.gif")==0
@@ -425,23 +434,16 @@ void stageHttpManage(KHttpRequest *rq)
 	processRequest(rq);
 }
 //开始一个http请求
-void handleStartRequest(KSelectable *st,int got)
+void handleStartRequest(KHttpRequest *rq,int got)
 {
-	KHttpRequest *rq = (KHttpRequest *)st;
 	rq->beginRequest();
-	//if (!TEST(rq->flags,RQ_HAS_KEEP_CONNECTION) || conf.keep_alive == 0){
-		//SET(rq->flags,RQ_CONNECTION_CLOSE);
-	//}
-	if (TEST(rq->flags,RQ_IS_BAD)) {
+	if (TEST(rq->raw_url.flags,KGL_URL_BAD)) {
 		//say_bad_request("Bad request format.\n", "", ERR_BAD_URL, rq);
 		send_error(rq, NULL, STATUS_BAD_REQUEST, "Bad url");
 		return;
 		//goto done;
 	}
 	if (rq->meth == METH_CONNECT) {
-		//klog(KLOG_ERR,"CONNECT method not support\n");
-		//rq->ctx->last_status = false;
-		///stageEndRequest(rq);
 		handleConnectMethod(rq);
 		return;
 	}
@@ -452,6 +454,20 @@ void handleStartRequest(KSelectable *st,int got)
 	if (TEST(rq->workModel,WORK_MODEL_MANAGE)) {
 		stageHttpManage(rq);
 	} else {
+		//内置用于监控状态
+		if ((rq->meth == METH_REPORT && strcmp(rq->url->path, "/monitor") == 0)
+			|| strcmp(rq->url->path, "/kangle.status") == 0) {
+			rq->buffer << "OK";
+			rq->responseHeader(kgl_expand_string("Content-Type"), kgl_expand_string("text/plain"));
+			rq->responseHeader(kgl_expand_string("Cache-Control"), kgl_expand_string("no-cache,no-store"));
+			send_http(rq, NULL, STATUS_OK, &rq->buffer);
+			return;
+		}
+		if (!TEST(rq->workModel, WORK_MODEL_MANAGE | WORK_MODEL_INTERNAL | WORK_MODEL_SIMULATE)
+			&& checkRequest(rq) == JUMP_DENY) {
+			return;
+		}
+		/////////[17]
 		async_http_start(rq);
 	}
 }
@@ -465,18 +481,9 @@ bool async_http_start(KHttpRequest *rq)
 {
 	KContext *context = rq->ctx;
 	bool result = true;
-	assert(rq->fetchObj==NULL);
-	//过滤连接
-	//char *split_url = rq->url->param;
-	//rq->buffer << "test xxxx**************xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-	//return send_http(rq,NULL,"200 OK",NULL,&rq->buffer);
-	if (!TEST(rq->workModel, WORK_MODEL_MANAGE|WORK_MODEL_INTERNAL) 
-		&& checkRequest(rq) == JUMP_DENY) {
-		goto done;
-	}
-	/////////[17]
+	/////////[18]
 	if (TEST(rq->flags,RQ_HAVE_EXPECT)) {
-		rq->server->write_all("HTTP/1.1 100 Continue\r\n\r\n");
+		rq->c->socket->write_all("HTTP/1.1 100 Continue\r\n\r\n");
 		CLR(rq->flags,RQ_HAVE_EXPECT);
 	}
 	//only if cached
@@ -507,7 +514,7 @@ bool async_http_start(KHttpRequest *rq)
 			goto done;
 		}
 	}
-	if (context->new_object) { //It is a new object	
+	if (context->new_object) { //It is a new object
 		if (rq->meth != METH_GET) {
 			SET(context->obj->index.flags,FLAG_DEAD);
 		}

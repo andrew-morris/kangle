@@ -78,10 +78,10 @@ public:
 			s << " confirm_file='0'";
 		}
 		s << " allow_method='" << allowMethod.getMethod() << "'";
-		/////////[117]
+		/////////[155]
 		s << "/>\n";
 	}
-	/////////[118]
+	/////////[156]
 	KRedirectMethods allowMethod;
 	bool inherited;
 	int confirmFile;

@@ -8,6 +8,13 @@
 #include "KString.h"
 #include "forwin32.h"
 #include "md5.h"
+#define KGL_URL_SSL       1
+#define KGL_URL_IPV6      2
+#define KGL_URL_VARIED    4
+#define KGL_URL_REWRITED  8
+#define KGL_URL_RANGED    0x10
+#define KGL_URL_ENCODE    0x20
+#define KGL_URL_BAD       0x80
 
 class KUrl {
 public:
@@ -68,12 +75,14 @@ public:
 	}
 	//clone this to url
 	void clone_to(KUrl *url) {
+
 		url->host = xstrdup(host);
 		url->path = xstrdup(path);
 		if (param)
 			url->param = xstrdup(param);		
 		url->port = port;
-		url->proto = proto;
+		url->flags = flags;
+		url->host_len = host_len;
 	}
 	char *getUrl() {
 		KStringBuf s(128);
@@ -81,6 +90,48 @@ public:
 			return NULL;
 		}
 		return s.stealString();
+	}
+	void clean_vary()
+	{
+		if (!TEST(flags,KGL_URL_VARIED)) {
+			return;
+		}
+		CLR(flags,KGL_URL_VARIED);
+		if (param==NULL) {
+			return;
+		}
+		char *p = strrchr(param,VARY_URL_KEY);
+		if (p) {
+			*p = '\0';
+		}
+		if (*param=='\0') {
+			xfree(param);
+			param = NULL;
+		}
+	}
+	void vary(const char *vary_key,int len)
+	{
+		int param_len = 0;
+		if (param) {
+			param_len = strlen(param);
+		}
+		int new_len = param_len + len + 2;
+		char *new_param = (char *)xmalloc(new_len);
+		char *hot = new_param;
+		if (param_len>0) {
+			memcpy(hot,param,param_len);
+			hot += param_len;
+		}
+		*hot = VARY_URL_KEY;
+		hot++;
+		memcpy(hot,vary_key,len);
+		hot+=len;
+		*hot = '\0';
+		if (param) {
+			free(param);
+		}
+		param = new_param;
+		SET(flags,KGL_URL_VARIED);
 	}
 	char *getVariedOrigParam()
 	{
@@ -96,16 +147,13 @@ public:
 			return false;
 		}
 		int defaultPort = 80;
-		if(TEST(proto,PROTO_HTTPS)){
+		if(TEST(flags,KGL_URL_SSL)){
 			s << "https://";
 			defaultPort = 443;
-		}else if(TEST(proto,PROTO_FTP)){
-			s << "ftp://";
-			defaultPort = 21;
-		}else{
+		} else {
 			s << "http://";
 		}
-		if(TEST(proto,PROTO_IPV6)){
+		if (TEST(flags, KGL_URL_IPV6)){
 			s << "[" << host << "]";
 		}else{
 			s << host;
@@ -142,7 +190,8 @@ public:
 	char *path;
 	char *param;
 	u_short port;
-	unsigned char proto;
+	unsigned char host_len;
+	unsigned char flags;	
 };
 void free_url(KUrl *url);
 #endif

@@ -36,8 +36,9 @@ KChain::KChain() {
 	jumpType = JUMP_CONTINUE;
 	curacl = NULL;
 	curmark = NULL;
-	expire = 0;
 	ext = cur_config_ext;
+	next = NULL;
+	prev = NULL;
 }
 KChain::~KChain() {
 	clear();
@@ -61,6 +62,7 @@ bool KChain::match(KHttpRequest *rq, KHttpObject *obj, int &jumpType,
 		KJump **jumpTable) {
 	bool result = true;
 	bool last_or = false;
+	//OR NEXT
 	for (std::list<KAcl *>::iterator it = acls.begin(); it != acls.end(); it++) {
 		if (result && last_or) {
 			last_or = (*it)->is_or;
@@ -85,6 +87,11 @@ bool KChain::match(KHttpRequest *rq, KHttpObject *obj, int &jumpType,
 			continue;
 		}
 		result = ((*it2)->mark(rq, obj, this->jumpType, jumpType) != (*it2)->revers);
+		if (jumpType==JUMP_FINISHED) {
+			jumpType = JUMP_DENY;
+			result = true;
+			break;
+		}
 		if (!result && !last_or) {
 			break;
 		}
@@ -125,7 +132,11 @@ void KChain::getEditHtml(std::stringstream &s,u_short accessType) {
 	std::list<KAcl *>::iterator it;
 	string revers;
 	int index = 0;
-	s << "<tr><td>name</td><td><input type='input' name='name' value='" << name << "'></td></tr>";
+	s << "<tr><td>name</td><td><input type='input' name='name' value='" << name << "' ";
+	if (name.size()>0) {
+		s << "readonly";
+	}
+	s << "></td></tr>";
 	for (it = acls.begin(); it != acls.end(); it++) {
 		getModelHtml((*it), s, 0, index);
 		index++;
@@ -228,7 +239,6 @@ bool KChain::edit(KUrlValue *urlValue,KAccess *kaccess,bool editFlag) {
 	map<string, string> attribute;
 	urlValue->get(attribute);
 	this->name = attribute["name"];
-	expire = string2int(attribute["expire"].c_str());
 	std::string action = attribute["action"];
 	if (action.size()>0) {
 		kaccess->parseChainAction(action,jumpType,jumpName);
@@ -419,7 +429,6 @@ bool KChain::startElement(KXmlContext *context, std::map<std::string,
 		std::string action = attribute["action"];
 		kaccess->parseChainAction(attribute["action"], jumpType,jumpName);
 		name = attribute["name"];
-		expire = string2int(attribute["expire"].c_str());
 		return true;
 	}
 	if (strncasecmp(qName.c_str(), "acl_", 4) == 0) {
@@ -498,9 +507,6 @@ void KChain::buildXML(std::stringstream &s,int flag) {
 	KAccess::buildChainAction(jumpType, jump, s);
 	if (name.size() > 0) {
 		s << " name='" << name << "'";
-	}
-	if (expire > 0) {
-		s << " expire='" << expire << "'";
 	}
 	s << ">\n";
 	if (TEST(flag,CHAIN_XML_SHORT)) {

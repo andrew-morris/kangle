@@ -12,25 +12,14 @@ void KContext::clean()
 	memset(this,0,sizeof(KContext));
 }
 
-void KSendContext::clean()
-{
-	if(header){
-		KBuffer::destroy(header);
-		header = NULL;
-	}
-	body = NULL;
-	hot_buffer = NULL;
-	body_start = 0;
-	body_len = 0;
-	send_size = 0;
-	header_size = 0;
-}
+
 void KContext::store_obj(KHttpRequest *rq)
 {
 	if (haveStored) {
 		return ;
 	}
 	haveStored = true;
+	//printf("old_obj = %p\n",old_obj);
 	if (old_obj) {
 		//send from cache
 		assert(obj);
@@ -41,7 +30,7 @@ void KContext::store_obj(KHttpRequest *rq)
 			assert(old_obj->in_cache);
 			cache.rate(old_obj);
 		} else {
-			cache.dead(old_obj);		
+			cache.dead(old_obj);
 			if (obj->in_cache==0) {
 				stored_obj(rq,obj,NULL);
 			}
@@ -88,3 +77,4 @@ void KContext::popObj()
 		old_obj = NULL;
 	}
 }
+/////////[458]

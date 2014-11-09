@@ -10,7 +10,7 @@ struct KIpSpeedLimitContext
 	char *ip;
 	KIpSpeedLimitMark *mark;
 };
-void ip_speed_limit_clean(KHttpRequest *rq,void *data);
+void WINAPI ip_speed_limit_clean(void *data);
 class KIpSpeedLimitMark : public KMark
 {
 public:
@@ -26,7 +26,7 @@ public:
 			free((*it).first);
 		}
 	}
-	void requestClean(KHttpRequest *rq,char *ip)
+	void requestClean(char *ip)
 	{
 		lock.Lock();
 		std::map<char *,KSpeedLimit *,lessp>::iterator it;
@@ -43,7 +43,7 @@ public:
 	{	
 		if (rq->client_ip==NULL) {
 			rq->client_ip = (char *)malloc(MAXIPLEN);
-			rq->server->get_remote_ip(rq->client_ip,MAXIPLEN);
+			rq->c->socket->get_remote_ip(rq->client_ip,MAXIPLEN);
 		}
 		lock.Lock();
 		std::map<char *,KSpeedLimit *,lessp>::iterator it;
@@ -61,7 +61,7 @@ public:
 		speed_limit_context->ip = strdup(rq->client_ip);
 		speed_limit_context->mark = this;
 		addRef();
-		rq->registerCleanHook(ip_speed_limit_clean,speed_limit_context);
+		rq->registerRequestCleanHook(ip_speed_limit_clean,speed_limit_context);
 		return true;
 	}
 	KMark *newInstance()

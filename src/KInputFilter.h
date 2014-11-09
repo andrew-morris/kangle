@@ -262,6 +262,10 @@ public:
 		}
 		return JUMP_ALLOW;
 	}
+	bool isEmpty()
+	{
+		return raw_head==NULL && filter==NULL;
+	}
 	bool checkGetParam(KParamFilterHook *hook);
 	KParamPair *gParamHeader;
 	char *gBuffer;

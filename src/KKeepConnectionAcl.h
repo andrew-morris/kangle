@@ -1,6 +1,7 @@
 #ifndef KKEEPCONNECTIONACL_H
 #define KKEEPCONNECTIONACL_H
 #include "KAcl.h"
+//@deprecated use work_model instead
 class KKeepConnectionAcl : public KAcl
 {
 public:
@@ -21,6 +22,7 @@ public:
 	}
 	std::string getDisplay() {
 		std::stringstream s;
+		s << "deprecated use work_model";
 		return s.str();
 	}
 	void editHtml(std::map<std::string, std::string> &attibute)
@@ -30,7 +32,7 @@ public:
 		s << ">";
 	}
 	std::string getHtml(KModel *model) {
-		return "";
+		return "deprecated please use work_model acl ka flag";
 	}
 private:
 };

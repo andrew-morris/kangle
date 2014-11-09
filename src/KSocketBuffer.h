@@ -25,16 +25,11 @@
 #define KSOCKETBUFFER_H
 #include "KStream.h"
 #include "forwin32.h"
-
-#define NBUFF_CHUNK   (NBUFF_SIZE - sizeof(nbuff *) - sizeof(unsigned))
+#include "KBuffer.h"
+#define NBUFF_CHUNK NBUFF_SIZE
 #ifdef _WIN32
 #pragma warning(disable:4200)
 #endif
-struct nbuff {
-	nbuff *next;
-	unsigned used;
-	char data[0];
-};
 class KSocketBuffer : public KStream
 {
 public:
@@ -48,7 +43,8 @@ public:
 	~KSocketBuffer()
 	{
 		while(head){
-			nbuff *next = head->next;
+			buff *next = head->next;
+			free(head->data);
 			free(head);
 			head = next;
 		}
@@ -64,11 +60,14 @@ public:
 		assert(hot_buf && hot);
 		hot += got;
 	}
-	inline void appendBuffer(nbuff *buf)
+	inline void appendBuffer(buff *buf)
 	{
 		if (hot_buf==NULL) {
+			assert(head == NULL);
 			head = buf;
 		} else {
+			assert(head);
+			assert(hot_buf->next == NULL);
 			hot_buf->next = buf;
 		}
 		buf->next = NULL;
@@ -78,7 +77,8 @@ public:
 	template<typename T>
 	inline T *append()
 	{
-		nbuff *buf = (nbuff *)malloc(sizeof(nbuff) + sizeof(T));
+		buff *buf = (buff *)malloc(sizeof(buff));
+		buf->data = (char *)malloc(sizeof(T));
 		buf->used = sizeof(T);
 		appendBuffer(buf);
 		return (T *)buf->data;		
@@ -86,26 +86,22 @@ public:
 	template<typename T>
 	inline T *insert()
 	{
-		nbuff *buf = (nbuff *)malloc(sizeof(nbuff) + sizeof(T));
+		buff *buf = (buff *)malloc(sizeof(buff));
+		buf->data = (char *)malloc(sizeof(T));
 		buf->used = sizeof(T);
 		totalLen += buf->used;
-
 		buf->next = head;
 		head = buf;
-		
 		return (T *)buf->data;		
 	}
-	inline void insertBuffer(nbuff *buf)
+	inline void insertBuffer(buff *buf)
 	{
 		buf->next = head;
 		head = buf;
 		totalLen += buf->used;
 	}
 	//暂时未实现read
-	int read(char *buf,int len)
-	{
-		return -1;
-	}
+	int read(char *buf,int len);
 	void write_byte(int ch)
 	{
 		char temp[2];
@@ -126,7 +122,7 @@ public:
 	}
 	inline void print()
 	{
-		nbuff *tmp = head;
+		buff *tmp = head;
 		while(tmp){
 			if(tmp->used>0){
 				fwrite(tmp->data,1,tmp->used,stdout);
@@ -137,7 +133,8 @@ public:
 	inline void destroy()
 	{
 		while(head){
-			nbuff *next = head->next;
+			buff *next = head->next;
+			free(head->data);
 			free(head);
 			head = next;
 		}
@@ -149,26 +146,27 @@ public:
 	{
 		return totalLen;
 	}
-	nbuff *getHead()
+	buff *getHead()
 	{
 		return head;
 	}
-	nbuff *getHot()
+	buff *getHot()
 	{
 		return hot_buf;
 	}
 	//调试要用，要判断private值
 	friend class KFastcgiFetchObject;
 private:
-	inline nbuff *newbuff()
+	inline buff *newbuff()
 	{
-		nbuff *nbuf = (nbuff *)malloc(NBUFF_SIZE);
-		nbuf->used = 0;
-		nbuf->next = NULL;
-		return nbuf;
+		buff *buf = (buff *)malloc(sizeof(buff));
+		buf->data = (char *)malloc(NBUFF_SIZE);
+		buf->used = 0;
+		buf->next = NULL;
+		return buf;
 	}
-	nbuff *hot_buf;
-	nbuff *head;
+	buff *hot_buf;
+	buff *head;
 	unsigned totalLen;
 	char *hot;
 };

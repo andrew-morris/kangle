@@ -41,6 +41,7 @@ public:
 	void insertHeader(KWStream &s);
 	void init(KHttpRequest *rq,const char *realm);
 	bool verifySession(KHttpRequest *rq);
+	void insertHeader(KHttpRequest *rq);
 	static void flushSession(time_t nowTime);
 private:
 	char *nonce;

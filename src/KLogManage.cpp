@@ -1,5 +1,5 @@
 #include <string.h>
-/////////[229]
+/////////[286]
 #include "KLogManage.h"
 
 KLogManage logManage;
@@ -12,7 +12,7 @@ void KLogManage::checkRotate(time_t now_time)
 		(*it).second->checkRotate(now_time);
 	}
 	lock.Unlock();
-/////////[230]
+/////////[287]
 }
 KLogElement *KLogManage::refsLogger(std::string path,bool &isnew)
 {

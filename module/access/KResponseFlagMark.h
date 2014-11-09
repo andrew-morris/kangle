@@ -29,16 +29,6 @@ public:
 	}
 	virtual ~KResponseFlagMark() {
 	}
-	void setTwoFlag(unsigned &f, int f1, int f2) {
-		if (TEST(flag,f1)) {
-			CLR(f,f2);
-			SET(f,f1);
-		}
-		if (TEST(flag,f2)) {
-			CLR(f,f1);
-			SET(f,f2);
-		}
-	}
 	bool mark(KHttpRequest *rq, KHttpObject *obj,const int chainJumpType, int &jumpType) {
 		SET(obj->index.flags,flag);
 		if (nogzip) {
@@ -60,9 +50,12 @@ public:
 		if (TEST(flag,FLAG_NEED_CACHE)) {
 			s << "cache,";
 		}
-		/////////[385]
+		/////////[463]
 		if (TEST(flag,FLAG_NO_DISK_CACHE)) {
 			s << "nodiskcache,";
+		}
+		if (TEST(flag, OBJ_CACHE_RESPONSE)) {
+			s << "cache_response,";
 		}
 		return s.str();
 	}
@@ -89,9 +82,12 @@ public:
 			} else if (strcasecmp(hot,"cache")==0) {
 				SET(flag,FLAG_NEED_CACHE);
 			}
-			/////////[386]
+			/////////[464]
 			if (strcasecmp(hot,"nodiskcache")==0) {
 				SET(flag,FLAG_NO_DISK_CACHE);
+			}
+			if (strcasecmp(hot, "cache_response") == 0) {
+				SET(flag, OBJ_CACHE_RESPONSE);
 			}
 			if (p==NULL) {
 				break;

@@ -116,8 +116,8 @@ public:
 	friend class KChain;
 	static std::map<std::string,KAcl *> aclFactorys[2];
 	static std::map<std::string,KMark *> markFactorys[2];
-	static void addAclModel(u_short type,KAcl *acl);
-	static void addMarkModel(u_short type,KMark *acl);
+	static bool addAclModel(u_short type,KAcl *acl);
+	static bool addMarkModel(u_short type,KMark *acl);
 	static void releaseRunTimeModel(KModel *model);
 	static int whmCallRunTimeModel(std::string name,WhmContext *ctx);
 private:
@@ -126,7 +126,7 @@ private:
 			std::vector<std::string> table_names);	
 private:
 	void setChainAction();
-	KMutex lock;
+	KRWLock lock;
 	int default_jump_type;
 	std::string jump_name;
 	KJump *default_jump;	

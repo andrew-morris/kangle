@@ -32,7 +32,9 @@
 #include "iconv.h"
 #include "KProcessManage.h"
 #include "KLogHandle.h"
-/////////[66]
+#include "KUrlParser.h"
+#include "KHttpFilterDsoManage.h"
+/////////[89]
 #include "server.h"
 #include "lang.h"
 #include "md5.h"
@@ -269,16 +271,20 @@ bool KHttpManage::extends(unsigned item) {
 	stringstream s;
 	unsigned i;
 
-	const size_t max_extends = 5;
-	const char *extends_header[max_extends] = { klang["single_server"],
+	const size_t max_extends = 6;
+	const char *extends_header[max_extends] = { klang["single_server"]
 #ifdef ENABLE_MULTI_SERVER
-			klang["multi_server"],
+			,klang["multi_server"]
 #else
-			NULL,
+			,NULL
 #endif
 #ifndef HTTP_PROXY
-			klang["api"], klang["cgi"],klang["cmd"]
+			,klang["api"], klang["cgi"],klang["cmd"]
 #endif
+#ifdef ENABLE_KSAPI_FILTER
+			,klang["http_filter"]
+#endif
+		
 	};
 	if (item == 0) {
 		item = atoi(getUrlValue("item").c_str());
@@ -328,6 +334,12 @@ bool KHttpManage::extends(unsigned item) {
 		}
 		s << conf.gam->cmdList(name);
 #endif
+	} else if (item==5) {
+#ifdef ENABLE_KSAPI_FILTER
+		if (conf.hfdm) {
+			conf.hfdm->html(s);
+		}
+#endif
 	}
 	s << endTag();
 	s << "</body></html>";
@@ -347,7 +359,7 @@ bool KHttpManage::config() {
 
 	string config_header[] = { LANG_SERVICE, LANG_CACHE, LANG_LOG,
 			LANG_RS_LIMIT,klang["data_exchange"], LANG_OTHER_CONFIG, LANG_MANAGE_ADMIN 
-	/////////[67]
+	/////////[90]
 	};
 	size_t max_config = sizeof(config_header)/sizeof(string);
 	stringstream s;
@@ -356,7 +368,11 @@ bool KHttpManage::config() {
 		return sendXML(s.str().c_str());
 	}
 	unsigned item = atoi(getUrlValue("item").c_str());
-	string file_name = conf.path;
+#ifdef KANGLE_ETC_DIR
+	string file_name = KANGLE_ETC_DIR;
+#else
+	string file_name = conf.path + "/etc";
+#endif
 	bool canWrite = true;
 	//	stringstream s;
 	conf.admin_lock.Lock();
@@ -395,10 +411,6 @@ bool KHttpManage::config() {
 		//显示配置侦听，一个配置侦听并不等于一个成功侦听，如侦听失败，或者由于ipv4/ipv6的原因，一个配置侦听会对应两个成功侦听。
 		for (size_t i = 0; i < conf.service.size(); i++) {
 			s << "<tr><td>";
-			//*
-			//s << "[<a href='/startlisten?id=" << i << "'>"
-			//		<< klang["start"] << "</a>]";
-			//		*/
 			s << "[<a href=\"javascript:if(confirm('really delete')){ window.location='/deletelisten?id=";
 			s << i << "';}\">" << LANG_DELETE
 					<< "</a>][<a href='/newlistenform?action=edit&id=" << i
@@ -407,25 +419,12 @@ bool KHttpManage::config() {
 			s << "<td>" << conf.service[i]->ip << "</td>";
 			s << "<td>" << conf.service[i]->port << "</td>";
 			s << "<td>" << getWorkModelName(conf.service[i]->model) << "</td>";
-			/*
-#ifdef KSOCKET_IPV6
-			s << "<td>";
-			switch(conf.service[i]->ipv6){
-			case 0:
-				s << "ipv4";
-				break;
-			case 1:
-				s << "auto";break;
-			case 2:
-				s << "ipv6";break;
-			}
-			s << "</td>";
-#endif
-			*/
 			s << "</tr>";
 		}
 		s << "</table>";
 		s << "[<a href='/newlistenform'>" << klang["new_listen"] << "</a>]<br>";
+		s << "connect time out:<input name='connect_time_out' size=5 value='"
+			<< conf.connect_time_out << "'><br>";
 		s <<  LANG_TIME_OUT << ":<input name='time_out' size=5 value='"
 				<< conf.time_out << "'><br>";
 		s <<  klang["keep_alive_timeout"]
@@ -434,7 +433,7 @@ bool KHttpManage::config() {
 		s << klang["worker_thread"] << ":<select name='worker_thread'>";
 		for (int i=0;i<10;i++) {
 			int count = (1<<i)/2;
-			/////////[68]
+			/////////[91]
 			s << "<option value='" << count << "' ";
 			if (count==conf.select_count) {
 				s << "selected";
@@ -475,13 +474,11 @@ bool KHttpManage::config() {
 		s << LANG_MAX_CACHE_SIZE
 			<< ":<input type=text name=max_cache_size size=6 value="
 			<< get_size(conf.max_cache_size) << "><br>";
-		/////////[69]
+		/////////[92]
 		s << LANG_MIN_REFRESH_TIME
 				<< ":<input type=text name=refresh_time size=4 value="
 				<< conf.refresh_time << ">" << LANG_SECOND << "<br>";
 	} else if (item == 2) {
-		//		const int max_log_model = 2;
-		//		const char *log_model_str[max_log_model] = { "user", "nolog" };
 		s << klang["access_log"] << "<input type=text name='access_log' value=\""
 				<< conf.access_log << "\"></br>\n";
 		s << LANG_LOG_ROTATE_TIME
@@ -531,7 +528,7 @@ bool KHttpManage::config() {
 		}
 		ipLock.Unlock();
 		s << "' name=max_per_ip value="	<< conf.max_per_ip << "><br>";
-		/////////[70]
+		/////////[93]
 		s <<  klang["min_free_thread"]
 				<< ":<input type=text size=3 name=min_free_thread value='"
 				<< conf.min_free_thread << "'><br>";
@@ -542,7 +539,7 @@ bool KHttpManage::config() {
 		s << ":<input type=text size=4 name='max_queue' value='";
 		s << globalRequestQueue.getMaxQueue() << "'><br>";
 #endif
-/////////[71]
+/////////[94]
 #ifndef _WIN32
 //		s << klang["lang_stack_size"]
 //				<< ":<input type=text name='stack_size' value="
@@ -555,14 +552,15 @@ bool KHttpManage::config() {
 #ifdef ENABLE_TF_EXCHANGE	
 		s << klang["max_post_size"] << ":<input name='max_post_size' size='4' value='"
 				<< get_size(conf.max_post_size) << "'><br>";
+#endif
+#if 0
 		s << klang["tmpfile"] << ":<select name='tmpfile'>";
 		s << "<option value='0' " << (conf.tmpfile==0?"selected":"") << ">" << klang["tmpfile0"] << "</option>";
 		s << "<option value='1' " << (conf.tmpfile==1?"selected":"") << ">" << klang["tmpfile1"] << "</option>";
 		s << "<option value='2' " << (conf.tmpfile==2?"selected":"") << ">" << klang["tmpfile2"] << "</option>";
 		s << "</select><br>";
 #endif
-		s << klang["buffer_size"] << ":<input name='buffer' size='4' value='"
-				<< get_size(conf.buffer) << "'><br>";
+		
 		s << klang["error_try_count"] << ":<input name='error_try_count' size='4' value='"
 				<< conf.errorTryCount << "'><br>";
 		//async io
@@ -590,7 +588,7 @@ bool KHttpManage::config() {
 		s << klang["lang_gzip_level"] << "<input name=gzip_level size=3 value='"
 				<< conf.gzip_level << "'><br>";
 
-		/////////[72]
+		/////////[95]
 		s << klang["hostname"]	<< "<input type=text name='hostname' value='";
 		if(*conf.hostname){
 			s << conf.hostname;
@@ -624,7 +622,7 @@ bool KHttpManage::config() {
 		s << ">mallocdebug";
 		s << "<br>";
 #endif
-		/////////[73]
+		/////////[96]
 	} else if (item == 6) {
 		s << LANG_ADMIN_USER << ":<input name=admin_user value='"
 				<< conf.admin_user << "'><br>";
@@ -646,8 +644,7 @@ bool KHttpManage::config() {
 		}
 		s << "'><br>";
 	} else if(item==7){
-		/////////[74]
-	
+		/////////[97]	
 	} else if(item==8) {
 #ifdef KSOCKET_SSL
 
@@ -655,7 +652,6 @@ bool KHttpManage::config() {
 		s << "not support please build with --enable-ssl";
 #endif
 	}
-
 	s << "<br><input type=submit value='" << LANG_SUBMIT << "'></form>"
 			<< endTag() << "</body></html>";
 	conf.admin_lock.Unlock();
@@ -668,6 +664,7 @@ bool KHttpManage::configsubmit() {
 	conf.admin_lock.Lock();
 	if (item == 0) {
 		conf.set_time_out(atoi(getUrlValue("time_out").c_str()));
+		conf.set_connect_time_out(atoi(getUrlValue("connect_time_out").c_str()));
 		conf.keep_alive = atoi(getUrlValue("keep_alive").c_str());
 		int worker_thread = atoi(getUrlValue("worker_thread").c_str());
 		if (worker_thread!=conf.select_count) {
@@ -692,7 +689,7 @@ bool KHttpManage::configsubmit() {
 		conf.max_cache_size = (unsigned) get_size(
 				getUrlValue("max_cache_size").c_str());
 		conf.default_cache = atoi(getUrlValue("default_cache").c_str());
-		/////////[75]
+		/////////[98]
 	} else if (item == 2) {
 		string access_log = getUrlValue("access_log");
 		SAFE_STRCPY(conf.log_rotate,getUrlValue("log_rotate_time").c_str());
@@ -720,15 +717,9 @@ bool KHttpManage::configsubmit() {
 		size_t max_per_ip = atoi(getUrlValue("max_per_ip").c_str());
 		conf.per_ip_deny = atoi(getUrlValue("per_ip_deny").c_str());
 		//set_stack_size(getUrlValue("stack_size"));
-/////////[76]
-		//		conf.user_time_out=atoi(getUrlValue("user_time_out").c_str());
+/////////[99]
 		conf.max = atoi(getUrlValue("max").c_str());
-		//		setulimit(2*conf.max);
-		//		conf.max_queue_thread=atoi(getUrlValue("max_queue_thread").c_str());
-		//conf.max_deny_per_ip = atoi(getUrlValue("max_deny_per_ip").c_str());
 		conf.min_free_thread = atoi(getUrlValue("min_free_thread").c_str());
-		//		conf.min_limit_speed_size=get_cache(getUrlValue("min_limit_speed_size").c_str());
-		//		conf.limit_speed=get_cache(getUrlValue("limit_speed").c_str());
 		if (conf.max_per_ip != max_per_ip){
 			set_max_per_ip(max_per_ip);
 		}
@@ -736,7 +727,7 @@ bool KHttpManage::configsubmit() {
 #ifdef ENABLE_REQUEST_QUEUE
 		globalRequestQueue.set(atoi(getUrlValue("max_worker").c_str()),atoi(getUrlValue("max_queue").c_str()));
 #endif
-/////////[77]
+/////////[100]
 		conf.worker_io = atoi(getUrlValue("worker_io").c_str());
 		conf.worker_dns = atoi(getUrlValue("worker_dns").c_str());
 		conf.ioWorker->setWorker(conf.worker_io);
@@ -744,13 +735,15 @@ bool KHttpManage::configsubmit() {
 	} else if (item == 4) {
 		//data exchange
 #ifdef ENABLE_TF_EXCHANGE
+#if 0
 		conf.tmpfile = atoi(getUrlValue("tmpfile").c_str());
 		if (conf.tmpfile<0 || conf.tmpfile>2) {
 			conf.tmpfile = 1;
 		}
+#endif
 		conf.max_post_size = get_size(getUrlValue("max_post_size").c_str());
 #endif
-		conf.buffer = (unsigned)get_size(getUrlValue("buffer").c_str());
+		//conf.buffer = (unsigned)get_size(getUrlValue("buffer").c_str());
 		conf.setErrorTryCount(atoi(getUrlValue("error_try_count").c_str()));
 		conf.async_io = (getUrlValue("async_io")=="1");
 	} else if (item == 5) {
@@ -785,7 +778,7 @@ bool KHttpManage::configsubmit() {
 		}
 		conf.min_gzip_length = atoi(getUrlValue("min_gzip_length").c_str());
 		conf.setHostname(getUrlValue("hostname").c_str());
-		/////////[78]
+		/////////[101]
 	} else if (item == 6) {
 		string errMsg;
 		if(!changeAdminPassword(&urlValue,errMsg)){
@@ -793,7 +786,7 @@ bool KHttpManage::configsubmit() {
 			return sendErrPage(errMsg.c_str());
 		}
 	} else if (item == 7) {
-/////////[79]
+/////////[102]
 	} else if (item == 8) {
 #ifdef KSOCKET_SSL
 //		conf.certificate = getUrlValue("certificate");
@@ -857,7 +850,7 @@ bool KHttpManage::parseUrlParam(char *param) {
 			name = msg;
 			split = '&';
 		} else {//strtok_r(msg,"=",&ptr2);
-			url_decode(msg, 0, &rq->flags);
+			url_decode(msg, 0, rq->url);
 			value = msg;//strtok_r(NULL,"=",&ptr2);
 			/*
 			 if(value==NULL)
@@ -867,7 +860,7 @@ bool KHttpManage::parseUrlParam(char *param) {
 			for (size_t i = 0; i < strlen(name); i++) {
 				name[i] = tolower(name[i]);
 			}
-			url_decode(name, 0, &rq->flags);
+			url_decode(name, 0, rq->url);
 			urlParam.insert(pair<string, string> (name, value));
 			urlValue.add(name, value);
 		}
@@ -888,78 +881,67 @@ bool KHttpManage::parseUrl(char *url) {
 
 }
 bool KHttpManage::sendHttp(const char *msg, INT64 content_length,
-		const char *content_type, const char *add_header, int max_age) {
-	KBuffer s;
-	//KBuffer &s = rq->buffer;
-	//s.clean();
-	//stringstream s;
-	char buf[512];
-	memset(buf, 0, sizeof(buf));
-	mk1123time(time(NULL), buf, 40);
-	rq->status_code = STATUS_OK;
-	//*/
-	//sprintf(buf+strlen(buf),"\r\n
-	s << "HTTP/1.1 200 OK\r\n";
-	s << "Server: " << PROGRAM_NAME << "/" << VERSION << "\r\n";
-	s << "Date: " << buf << "\r\n";
-	s << "Content-Type: ";
-	if (content_type)
-		s << content_type << "\r\n";
-	else
-		s << "text/html; charset=utf-8\r\n";
+	const char *content_type, const char *add_header, int max_age) {
+	KStringBuf s;
+	rq->responseStatus(STATUS_OK);
+	rq->responseHeader(kgl_expand_string("Server"), kgl_expand_string(PROGRAM_NAME  "/"  VERSION));
+	timeLock.Lock();
+	rq->responseHeader(kgl_expand_string("Date"), (char *)cachedDateTime, 29);
+	timeLock.Unlock();
+	if (content_type) {
+		rq->responseHeader(kgl_expand_string("Content-Type"), content_type, strlen(content_type));
+	}else {
+		rq->responseHeader(kgl_expand_string("Content-Type"), kgl_expand_string("text/html; charset=utf-8"));
+	}
 	if (max_age == 0) {
-		s << "Cache-control: no-cache,no-store\r\n";
+		rq->responseHeader(kgl_expand_string("Cache-control"), kgl_expand_string("no-cache,no-store"));
 	} else {
-		s << "Cache-Control: public,max_age=" << max_age << "\r\n";
+		s << "public,max_age=" << max_age;
+		rq->responseHeader(kgl_expand_string("Cache-control"), s.getBuf(), s.getSize());
 	}
 	buff *gzipOut = NULL;
-	s << "Connection: ";
-	if (conf.keep_alive == 0 || !TEST(rq->flags,RQ_HAS_KEEP_CONNECTION) || content_length<0) {
-		SET(rq->flags,RQ_CONNECTION_CLOSE);
-		s << "close\r\n";
-	} else {
-		s << "keep-alive\r\n";
-		if (content_length > 512 && msg && TEST(rq->flags,RQ_HAS_GZIP)) {
-			buff in;
-			memset(&in, 0, sizeof(in));
-			in.data = (char *) msg;
-			in.used = (int) content_length;
-			gzipOut = deflate_buff(&in, conf.gzip_level, content_length, true);
-			SET(rq->flags,RQ_TE_GZIP);
-			s << "Content-Encoding: gzip\r\n";
+	/////////[103]	
+		if (conf.keep_alive == 0 || !TEST(rq->flags, RQ_HAS_KEEP_CONNECTION) || content_length<0) {
+			SET(rq->flags, RQ_CONNECTION_CLOSE);
+			rq->responseHeader(kgl_expand_string("Connection"), kgl_expand_string("close"));
+		} else {
+			rq->responseHeader(kgl_expand_string("Connection"), kgl_expand_string("keep-alive"));
 		}
-		s << "Content-length: " << (int)content_length << "\r\n";
-    }
-    if (add_header) {
-            s << add_header << "\r\n";
-    }
-    s << "\r\n";
-    //      int len = 0;
-    //printf("%s",s.str().c_str());
-	rq->send_ctx.header_size = s.getLen();
-	if(s.send(rq)!=STREAM_WRITE_SUCCESS){
-		if (gzipOut) {
-                KBuffer::destroy(gzipOut);
-        }
-        return false;
+	/////////[104]
+	if (content_length > 512 && msg && TEST(rq->flags, RQ_HAS_GZIP)) {
+		buff in;
+		memset(&in, 0, sizeof(in));
+		in.data = (char *)msg;
+		in.used = (int)content_length;
+		gzipOut = deflate_buff(&in, conf.gzip_level, content_length, true);
+		SET(rq->flags, RQ_TE_GZIP);
+		rq->responseHeader(kgl_expand_string("Content-Encoding"), kgl_expand_string("gzip"));
 	}
+	if (content_length>=0) {
+		rq->responseHeader(kgl_expand_string("Content-length"), (int)content_length);
+    }
+	rq->startResponseBody();
+	//同步模式发送header
+	if (rq->send_ctx.getBufferSize()>0) {
+		if (!rq->sync_send_header()) {
+			return false;
+		}
+	}	
     if (gzipOut) {
-            //              printf("send gzip out\n");
-            bool result = send_buff(rq, gzipOut) == STREAM_WRITE_SUCCESS;
-            KBuffer::destroy(gzipOut);
-            return result;
-    } else {
-            if (msg) {
-                    if (content_length > 0) {
-                            if (!rq->write_all(msg, (int) content_length))
-                                    return false;
-                    } else if (rq->write_all(msg, strlen(msg))) {
-                            return false;
-                    }
-            }
+		bool result = (send_buff(rq, gzipOut) == STREAM_WRITE_SUCCESS);
+        KBuffer::destroy(gzipOut);
+		if (!result) {
+			return false;
+		}
+    } else if (msg) {
+        if (content_length > 0) {
+			if (rq->write_all(msg, (int)content_length) != STREAM_WRITE_SUCCESS)
+                 return false;
+		} else if (rq->write_all(msg, strlen(msg)) != STREAM_WRITE_SUCCESS) {
+                return false;
+        }
     }
     return true;
-
 }
 bool KHttpManage::sendHttp(const string &msg) {
 	return sendHttp(msg.c_str(), msg.size());
@@ -1015,9 +997,9 @@ bool KHttpManage::sendLeftMenu() {
 	s << "<html><head><title>" << PROGRAM_NAME << "(" << VER_ID << ") "
 			<< LANG_MANAGE
 			<< "</title><LINK href=/kangle.css type='text/css' rel=stylesheet></head><body>";
-	/////////[80]
+	/////////[105]
 	s << "<img border=0 src='/logo.gif' alt='logo'>";
-	/////////[81]
+	/////////[106]
 	s << "<table><tr><td height=30><a href=/main target=mainFrame>"
 			<< LANG_HOME << "</a></td></tr>";
 	s
@@ -1099,7 +1081,7 @@ bool KHttpManage::sendMainFrame() {
 	}
 	s << "</td></tr>";
 	s << "<tr><td>" << klang["path"] << "</td><td>" << conf.path << "</td></tr>";
-/////////[82]
+/////////[107]
 	s << "</table>";
 	s << "<div id='version_note'></div>";
 	s << "<h3>" << LANG_OBJ_CACHE_INFO << "</h3>";
@@ -1166,7 +1148,7 @@ bool KHttpManage::sendMainFrame() {
 	s << "<tr><td>" << klang["io_worker_info"] << "</td><td>" << conf.ioWorker->getWorker() << "/" << conf.ioWorker->getQueue() << "</td></tr>\n";
 	s << "<tr><td>" << klang["dns_worker_info"] << "</td><td>" << conf.dnsWorker->getWorker() << "/" << conf.dnsWorker->getQueue() << "</td></tr>\n";
 	s << "</table>\n";
-/////////[83]
+/////////[108]
 	//KSelector *selector = selectorManager.newSelector();
 	s << "<h3>" << klang["selector"] << "</h3>";
 	s << "<table>" ;
@@ -1197,7 +1179,7 @@ bool KHttpManage::sendMainFrame() {
 	s << "</td></tr></table>";
 	//	s << "<h3>Connection Infomation</h3><table border=1><tr><td>src_ip</td><td>service|port</td><td>dst_ip</td><td>dst_port</td><td>connect time</td><td>title</td></tr>";
 	s << endTag();
-	/////////[84]
+	/////////[109]
 	s
 			<< "<script language='javascript' src='http://";
 #ifdef KANGLE_DOMAIN
@@ -1208,7 +1190,7 @@ bool KHttpManage::sendMainFrame() {
 	s << "/version_note.php?version="
 			<< VERSION;
 	s << "&type=" << getServerType();
-/////////[85]
+/////////[110]
 	s << "&lang=" << conf.lang;
 	s << "'></script>";
 	s << "</body></html>";
@@ -1230,11 +1212,15 @@ bool KHttpManage::sendMainPage() {
 }
 bool KHttpManage::sendRedirect(const char *newUrl) {
 	KBuffer s;
-	int code = STATUS_FOUND;
-	send_redirect(rq, newUrl, code,s);
-	s.send(rq);
-	//rq->addSendHeader(s.stealBuffFast());
-	//stageWriteRequest(rq,NULL,0,0);
+	rq->responseStatus(302);
+	/////////[111]
+		rq->responseHeader(kgl_expand_string("Connection"), kgl_expand_string("close"));
+	rq->responseHeader(kgl_expand_string("Location"), newUrl, strlen(newUrl));
+	SET(rq->flags,RQ_CONNECTION_CLOSE);
+	rq->startResponseBody();
+	if (rq->send_ctx.getBufferSize() > 0) {
+		return rq->sync_send_header();
+	}
 	return true;
 }
 bool matchManageIP(string ip, vector<string> ips) {
@@ -1362,7 +1348,7 @@ void KHttpManage::parsePostData() {
 		//int remaining=rq->leave_to_read;
 		int length = 0;
 		while (leave_to_read > 0) {
-			length = rq->server->read(str, leave_to_read);
+			length = rq->read(str, leave_to_read);
 			if (length <= 0) {
 				free(buffer);
 				SET(rq->flags,RQ_CONNECTION_CLOSE);
@@ -1378,7 +1364,7 @@ void KHttpManage::parsePostData() {
 }
 bool checkManageLogin(KHttpRequest *rq) {
 	char ips[MAXIPLEN];
-	rq->server->get_remote_ip(ips,sizeof(ips));
+	rq->c->socket->get_remote_ip(ips,sizeof(ips));
 	if (!matchManageIP(ips, conf.admin_ips)) {
 		return false;
 	}
@@ -1392,19 +1378,6 @@ bool checkManageLogin(KHttpRequest *rq) {
 			return true;
 		}
 	}
-	//return false;
-	/*
-	 KUserInfo auth;
-	 if (rq->getHttpAuth(&auth)) {
-	 if (conf.admin_user == auth.user && checkPassword(auth.passwd,
-	 conf.admin_passwd.c_str(), conf.passwd_crypt)) {
-	 userType = USER_TYPE_ADMIN;
-	 return true;
-	 }
-
-	 }
-	 */
-	
 	return false;
 }
 bool KHttpManage::start_listen(bool &hit) {
@@ -1458,11 +1431,14 @@ bool KHttpManage::start_listen(bool &hit) {
 		}
 		//need_reboot_flag = true;
 #ifdef KSOCKET_SSL
-        if (TEST(model,WORK_MODEL_SSL)) {
+		if (TEST(model,WORK_MODEL_SSL)) {
 			host->certificate = getUrlValue("certificate");
 			host->certificate_key = getUrlValue("certificate_key");
+			host->cipher = getUrlValue("cipher");
+			host->protocols = getUrlValue("protocols");
 			host->sni = getUrlValue("sni")=="1";
-        }
+			host->spdy = getUrlValue("spdy")=="1";
+		}
 #endif
 		host->event_driven = (getUrlValue("event_driven")=="1");
 		host->ip = ip;
@@ -1564,6 +1540,8 @@ bool KHttpManage::start_listen(bool &hit) {
         s << klang["private_file"]
                         << "<input name='certificate_key' size=32 value='"
                         << (host ? host->certificate_key : "") << "'><br>";
+		s << "cipher:<input name='cipher' size=32 value='" << (host ? host->cipher : "") << "'><br>";
+		s << "protocols:<input name='protocols' size=32 value='" << (host ? host->protocols : "") << "'><br>";
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
 		s << "<input type='checkbox' name='sni' value='1' ";
 		if(host==NULL || host->sni){
@@ -1571,6 +1549,7 @@ bool KHttpManage::start_listen(bool &hit) {
 		}
 		s << ">sni";
 #endif
+		/////////[112]
         s << "</div></td></tr>";
 #endif
 
@@ -1629,9 +1608,6 @@ bool KHttpManage::start_obj(bool &hit)
 			}
 			if(TEST(obj->index.flags,FLAG_NO_BODY)){
 				s << "no_body,";
-			}
-			if(TEST(obj->index.flags,FLAG_FILTER_DENY)){
-				s << "filter_deny,";
 			}
 			s << ")<br>";	
 			if(obj->data){
@@ -2029,7 +2005,7 @@ bool KHttpManage::start(bool &hit) {
 		string err_msg;
 		KWriteBack m_a;
 		m_a.name = getUrlValue("name");
-		m_a.msg = getUrlValue("msg");
+		m_a.setMsg(getUrlValue("msg"));
 		//	m_a.ip=inet_addr(getUrlValue("ip").c_str());
 		//	m_a.port=atoi(getUrlValue("port").c_str());
 		if (writeBackManager.editWriteBack(getUrlValue("namefrom"), m_a,
@@ -2159,7 +2135,7 @@ bool KHttpManage::start(bool &hit) {
 		stringstream s;
 		int totalCount;
 		string connectString = selectorManager.getConnectionInfo(totalCount,debug,NULL);
-		s << "<html><LINK href=/kangle.css type='text/css' rel=stylesheet><body>\n";
+		s << "<html><head><LINK href=/kangle.css type='text/css' rel=stylesheet></head><body>\n";
 		s << "<!-- total_connect=" << total_connect << " -->\n<h3>";
 		s << LANG_CONNECTION << "(total:" << totalCount;
 		s << ")</h3>\n";
@@ -2167,7 +2143,6 @@ bool KHttpManage::start(bool &hit) {
 		//s << "</a>]
 		s << "<!-- current_msec=" << kgl_current_msec << "-->\n";
 		s << "<div id='rq'>loading...</div>\n";
-		s << "</table>";
 		s << endTag();
 		s << "<script language='javascript'>\nvar sortIndex = 2;\nvar sortDesc = false;\nvar rqs=new Array();\n";
 		s << connectString ;
@@ -2377,7 +2352,7 @@ function sortrq(index)\
 	if (strcmp(rq->url->path, "/") == 0) {
 		return sendMainPage();
 	}
-	/////////[86]
+	/////////[113]
 	hit = false;
 	bool result = start_vhs(hit);
 	if (hit) {
@@ -2393,4 +2368,4 @@ function sortrq(index)\
 	}
 	return start_obj(hit);
 }
-/////////[87]
+/////////[114]

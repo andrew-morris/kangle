@@ -26,7 +26,7 @@
 
 #include "whm.h"
 #include "global.h"
-/////////[391]
+/////////[469]
 #include "malloc_debug.h"
 #include "KVirtualHostManage.h"
 #include "KVirtualHostDatabase.h"
@@ -181,7 +181,11 @@ static int parseCallName(const char *callName)
 			if(strcmp(callName,"del_chain")==0){
 				return CALL_DEL_CHAIN;
 			}
-			/////////[392]
+#ifdef ENABLE_VH_FLOW
+			if (strcmp(callName,"dump_flow")==0) {
+				return CALL_DUMP_FLOW;
+			}
+#endif
 			break;
 		case 'e':
 			if(strcmp(callName,"edit_vh")==0){
@@ -201,7 +205,15 @@ static int parseCallName(const char *callName)
 			}
 			break;
 		case 'g':
-			/////////[393]
+#ifdef ENABLE_VH_FLOW
+			if(strcmp(callName,"get_load")==0){
+				return CALL_GET_LOAD;
+			}
+			if (strcmp(callName,"get_connection")==0) {
+				return CALL_GET_CONNECTION;
+			}
+
+#endif
 			break;
 		case 'i':
 			if(strcmp(callName,"info")==0){
@@ -323,7 +335,7 @@ static int getVhDomain(WhmContext *ctx)
 	vh->destroy();
 	return WHM_OK;
 }
-/////////[394]
+/////////[470]
 static int getVhDetail(WhmContext *ctx)
 {
 	KUrlValue *uv = ctx->getUrlValue();
@@ -421,13 +433,16 @@ int WINAPI WhmCoreCall(const char *callName, const char *event, WHM_CONTEXT *con
 			ctx->add("version", VERSION);
 			ctx->add("type",getServerType());
 			ctx->add("os",getOsType());
-/////////[395]
+/////////[471]
 			int total_run_time = (int)(time(NULL) - program_start_time);
 			ctx->add("total_run",total_run_time);
 			ctx->add("connect",total_connect);
 			int vh_count = conf.gvm->getCount();
 			ctx->add("vh",vh_count);
 			ctx->add("kangle_home",conf.path.c_str());
+#ifdef UPDATE_CODE
+			ctx->add("update_code", UPDATE_CODE);
+#endif
 			return WHM_OK;
 		}
 	case CALL_ADD_VH:
@@ -527,8 +542,44 @@ int WINAPI WhmCoreCall(const char *callName, const char *event, WHM_CONTEXT *con
 			}
 			ctx->add("count",result);
 			return WHM_OK;
+		}		
+#ifdef ENABLE_VH_FLOW
+	case CALL_DUMP_FLOW:
+		{
+			const char *prefix = uv->getx("prefix");
+			bool revers = atoi(uv->get("revers").c_str())==1;
+			int prefix_len = 0;
+			if (prefix) {
+				prefix_len = strlen(prefix);
+			}
+			conf.gvm->dumpFlow(ctx,revers,prefix,prefix_len,atoi(uv->get("extend").c_str()));
+			return WHM_OK;
 		}
-		/////////[396]
+	case CALL_GET_LOAD:
+		{
+			KVirtualHost *vh = ctx->getVh();
+			if (vh==NULL) {
+				ctx->setStatus("cann't find vh");
+				return WHM_CALL_FAILED;
+			}
+			bool reset = atoi(uv->get("reset").c_str())==1;
+			ctx->add("speed",vh->getSpeed(reset));
+#ifdef ENABLE_VH_RS_LIMIT
+			ctx->add("connect",vh->getConnectCount());
+#endif
+			return WHM_OK;
+		}
+	case CALL_GET_CONNECTION:
+		{
+			//KVirtualHost *vh = ctx->getVh();
+			int totalCount = 0;
+			string connectString = selectorManager.getConnectionInfo(totalCount,0,uv->getx("vh"),false);
+			ctx->add("count",totalCount);
+			ctx->add("connection",connectString.c_str(),true);
+			return WHM_OK;
+		}
+#endif
+		/////////[472]
 	case CALL_CHECK_SSL:
 		{
 			KVirtualHost *vh = ctx->getVh();
@@ -552,7 +603,7 @@ int WINAPI WhmCoreCall(const char *callName, const char *event, WHM_CONTEXT *con
 			}
 			return KAccess::whmCallRunTimeModel(name,ctx);
 		}
-/////////[397]
+/////////[473]
 	case CALL_ADD_TABLE:
 	case CALL_EMPTY_TABLE:
 	case CALL_DEL_TABLE:

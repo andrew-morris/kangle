@@ -1,24 +1,7 @@
 #include <string.h>
 #include "KHttpPost.h"
 #include "malloc_debug.h"
-
-static int my_htoi(char *s) {
-	int value;
-	int c;
-
-	c = ((unsigned char *) s)[0];
-	if (isupper(c))
-		c = tolower(c);
-	value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
-
-	c = ((unsigned char *) s)[1];
-	if (isupper(c))
-		c = tolower(c);
-	value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
-
-	return (value);
-}
-
+#include "KUrlParser.h"
 int get_tmp(char m_char) {
 	if (m_char <= '9' && m_char >= '0')
 		return 0x30;
@@ -29,35 +12,7 @@ int get_tmp(char m_char) {
 	return 0;
 
 }
-int url_decode(char *str, int len, int *flag,bool space2plus) {
-	char *dest = str;
-	char *data = str;
-	if (len == 0) {
-		len = strlen(str);
-	}
-	while (len--) {
-		if (space2plus && *data == '+') {
-			*dest = ' ';
-			if (flag) {
-				SET(*flag,RQ_URL_ENCODE);
-			}
-		} else if (*data == '%' && len >= 2 && isxdigit((unsigned char) *(data + 1))
-				&& isxdigit((unsigned char) *(data + 2))) {
-			*dest = (char) my_htoi(data + 1);
-			data += 2;
-			len -= 2;
-			if (flag) {
-				SET(*flag,RQ_URL_ENCODE);
-			}
-		} else {
-			*dest = *data;
-		}
-		data++;
-		dest++;
-	}
-	*dest = '\0';
-	return dest - str;
-}
+
 char *my_strtok(char *msg, char split, char **ptrptr) {
 	char *str;
 	if (msg)

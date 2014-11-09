@@ -27,6 +27,7 @@
 #include<map>
 #include<list>
 #include<stdio.h>
+#include <stdlib.h>
 #include "KXmlEvent.h"
 #include "KXmlException.h"
 #define CDATA_START	"<![CDATA["

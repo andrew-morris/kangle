@@ -142,7 +142,7 @@ const char *KExtendProgramString::interGetValue(const char *name) {
 		if (conf.gvm->globalVh.getEnvValue(name, vh_value)) {
 			return vh_value.c_str();
 		}
-		/////////[120]
+		/////////[158]
 		return KDynamicString::getValue(name);
 }
 bool KExtendProgramConfig::handle(KExtendProgramString *ds) {

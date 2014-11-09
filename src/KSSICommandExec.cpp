@@ -86,7 +86,7 @@ Process_status KSSICommandExec::process(KSSIContext *context, char *cmd, std::ma
 	}
 	KHttpRequest rq2;
 	rq2.init();
-	rq2.server = rq->server;
+	rq2.server = rq->c->socket;
 	rq2.auth = rq->auth;
 	rq2.stackSize = rq->stackSize + 1;
 	rq2.workModel = rq->workModel;

@@ -36,14 +36,14 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 subdir = .
-DIST_COMMON = README $(am__configure_deps) $(dist_etc_DATA) \
-	$(dist_inc_DATA) $(dist_sys_DATA) $(dist_sysconf_DATA) \
-	$(dist_var_DATA) $(dist_www_DATA) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(top_srcdir)/configure AUTHORS COPYING \
-	ChangeLog INSTALL NEWS config.guess config.sub depcomp \
-	install-sh missing mkinstalldirs
+DIST_COMMON = README $(am__configure_deps) $(dist_inc_DATA) \
+	$(dist_sysconf_DATA) $(dist_webadmin_DATA) $(dist_www_DATA) \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
+	config.guess config.sub depcomp install-sh missing \
+	mkinstalldirs
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.in
+am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -82,13 +82,10 @@ am__nobase_list = $(am__nobase_strip_setup); \
 am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
-am__installdirs = "$(DESTDIR)$(etcdir)" "$(DESTDIR)$(incdir)" \
-	"$(DESTDIR)$(sysdir)" "$(DESTDIR)$(sysconfdir)" \
-	"$(DESTDIR)$(vardir)" "$(DESTDIR)$(wwwdir)" \
-	"$(DESTDIR)$(sysconfdir)"
-DATA = $(dist_etc_DATA) $(dist_inc_DATA) $(dist_sys_DATA) \
-	$(dist_sysconf_DATA) $(dist_var_DATA) $(dist_www_DATA) \
-	$(sysconf_DATA)
+am__installdirs = "$(DESTDIR)$(incdir)" "$(DESTDIR)$(sysconfdir)" \
+	"$(DESTDIR)$(webadmindir)" "$(DESTDIR)$(wwwdir)"
+DATA = $(dist_inc_DATA) $(dist_sysconf_DATA) $(dist_webadmin_DATA) \
+	$(dist_www_DATA)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
@@ -148,6 +145,10 @@ CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
 CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
+DEFAULT_EXT_DIR = @DEFAULT_EXT_DIR@
+DEFAULT_TMP_DIR = @DEFAULT_TMP_DIR@
+DEFAULT_VAR_DIR = @DEFAULT_VAR_DIR@
+DEFAULT_WEBADMIN_DIR = @DEFAULT_WEBADMIN_DIR@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
@@ -199,7 +200,7 @@ build_vendor = @build_vendor@
 builddir = @builddir@
 datadir = @datadir@
 datarootdir = @datarootdir@
-docdir = $(prefix)/doc
+docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
 host = @host@
@@ -236,19 +237,14 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 SUBDIRS = src extworker module/webdav 
 #module/vhs_mysql module/vhs_sqlite module/whm/whmdso/vhsnode
-sysconf_DATA = 
 EXTRA_DIST = module/access 
 wwwdir = $(prefix)/www
-sysdir = $(prefix)/webadmin
-vardir = $(prefix)/var
-incdir = $(prefix)/include
-etcdir = $(prefix)/etc
-dist_sysconf_DATA = $(sysconf_DATA) etc/config.xml 
+incdir = $(includedir)
+webadmindir = $(DEFAULT_WEBADMIN_DIR)
+dist_sysconf_DATA = $(sysconf_DATA) etc/config.xml etc/config-default.xml 
 dist_www_DATA = www/index.html 
-dist_sys_DATA = webadmin/kangle.css webadmin/core.whm webadmin/logo.gif
-dist_var_DATA = 
-dist_etc_DATA = etc/lang.xml etc/lang_en.xml etc/lang_zh.xml etc/config-default.xml 
-dist_inc_DATA = src/httpext.h src/httpfilt.h src/ksapi.h module/whm/whm.h
+dist_webadmin_DATA = webadmin/kangle.css webadmin/core.whm webadmin/logo.gif webadmin/lang.xml webadmin/lang_en.xml webadmin/lang_zh.xml webadmin/lang_tw.xml
+dist_inc_DATA = src/ksapi.h
 all: all-recursive
 
 .SUFFIXES:
@@ -286,26 +282,6 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
 $(am__aclocal_m4_deps):
-install-dist_etcDATA: $(dist_etc_DATA)
-	@$(NORMAL_INSTALL)
-	test -z "$(etcdir)" || $(MKDIR_P) "$(DESTDIR)$(etcdir)"
-	@list='$(dist_etc_DATA)'; test -n "$(etcdir)" || list=; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(etcdir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(etcdir)" || exit $$?; \
-	done
-
-uninstall-dist_etcDATA:
-	@$(NORMAL_UNINSTALL)
-	@list='$(dist_etc_DATA)'; test -n "$(etcdir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	test -n "$$files" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(etcdir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(etcdir)" && rm -f $$files
 install-dist_incDATA: $(dist_inc_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(incdir)" || $(MKDIR_P) "$(DESTDIR)$(incdir)"
@@ -326,26 +302,6 @@ uninstall-dist_incDATA:
 	test -n "$$files" || exit 0; \
 	echo " ( cd '$(DESTDIR)$(incdir)' && rm -f" $$files ")"; \
 	cd "$(DESTDIR)$(incdir)" && rm -f $$files
-install-dist_sysDATA: $(dist_sys_DATA)
-	@$(NORMAL_INSTALL)
-	test -z "$(sysdir)" || $(MKDIR_P) "$(DESTDIR)$(sysdir)"
-	@list='$(dist_sys_DATA)'; test -n "$(sysdir)" || list=; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(sysdir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(sysdir)" || exit $$?; \
-	done
-
-uninstall-dist_sysDATA:
-	@$(NORMAL_UNINSTALL)
-	@list='$(dist_sys_DATA)'; test -n "$(sysdir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	test -n "$$files" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(sysdir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(sysdir)" && rm -f $$files
 
 uninstall-dist_sysconfDATA:
 	@$(NORMAL_UNINSTALL)
@@ -354,26 +310,26 @@ uninstall-dist_sysconfDATA:
 	test -n "$$files" || exit 0; \
 	echo " ( cd '$(DESTDIR)$(sysconfdir)' && rm -f" $$files ")"; \
 	cd "$(DESTDIR)$(sysconfdir)" && rm -f $$files
-install-dist_varDATA: $(dist_var_DATA)
+install-dist_webadminDATA: $(dist_webadmin_DATA)
 	@$(NORMAL_INSTALL)
-	test -z "$(vardir)" || $(MKDIR_P) "$(DESTDIR)$(vardir)"
-	@list='$(dist_var_DATA)'; test -n "$(vardir)" || list=; \
+	test -z "$(webadmindir)" || $(MKDIR_P) "$(DESTDIR)$(webadmindir)"
+	@list='$(dist_webadmin_DATA)'; test -n "$(webadmindir)" || list=; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(vardir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(vardir)" || exit $$?; \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(webadmindir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(webadmindir)" || exit $$?; \
 	done
 
-uninstall-dist_varDATA:
+uninstall-dist_webadminDATA:
 	@$(NORMAL_UNINSTALL)
-	@list='$(dist_var_DATA)'; test -n "$(vardir)" || list=; \
+	@list='$(dist_webadmin_DATA)'; test -n "$(webadmindir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	test -n "$$files" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(vardir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(vardir)" && rm -f $$files
+	echo " ( cd '$(DESTDIR)$(webadmindir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(webadmindir)" && rm -f $$files
 install-dist_wwwDATA: $(dist_www_DATA)
 	@$(NORMAL_INSTALL)
 	test -z "$(wwwdir)" || $(MKDIR_P) "$(DESTDIR)$(wwwdir)"
@@ -394,26 +350,6 @@ uninstall-dist_wwwDATA:
 	test -n "$$files" || exit 0; \
 	echo " ( cd '$(DESTDIR)$(wwwdir)' && rm -f" $$files ")"; \
 	cd "$(DESTDIR)$(wwwdir)" && rm -f $$files
-install-sysconfDATA: $(sysconf_DATA)
-	@$(NORMAL_INSTALL)
-	test -z "$(sysconfdir)" || $(MKDIR_P) "$(DESTDIR)$(sysconfdir)"
-	@list='$(sysconf_DATA)'; test -n "$(sysconfdir)" || list=; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(sysconfdir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(sysconfdir)" || exit $$?; \
-	done
-
-uninstall-sysconfDATA:
-	@$(NORMAL_UNINSTALL)
-	@list='$(sysconf_DATA)'; test -n "$(sysconfdir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	test -n "$$files" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(sysconfdir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(sysconfdir)" && rm -f $$files
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run `make' without going through this Makefile.
@@ -730,7 +666,7 @@ check: check-recursive
 all-am: Makefile $(DATA)
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(etcdir)" "$(DESTDIR)$(incdir)" "$(DESTDIR)$(sysdir)" "$(DESTDIR)$(sysconfdir)" "$(DESTDIR)$(vardir)" "$(DESTDIR)$(wwwdir)" "$(DESTDIR)$(sysconfdir)"; do \
+	for dir in "$(DESTDIR)$(incdir)" "$(DESTDIR)$(sysconfdir)" "$(DESTDIR)$(webadmindir)" "$(DESTDIR)$(wwwdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-recursive
@@ -779,14 +715,14 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-dist_etcDATA install-dist_incDATA \
-	install-dist_sysDATA install-dist_varDATA install-dist_wwwDATA
+install-data-am: install-dist_incDATA install-dist_webadminDATA \
+	install-dist_wwwDATA
 
 install-dvi: install-dvi-recursive
 
 install-dvi-am:
 
-install-exec-am: install-dist_sysconfDATA install-sysconfDATA
+install-exec-am: install-dist_sysconfDATA
 
 install-html: install-html-recursive
 
@@ -826,10 +762,8 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-dist_etcDATA uninstall-dist_incDATA \
-	uninstall-dist_sysDATA uninstall-dist_sysconfDATA \
-	uninstall-dist_varDATA uninstall-dist_wwwDATA \
-	uninstall-sysconfDATA
+uninstall-am: uninstall-dist_incDATA uninstall-dist_sysconfDATA \
+	uninstall-dist_webadminDATA uninstall-dist_wwwDATA
 
 .MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) ctags-recursive \
 	install-am install-strip tags-recursive
@@ -841,19 +775,17 @@ uninstall-am: uninstall-dist_etcDATA uninstall-dist_incDATA \
 	distclean distclean-generic distclean-tags distcleancheck \
 	distdir distuninstallcheck dvi dvi-am html html-am info \
 	info-am install install-am install-data install-data-am \
-	install-dist_etcDATA install-dist_incDATA install-dist_sysDATA \
-	install-dist_sysconfDATA install-dist_varDATA \
-	install-dist_wwwDATA install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip install-sysconfDATA \
-	installcheck installcheck-am installdirs installdirs-am \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-generic pdf pdf-am ps ps-am tags tags-recursive \
-	uninstall uninstall-am uninstall-dist_etcDATA \
-	uninstall-dist_incDATA uninstall-dist_sysDATA \
-	uninstall-dist_sysconfDATA uninstall-dist_varDATA \
-	uninstall-dist_wwwDATA uninstall-sysconfDATA
+	install-dist_incDATA install-dist_sysconfDATA \
+	install-dist_webadminDATA install-dist_wwwDATA install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	installdirs-am maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-generic pdf pdf-am ps ps-am tags \
+	tags-recursive uninstall uninstall-am uninstall-dist_incDATA \
+	uninstall-dist_sysconfDATA uninstall-dist_webadminDATA \
+	uninstall-dist_wwwDATA
 
 #dist_doc_DATA=doc/zh_CN/*.html doc/zh_CN/*.css
 install-dist_sysconfDATA:

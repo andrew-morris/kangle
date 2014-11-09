@@ -25,7 +25,7 @@ static int load_count = 0;
 KMutex swapinQueueLock;
 std::list<KHttpRequest *> swapinQueue;
 static INT64 recreate_start_time = 0;
-/////////[100]
+/////////[138]
 #if 0
 static bool rebuild_cache_hash = false;
 static std::map<std::string,std::string> rebuild_cache_files;
@@ -55,11 +55,10 @@ bool skipString(KFile *file)
 	}
 	return file->seek(len,seekCur);
 }
-char *readString(char **hot,int &hotlen,bool &result)
+char *readString(char **hot,int &hotlen,int &len)
 {
-	result = false;
-	int len=0;
 	if (hotlen<(int)sizeof(int)) {
+		len = -1;
 		return NULL;
 	}
 	memcpy(&len,*hot,sizeof(int));
@@ -67,9 +66,11 @@ char *readString(char **hot,int &hotlen,bool &result)
 	(*hot) += sizeof(int);
 	if(len<0 || len>1000000){
 		klog(KLOG_ERR,"string len[%d] is too big\n",len);
+		len = -1;
 		return NULL;
 	}
 	if (hotlen<len) {
+		len = -1;
 		return NULL;
 	}
 	char *buf = (char *)xmalloc(len+1);
@@ -79,17 +80,16 @@ char *readString(char **hot,int &hotlen,bool &result)
 		hotlen -= len;
 		(*hot) += len;
 	}
-	result = true;
 	return buf;
 }
-char *readString(KFile *file,bool &result)
+char *readString(KFile *file,int &len)
 {
-	result = false;
-	int len=0;
 	if(file->read((char *)&len,sizeof(len))!=sizeof(len)){
+		len = -1;
 		return NULL;
 	}
 	if(len<0 || len>1000000){
+		len = -1;
 		klog(KLOG_ERR,"string len[%d] is too big\n",len);
 		return NULL;
 	}
@@ -97,9 +97,9 @@ char *readString(KFile *file,bool &result)
 	buf[len]='\0';
 	if (len>0 && (int)file->read(buf,len)!=len) {
 		xfree(buf);
+		len = -1;
 		return NULL;
 	}
-	result = true;
 	return buf;
 }
 int writeString(KFile *file,const char *str,int len)
@@ -120,9 +120,9 @@ bool read_obj_head(KHttpObjectBody *data,char **hot,int &hotlen)
 	assert(data->headers==NULL);
 	KHttpHeader *last = NULL;
 	for (;;) {
-		bool result;
-		char *attr = readString(hot,hotlen,result);
-		if (!result) {
+		int attr_len,val_len;
+		char *attr = readString(hot,hotlen,attr_len);
+		if (attr_len==-1) {
 			return false;
 		}
 		if (attr==NULL) {
@@ -132,8 +132,8 @@ bool read_obj_head(KHttpObjectBody *data,char **hot,int &hotlen)
 			free(attr);
 			return true;
 		}
-		char *val = readString(hot,hotlen,result);
-		if(!result){
+		char *val = readString(hot,hotlen,val_len);
+		if(val_len==-1){
 			xfree(attr);
 			return false;
 		}
@@ -148,6 +148,8 @@ bool read_obj_head(KHttpObjectBody *data,char **hot,int &hotlen)
 		header->attr = attr;
 		header->val = val;
 		header->next = NULL;
+		header->attr_len = attr_len;
+		header->val_len = val_len;
 		if(last==NULL){
 			data->headers = header;		
 		}else{
@@ -161,9 +163,9 @@ bool read_obj_head(KHttpObjectBody *data,KFile *fp)
 	assert(data->headers==NULL);
 	KHttpHeader *hot = NULL;
 	for (;;) {
-		bool result;
-		char *attr = readString(fp,result);
-		if (!result) {
+		int attr_len,val_len;
+		char *attr = readString(fp,attr_len);
+		if (attr_len == -1) {
 			return false;
 		}
 		if (attr==NULL) {
@@ -173,8 +175,8 @@ bool read_obj_head(KHttpObjectBody *data,KFile *fp)
 			free(attr);
 			return true;
 		}
-		char *val = readString(fp,result);
-		if(!result){
+		char *val = readString(fp,val_len);
+		if(val_len==-1){
 			xfree(attr);
 			return false;
 		}
@@ -188,6 +190,8 @@ bool read_obj_head(KHttpObjectBody *data,KFile *fp)
 		}
 		header->attr = attr;
 		header->val = val;
+		header->attr_len = attr_len;
+		header->val_len = val_len;
 		header->next = NULL;
 		if(hot==NULL){
 			data->headers = header;		
@@ -308,7 +312,7 @@ cor_result create_http_object(KHttpObject *obj,const char *url,const char *verif
 	obj->url->path = m_url.path;
 	obj->url->param = m_url.param;
 	obj->url->port = m_url.port;
-	obj->url->proto = m_url.proto;
+	obj->url->flags = m_url.flags;
 	if (verified_filename) {
 		obj->h = cache.hash_url(obj->url);
 		if (cache.getHash(obj->h)->find(obj->url,verified_filename)) {
@@ -325,8 +329,8 @@ cor_result create_http_object(KHttpObject *obj,const char *url,const char *verif
 }
 cor_result create_http_object(KFile *fp,KHttpObject *obj,const char *verified_filename=NULL)
 {
-	bool result = false;
-	char *url = readString(fp,result);
+	int len;
+	char *url = readString(fp,len);
 	if(url==NULL){
 		fprintf(stderr,"read url is NULL\n");
 		return cor_failed;
@@ -354,7 +358,7 @@ int create_file_index(const char *file,void *param)
 			return 0;
 		}
 	}
-	/////////[101]
+	/////////[139]
 	KHttpObjectFileHeader header;
 	if(fp.read((char *)&header,sizeof(KHttpObjectFileHeader))!=sizeof(KHttpObjectFileHeader)){
 		fprintf(stderr,"cann't read head size [%s]\n",file_name);
@@ -362,7 +366,7 @@ int create_file_index(const char *file,void *param)
 	}
 	obj = new KHttpObject;
 	memcpy(&obj->index,&header.index,sizeof(obj->index));
-	/////////[102]
+	/////////[140]
 	result = create_http_object(&fp,obj,file_name);
 	if (result==cor_success) {
 #ifdef ENABLE_DB_DISK_INDEX
@@ -379,7 +383,7 @@ int create_file_index(const char *file,void *param)
 					if (rename(file_name,file_name2)!=0) {
 						rebuild_cache_files.insert(std::pair<std::string,std::string>(file_name,file_name2));
 					}
-					/////////[103]
+					/////////[141]
 				}
 				free(file_name2);
 			}
@@ -397,12 +401,12 @@ failed:
 }
 void clean_disk_orphan_files()
 {
-	/////////[104]
+	/////////[142]
 }
 void recreate_index_dir(const char *cache_dir)
 {
 	klog(KLOG_NOTICE,"scan cache dir [%s]\n",cache_dir);
-	/////////[105]
+	/////////[143]
 	list_dir(cache_dir,create_file_index,(void *)cache_dir);
 	clean_disk_orphan_files();
 }
@@ -667,7 +671,7 @@ KTHREAD_FUNCTION handle_request_swapin(void *param)
 	}
 	lock->Unlock();
 	if (result) {
-		/////////[106]
+		/////////[144]
 			cache.getHash(obj->h)->incSize(obj->index.content_length);
 	}
 	assert(osData);

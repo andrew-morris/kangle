@@ -35,7 +35,7 @@ enum dechunk_status
 	dechunk_end,
 	dechunk_failed
 };
-class KDeChunked : public KWUpStream{
+class KDeChunked : public KHttpStream{
 public:
 	KDeChunked(KWStream *st,bool autoDelete);
 	virtual ~KDeChunked();

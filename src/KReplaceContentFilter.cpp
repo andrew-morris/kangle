@@ -47,13 +47,13 @@ bool KReplaceContentFilter::dumpBuffer()
 bool KReplaceContentFilter::writeBuffer(const char *str,int len)
 {
 	if (max_buffer==0) {
-		if (KWUpStream::write_all(str,len)!=STREAM_WRITE_SUCCESS) {
+		if (KHttpStream::write_all(str,len)!=STREAM_WRITE_SUCCESS) {
 			return false;
 		}
 		return true;
 	}
 	if (stoped) {
-		if (KWUpStream::write_all(str,len)!=STREAM_WRITE_SUCCESS) {
+		if (KHttpStream::write_all(str,len)!=STREAM_WRITE_SUCCESS) {
 			return false;
 		}
 		return true;
@@ -108,6 +108,10 @@ StreamState KReplaceContentFilter::write_all(const char *buf, int len)
 			if (stoped) {
 				break;
 			}
+			if (ovector[1] <= 0) {
+				klog(KLOG_ERR, "may have a BUG!! in %s:%d\n", __FILE__, __LINE__);
+				break;
+			}
 			hot += ovector[1];
 			len -= ovector[1];
 			continue;
@@ -134,7 +138,7 @@ StreamState KReplaceContentFilter::write_end()
 	if (prevData) {
 		if (st) {
 			if (stoped) {
-				return KWUpStream::write_end();
+				return KHttpStream::write_end();
 			}
 			StreamState result = st->write_all(prevData,prevDataLength);
 			if (result!=STREAM_WRITE_SUCCESS) {
@@ -142,5 +146,5 @@ StreamState KReplaceContentFilter::write_end()
 			}
 		}
 	}
-	return KWUpStream::write_end();
+	return KHttpStream::write_end();
 }

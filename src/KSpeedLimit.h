@@ -25,6 +25,7 @@ public:
 	{
 		return speed_limit;
 	}
+	/*
 	inline INT64 getSendTime(int len,INT64 current_msec)
 	{
 		if (min_limit_size>0) {
@@ -49,6 +50,7 @@ public:
 		refsLock.Unlock();
 		return current_send_time;
 	}
+	*/
 	int getSleepTime(int len)
 	{
 		

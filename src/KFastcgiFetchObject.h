@@ -27,6 +27,10 @@ protected:
 	{
 		lifeTime = 0;
 	}
+	bool needTempFile()
+	{
+		return true;
+	}
 	bool checkContinueReadBody(KHttpRequest *rq)
 	{
 		return !bodyEnd;

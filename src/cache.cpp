@@ -53,6 +53,29 @@ void dead_all_obj()
 {
 	cache.dead_all_obj();
 }
+void clean_static_obj_header(KHttpObject *obj) {
+	assert(obj->data);
+	KHttpHeader *h = obj->data->headers;
+	KHttpHeader *last = NULL;
+	while (h) {
+		KHttpHeader *next = h->next;
+		if (strcasecmp(h->attr,"Set-Cookie")==0
+			|| strcasecmp(h->attr,"Set-Cookie2")==0 ) {
+			if (last) {
+				last->next = next;
+			} else {
+				obj->data->headers = next;
+			}
+			free(h->attr);
+			free(h->val);
+			free(h);
+			h = next;
+			continue;
+		}
+		last = h;
+		h = next;
+	}
+}
 bool stored_obj(KHttpObject *obj,KHttpObject *old_obj, int list_state) {
 	if (old_obj) {
 		SET(old_obj->index.flags,FLAG_DEAD|OBJ_INDEX_UPDATE);
@@ -79,6 +102,10 @@ bool stored_obj(KHttpRequest *rq, KHttpObject *obj,KHttpObject *old_obj) {
 	}
 	if (TEST(rq->workModel,WORK_MODEL_INTERNAL)) {
 		SET(obj->index.flags,FLAG_RQ_INTERNAL);
+	}
+	if (TEST(obj->index.flags,OBJ_IS_STATIC2)) {
+		//清除静态化的一些http头
+		clean_static_obj_header(obj);
 	}
 	if (stored_obj(obj,old_obj, (TEST(obj->index.flags,FLAG_IN_MEM)?LIST_IN_MEM:LIST_IN_DISK))) {
 		SET(rq->flags,RQ_OBJ_STORED);

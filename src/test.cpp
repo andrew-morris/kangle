@@ -42,7 +42,8 @@
 #include "KFile.h"
 #include "KXml.h"
 #include "cache.h"
-/////////[64]
+#include "KConnectionSelectable.h"
+/////////[87]
 #ifdef ENABLE_INPUT_FILTER
 #include "KMultiPartInputFilter.h"
 #endif
@@ -76,9 +77,9 @@ bool test_pipe() {
 }
 void test_regex() {
 	KReg reg;
-	reg.setModel("test",0);
+	reg.setModel("s",0);
 	int ovector[6];
-	int ret = reg.match("tes",3,PCRE_PARTIAL,ovector,3);
+	int ret = reg.match("sjj",-1,PCRE_PARTIAL,ovector,6);
 	//printf("ret=%d\n",ret);
 	//KRegSubString *ss = reg.matchSubString("t", 1, 0);
 	//assert(ss);
@@ -162,8 +163,11 @@ void test_timematch()
 	t->Show();
 	delete t;
 }
-/////////[65]
+/////////[88]
 bool test() {
+	//printf("sizeof(KSelectable) = %d\n",sizeof(KSelectable));
+	//printf("sizeof(KConnectionSelectable)=%d\n",sizeof(KConnectionSelectable));
+	//printf("sizeof(KHttpRequest) = %d\n",sizeof(KHttpRequest));
 	//printf("sizeof(pthread_mutex_t)=%d\n",sizeof(pthread_mutex_t));
 	//printf("sizeof(lock)=%d\n",sizeof(KMutex));
 	//printf("sizeof(HttpObjectIndex)=%d\n",sizeof(HttpObjectIndex));
@@ -172,6 +176,9 @@ bool test() {
 	//test_file();
 	//test_timematch();
 	//test_xml();
+	//printf("sizeof(kgl_str_t)=%d\n",sizeof(kgl_str_t));
+	buff b;
+	b.flags = 0;
 	test_regex();
 	test_htaccess();
 	test_expr();

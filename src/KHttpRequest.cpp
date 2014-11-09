@@ -36,17 +36,23 @@
 #include "KHttpFieldValue.h"
 #include "KHttpBasicAuth.h"
 #include "KHttpDigestAuth.h"
-/////////[158]
+/////////[196]
 #include "time_utils.h"
 #include "KSelectorManager.h"
 #include "KFilterContext.h"
 #include "KUpstreamFetchObject.h"
 #include "KSubRequest.h"
-
+#include "KUrlParser.h"
+#include "KHttpFilterManage.h"
+#include "KHttpFilterContext.h"
 using namespace std;
-void handleNextSubRequest(KSelectable *st,int got)
+void WINAPI free_auto_memory(void *arg)
 {
-	KHttpRequest *rq = (KHttpRequest *)st;
+	xfree(arg);
+}
+void resultNextSubRequest(void *arg,int got)
+{
+	KHttpRequest *rq = (KHttpRequest *)arg;
 	async_http_start(rq);
 }
 #ifdef ENABLE_TF_EXCHANGE
@@ -56,73 +62,70 @@ void stageTempFileWriteEnd(KHttpRequest *rq)
 	rq->tf = NULL;
 	stageEndRequest(rq);
 }
-void handleRequestTempFileWrite(KSelectable *st,int got)
+void resultTempFileRequestWrite(void *arg,int got)
 {
-	KHttpRequest *rq = (KHttpRequest *)st;
-	kassert(rq->tf!=NULL);
-	if (got==0) {
-		for(;;){
-			char *buf = rq->tf->readBuffer(got);
-			if(got<=0){
-				SET(rq->flags,RQ_CONNECTION_CLOSE);
-				stageTempFileWriteEnd(rq);
-				return;
-			}
-			got = rq->server->write(buf,got);
-			if (got <= 0) {
-				if (errno==EINTR) {
-					continue;
-				}
-				if (errno==EAGAIN) {
-					break;
-				}
-#ifdef KSOCKET_SSL
-				if (TEST(rq->workModel,WORK_MODEL_SSL)) {
-					KSSLSocket *sslsocket = static_cast<KSSLSocket *>(rq->server);
-					if (sslsocket->get_ssl_error(got)==SSL_ERROR_WANT_WRITE) {
-						break;
-					}
-				}
-#endif
-
-				SET(rq->flags,RQ_CONNECTION_CLOSE);
-				stageTempFileWriteEnd(rq);
-				return;
-			}
-			rq->send_ctx.send_size += got;
-			if(!rq->tf->readSuccess(got)){
-				stageTempFileWriteEnd(rq);
-				return;
-			}
-			if(rq->slh){
-				break;
-			}
-		}
-		if(!limitWrite(rq,STAGE_OP_TF_WRITE)){
-			rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_TF_WRITE);
-		}
-		return;
-	}
+	KHttpRequest *rq = (KHttpRequest *)arg;
 	if (got<=0) {
 		SET(rq->flags,RQ_CONNECTION_CLOSE);
 		stageTempFileWriteEnd(rq);
 		return;
 	}
-#ifdef _WIN32
-	rq->send_ctx.send_size += got;
+	rq->send_size += got;
 	if (rq->tf->readSuccess(got)) {
-		if(!limitWrite(rq,STAGE_OP_TF_WRITE)){
-			rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_TF_WRITE);
-		}
+		startTempFileWriteRequest(rq);
 		return;
 	}
-#endif
 	stageTempFileWriteEnd(rq);
 }
-#endif
-void handleRequestWrite(KSelectable *st,int got)
+void bufferTempFileRequestWrite(void *arg,LPWSABUF buf,int &bufCount)
 {
-	KHttpRequest *rq = (KHttpRequest *)st;
+	KHttpRequest *rq = (KHttpRequest *)arg;
+	bufCount = 1;
+	int len;
+	buf[0].iov_base = (char *)rq->tf->readBuffer(len);
+	buf[0].iov_len = len;
+}
+void startTempFileWriteRequest(KHttpRequest *rq)
+{
+	assert(rq->tf);
+	if (rq->slh) {
+		int len = 0;
+		rq->tf->readBuffer(len);
+		int sendTime = rq->getSleepTime(len);
+		if (sendTime>0) {
+			rq->c->delayWrite(rq,resultTempFileRequestWrite,bufferTempFileRequestWrite,sendTime);
+			return;
+		}
+	}
+	rq->c->write(rq,resultTempFileRequestWrite,bufferTempFileRequestWrite);
+}
+#endif
+void bufferRequestWrite(void *arg,LPWSABUF buf,int &bufCount)
+{
+	KHttpRequest *rq = (KHttpRequest *)arg;
+	rq->get_write_buf(buf,bufCount);
+}
+
+void resultRequestWrite(void *arg,int got);
+
+void startWriteRequest(KHttpRequest *rq)
+{
+	if (rq->slh) {
+		int len = 0;
+		rq->get_write_buf(len);
+		int sendTime = rq->getSleepTime(len);
+
+		if (sendTime>0) {
+			rq->c->delayWrite(rq,resultRequestWrite,bufferRequestWrite,sendTime);
+			return;
+		}
+	}
+	rq->c->write(rq,resultRequestWrite,bufferRequestWrite);
+}
+void resultRequestWrite(void *arg,int got)
+{
+
+	KHttpRequest *rq = (KHttpRequest *)arg;
 	switch(rq->canWrite(got)){
 		case WRITE_FAILED:
 			//removeSocket(rq);
@@ -131,11 +134,8 @@ void handleRequestWrite(KSelectable *st,int got)
 			stageEndRequest(rq);
 			break;
 		case WRITE_SUCCESS:
-			//removeSocket(rq);
-			assert(rq->send_ctx.body == NULL);
 			rq->buffer.clean();
 			if (rq->fetchObj && !rq->fetchObj->isClosed()) {
-				//CLR(rq->filter_flags,RQ_SET_LIMIT_SPEED);
 				//读数据
 				rq->fetchObj->readBody(rq);
 			} else {
@@ -143,96 +143,85 @@ void handleRequestWrite(KSelectable *st,int got)
 			}
 			break;
 		default:
-			if (!limitWrite(rq)) {
-				rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_WRITE);
-			}
+			startWriteRequest(rq);
 	}
 }
-void handleRequestRead(KSelectable *st,int got)
+void bufferRequestRead(void *arg,iovec *buf,int &bufCount)
 {
-	KHttpRequest *rq = (KHttpRequest *)st;
-	int ret = 0;
-#ifdef KSOCKET_SSL
-	for (;;) {
-#endif
-		ret = rq->canRead(got);
-#ifdef KSOCKET_SSL
-		if (ret==READ_SSL_CONTINUE) {
-			got = 0;
-			continue;
-		}
-		break;
-	}
-#endif
-	switch(ret){
+	KHttpRequest *rq = (KHttpRequest *)arg;
+	int len;
+	buf[0].iov_base = rq->get_read_buf(len);
+	buf[0].iov_len = len;
+	bufCount = 1;
+}
+void resultRequestRead(void *arg,int got)
+{
+	KHttpRequest *rq = (KHttpRequest *)arg;
+	switch(rq->canRead(got)){
 	case READ_FAILED:
 		delete rq;
 		break;
 	case READ_SUCCESS:
-		handleStartRequest(st,0);
+		handleStartRequest(rq,0);
 		break;
 	default:
-		rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_READ);
+		rq->c->read(rq,resultRequestRead,bufferRequestRead);
 	}
 }
-void stageWriteRequest(KHttpRequest *rq,buff *buf,INT64 start,INT64 len)
-{
-	rq->send_ctx.body_len = len;
-	assert(rq->send_ctx.body == NULL);
-	while(buf){
-		if(start < buf->used){
-			rq->send_ctx.body = buf;
-			rq->send_ctx.body_start = start;
-			break;
-		}
-		start -= buf->used;
-		buf = buf->next;
-	}
-	rq->hot = rq->send_ctx.init_hot();
 
-	assert(rq->hot);
-	rq->handler = handleRequestWrite;	
-	if(limitWrite(rq)){
-		return;
-	}	
-#ifdef _WIN32
-	rq->selector->addRequest(rq,KGL_LIST_RW,STAGE_OP_WRITE);
-#else
-	handleRequestWrite(rq,0);
-#endif
+void stageWriteRequest(KHttpRequest *rq,buff *buf,int start,int len)
+{
+	 if (rq->fetchObj) {
+		KConnectionSelectable *st = rq->fetchObj->getSelectable();
+		if (st) {
+			st->removeSocket();
+		}
+	}
+	rq->send_ctx.append(buf,(int)start,(int)len);
+	if (rq->send_ctx.getBufferSize()==0) {
+		stageEndRequest(rq);
+	} else {
+		startWriteRequest(rq);
+	}
 }
 void stageWriteRequest(KHttpRequest *rq)
 {
-	stageWriteRequest(rq,rq->buffer.getAllBuf(),0,rq->buffer.getLen());
+	if (TEST(rq->flags,RQ_SYNC)) {
+		//同步模式发送header
+		if (rq->send_ctx.getBufferSize()>0) {
+			if (!rq->sync_send_header()) {
+				return;
+			}
+			rq->send_ctx.clean();
+		}
+		//同步模式发送buffer
+		if (rq->buffer.getLen()>0) {
+			rq->sync_send_buffer();
+		}
+		return;
+	}
+	stageWriteRequest(rq,rq->buffer.getHead(),0,rq->buffer.getLen());
 }
 bool KHttpRequest::closeConnection()
 {
-	if (client_op || (secondHandler && secondHandler->sockop>0)) {
-		if (server) {
-			server->shutdown(SHUT_RDWR);
+	if (TEST(c->st_flags,STF_READ|STF_WRITE)) {
+		if (c->socket) {
+			c->socket->shutdown(SHUT_RDWR);
+			SET(c->st_flags, STF_ERR);
 			SET(flags,RQ_CONNECTION_CLOSE);
-			/////////[159]
+			/////////[197]
 		}
 	} 
-	if(upstream_op && fetchObj) {
-		KClientSocket *socket = static_cast<KUpstreamFetchObject *>(fetchObj)->getSocket();
-		if (socket) {
+	if (fetchObj) {
+		KSelectable *s = fetchObj->getSelectable();
+		if (s) {
+			SET(s->st_flags, STF_ERR);
+			KSocket *socket = s->getSocket();
 			socket->shutdown(SHUT_RDWR);
-			/////////[160]
+			/////////[198]
 		}
 	}
 	return true;
-}
-void KHttpRequest::resetPostBody()
-{
-	left_read = content_length;
-	parser.resetBody();
-#ifdef ENABLE_TF_EXCHANGE
-	if (tf) {
-		//重置读post数据
-		tf->resetRead();
-	}
-#endif
 }
 int KHttpRequest::read(char *buf, int len) {
 	if (left_read <= 0) {
@@ -244,7 +233,8 @@ int KHttpRequest::read(char *buf, int len) {
 		len = tf->readBuffer(buf,len);
 	} else {
 #endif
-		len = server->read(buf, len);
+/////////[199]
+		len = c->read(this,buf, len);
 #ifdef ENABLE_INPUT_FILTER
 		if (len>0) {
 			if (if_ctx && JUMP_DENY==if_ctx->check(buf,len,left_read<=len)) {
@@ -274,7 +264,7 @@ void KHttpRequest::resetFetchObject()
 }
 void KHttpRequest::closeFetchObject(bool destroy)
 {
-/////////[161]
+/////////[200]
 	if (fetchObj) {
 		fetchObj->close(this);
 		if (destroy) {
@@ -286,7 +276,7 @@ void KHttpRequest::closeFetchObject(bool destroy)
 	KRequestQueue *queue = this->queue;
 	this->queue = NULL;
 #endif
-/////////[162]
+/////////[201]
 #ifdef ENABLE_REQUEST_QUEUE
 	if (queue) {		
 		async_queue_destroy(queue);
@@ -294,39 +284,10 @@ void KHttpRequest::closeFetchObject(bool destroy)
 	}
 #endif
 }
-void KHttpRequest::addSendHeader(KBuffer *hbuf)
-{
-	if (send_ctx.header) {
-		hbuf->clean();
-		return;
-	}
-#ifdef ENABLE_TF_EXCHANGE
-	if (tf && tf->getSize()>0) {
-		//body has send
-		hbuf->clean();
-		return;
-	}
-	//*/
-#endif
-	send_ctx.header_size = (int)hbuf->getLen();
-	send_ctx.header = hbuf->stealBuffFast();
-}
 StreamState KHttpRequest::write_all(const char *buf, int len) {
-/////////[163]
+/////////[202]
 #ifdef ENABLE_TF_EXCHANGE
 	if (tf) {
-		if (send_ctx.header) {
-			//send header
-			buff *header = send_ctx.header;
-			do {
-				buff *n = header->next;
-				tf->writeBuffer(this,header->data,header->used);
-				free(header->data);
-				free(header);
-				header = n;
-			} while(header);
-			send_ctx.header = NULL;
-		}
 		if(!tf->writeBuffer(this,buf,len)){
 			return STREAM_WRITE_FAILED;
 		}
@@ -339,163 +300,73 @@ StreamState KHttpRequest::write_all(const char *buf, int len) {
 		if (sleepTime>0) {
 			my_msleep(sleepTime);
 		}
-		send_ctx.send_size += len;
-		if(server->write_all(buf, len)){
+		send_size += len;
+		if(c->write_all(this,buf, len)){
 			return STREAM_WRITE_SUCCESS;
 		}
 		return STREAM_WRITE_FAILED;
 	} else {
 		//异步发送
-		return buffer.write_all(buf,len);
+		buffer.write_all(buf,len);
+		return STREAM_WRITE_SUCCESS;
 	}
 }
-#ifdef _WIN32
-void KHttpRequest::get_write_buf(LPWSABUF buffer,int &bufferCount)
+void KHttpRequest::get_write_buf(iovec *buffer,int &bufferCount)
 {
 	if (slh) {
-		bufferCount = 1;
-		buffer[0].len = send_ctx.getSendSize(hot);
-		buffer[0].buf = hot;
-		return;
+		bufferCount = 1;		
 	}
-	send_ctx.getSendBuffer(buffer,bufferCount,hot);
+	send_ctx.getReadBuffer(buffer,bufferCount);
+	return;
 }
-#endif
 char *KHttpRequest::get_write_buf(int &size)
 {
-	size = send_ctx.getSendSize(hot);
-	return hot;
+	iovec buffer;
+	int bufferCount = 1;
+	send_ctx.getReadBuffer(&buffer,bufferCount);
+	size = buffer.iov_len;
+	return (char *)buffer.iov_base;
 }
 char *KHttpRequest::get_read_buf(int &size)
 {
 	int used = hot - readBuf;
-	if ((unsigned) used >= current_size) {
+	if ((unsigned) used >= (current_size-1)) {
 		//readBuf不够读
 		//要重新分配大一点的
-		char *nb = (char *) xmalloc(2*current_size);
+		current_size += current_size;
+		char *nb = (char *) xmalloc(current_size);
 		/* resize buf */
 		if (!nb) {
 			size = 0;
 			return NULL;
 		}
-		memcpy(nb, readBuf, current_size);
+		memcpy(nb, readBuf, used);
 		xfree(readBuf);
-		//INT64 offset = nb - readBuf;
-		//parser.adjustHeader(offset);
 		readBuf = nb;
-		hot = readBuf + current_size;
-		current_size += current_size;
+		hot = readBuf + used;		
 	}
-	size = current_size - used;
+	size = current_size - used - 1;
 	return hot;
 }
 WriteState KHttpRequest::canWrite(int got)
 {
-#ifdef HAVE_WRITEV
-#ifdef KSOCKET_SSL
-	if(!TEST(workModel,WORK_MODEL_SSL)){
-#endif
-	WSABUF wbuf[16];
-	int bufferCount = 16;
-	if (slh) {
-		bufferCount = 1;
-		wbuf[0].iov_len = send_ctx.getSendSize(hot);
-		wbuf[0].iov_base = hot;
-	} else {
-		send_ctx.getSendBuffer(wbuf,bufferCount,hot);
-	}
-retry:
-	got = writev(server->get_socket(),wbuf,bufferCount);
-	if(got<=0){
-	 	if (errno==EINTR) {
-			goto retry;
-		}
-		if (errno==EAGAIN) {
-		    return WRITE_CONTINUE;
-		}
+	if (got<=0) {
 		return WRITE_FAILED;
 	}
-	hot = send_ctx.next(hot,got);
-	if(hot == NULL){
-		assert(send_ctx.body == NULL);
-		return WRITE_SUCCESS;
+	send_size += got;
+	if (send_ctx.readSuccess(got)) {
+		return WRITE_CONTINUE;
 	}
-	return WRITE_CONTINUE;
-#ifdef KSOCKET_SSL
-	}
-#endif
-#endif
-	if (got==0) {
-		for (;;) {
-			int aio_size;
-			char *aio_buf = get_write_buf(aio_size);
-			if(aio_buf==NULL){
-				return WRITE_FAILED;
-			}
-			got = server->write(aio_buf,aio_size);
-			if (got <= 0) {
-				if (errno==EINTR) {
-					continue;
-				}
-				if (errno==EAGAIN) {
-					return WRITE_CONTINUE;
-				}
-#ifdef KSOCKET_SSL
-				if (TEST(workModel,WORK_MODEL_SSL)) {
-					KSSLSocket *sslsocket = static_cast<KSSLSocket *>(server);
-					if (sslsocket->get_ssl_error(got)==SSL_ERROR_WANT_WRITE) {
-						return WRITE_CONTINUE;
-					}
-				}
-#endif
-
-				return WRITE_FAILED;
-			}
-			hot = send_ctx.step_next(hot,got);
-			if(hot == NULL){
-				assert(send_ctx.body == NULL);
-				return WRITE_SUCCESS;
-			}
-			if (slh) {
-				return WRITE_CONTINUE;
-			}
-		}
-	}
-	if (got <= 0) {
-		return WRITE_FAILED;
-	}
-#ifdef _WIN32
-	hot = send_ctx.next(hot,got);
-	if(hot == NULL){
-		assert(send_ctx.body == NULL);
-		return WRITE_SUCCESS;
-	}
-#endif
-	return WRITE_CONTINUE;
+	return WRITE_SUCCESS;
 }
 ReadState KHttpRequest::canRead(int got) {
-	if (got==0) {
-		char *aio_buf;
-		aio_buf = get_read_buf(got);
-		if(aio_buf==NULL){
-			return READ_FAILED;
-		}
-		got = server->read(aio_buf, got);
-#ifdef KSOCKET_SSL
-		if (got<=0 &&  TEST(workModel,WORK_MODEL_SSL)) {
-			KSSLSocket *sslsocket = static_cast<KSSLSocket *>(server);
-			if (sslsocket->get_ssl_error(got)==SSL_ERROR_WANT_READ) {
-				return READ_CONTINUE;
-			}
-		}
-#endif
-	} 
 	if (got<=0) {
 		return READ_FAILED;
 	}
-	//fwrite(hot,got,1,stdout);
-	hot += got;	
-	int status = parser.parse(readBuf, hot - readBuf, this);
+	hot += got;
+	int status;
+	/////////[203]
+		status = parser.parse(readBuf, hot - readBuf, this);	
 	if (status == HTTP_PARSE_CONTINUE && current_size >= MAX_HTTP_HEAD_SIZE) {
 		//head is too large
 		return READ_FAILED;
@@ -503,35 +374,24 @@ ReadState KHttpRequest::canRead(int got) {
 	if (status == HTTP_PARSE_FAILED) {
 		//debug("Failed to check headers,client=%s:%d.\n",
 		//		server->get_remote_ip().c_str(), server->get_remote_port());
-		SET(flags,RQ_IS_BAD);
+		SET(raw_url.flags,KGL_URL_BAD);
 	}
 	if (status != HTTP_PARSE_CONTINUE) {
 		return READ_SUCCESS;
-		/*
-		 selector->removeRequest(this, false);
-		 if (!m_thread.start(this, httpWorkThread))
-		 selector->removeWork(this);
-		 */
 	}
-#ifdef KSOCKET_SSL
-	if (TEST(workModel,WORK_MODEL_SSL)) {
-		//有可能SSL_read会返回部分数据，所以我们要一直读，直到SSL_read没有数据返回
-		return READ_SSL_CONTINUE;
-	}
-#endif
 	return READ_CONTINUE;
 }
 void KHttpRequest::beginRequest() {
 	assert(url==NULL);
 	mark = 0;
 	url = new KUrl;
-	//assert(url==NULL && url->host==NULL && url->path==NULL && url->param==NULL);
+	url->flags = raw_url.flags;
 	if(raw_url.host){
 		url->host = xstrdup(raw_url.host);
 	}
 	if(raw_url.path){
 		url->path = xstrdup(raw_url.path);
-		url_decode(url->path,0,&flags,false);
+		url_decode(url->path,0,url,false);
 		KFileName::tripDir3(url->path, '/');
 	}
 	if (auth) {
@@ -541,30 +401,23 @@ void KHttpRequest::beginRequest() {
 		}
 	}
 	if (raw_url.param) {
-		/////////[164]
+		/////////[204]
 		url->param = xstrdup(raw_url.param);
-		/////////[165]
+		/////////[205]
 	}
 	url->port = raw_url.port;
-	url->proto = raw_url.proto;
 	/*
 	 计算还有多少post数据
 	 */
 	left_read = content_length;
-	/*
-	 * parse failed or success
-	 * if parse failed then new a thread send failed msg to client.
-	 */
-	/*
-	if (svh) {
-#ifdef ENABLE_VH_RS_LIMIT
-		svh->vh->releaseConnection();
-#endif
-		svh->vh->destroy();
-		svh = NULL;
-	}
-	*/
+	pre_post_length = (int)(MIN(left_read,(INT64)parser.bodyLen));
 	request_msec = kgl_current_msec;
+#ifdef MALLOCDEBUG
+	if (quit_program_flag!=PROGRAM_NO_QUIT) {
+		SET(flags,RQ_CONNECTION_CLOSE);
+	}
+#endif
+/////////[206]
 }
 const char *KHttpRequest::getMethod() {
 	return KHttpKeyValue::getMethod(meth);
@@ -585,8 +438,8 @@ void KHttpRequest::freeUrl() {
 	raw_url.destroy();
 	urlLock.Unlock();
 }
-/////////[166]
-bool KHttpRequest::rewriteUrl(char *newUrl, int errorCode, const char *prefix) {
+/////////[207]
+bool KHttpRequest::rewriteUrl(const char *newUrl, int errorCode, const char *prefix) {
 	KUrl url2;
 	if (!parse_url(newUrl, &url2)) {
 		KStringBuf nu;
@@ -622,8 +475,13 @@ bool KHttpRequest::rewriteUrl(char *newUrl, int errorCode, const char *prefix) {
 	}
 	KStringBuf s;
 	if (errorCode > 0) {
-		s << errorCode << ";" << buildProto(url->proto) << "://" << url->host
-				<< ":" << url->port << url->path;
+		s << errorCode << ";";
+		if (TEST(url->flags, KGL_URL_SSL)) {
+			s << "https";
+		} else {
+			s << "http";
+		}
+		s << "://" << url->host	<< ":" << url->port << url->path;
 		if (url->param) {
 			s << "?" << url->param;
 		}
@@ -631,7 +489,7 @@ bool KHttpRequest::rewriteUrl(char *newUrl, int errorCode, const char *prefix) {
 	if (url2.host == NULL) {
 		url2.host = strdup(url->host);
 	}
-	url_decode(url2.path, 0, &flags);
+	url_decode(url2.path, 0, &url2);
 	if (ctx->obj && ctx->obj->url==url && !TEST(ctx->obj->index.flags,FLAG_URL_FREE)) {
 		//写时拷贝
 		SET(ctx->obj->index.flags,FLAG_URL_FREE);
@@ -652,10 +510,10 @@ bool KHttpRequest::rewriteUrl(char *newUrl, int errorCode, const char *prefix) {
 	if (url2.port > 0) {
 		url->port = url2.port;
 	}
-	if (url2.proto > 0) {
-		url->proto = url2.proto;
+	if (url2.flags > 0) {
+		url->flags = url2.flags;
 	}
-	SET(flags,RQ_IS_REWRITED);
+	SET(raw_url.flags,KGL_URL_REWRITED);
 	return true;
 }
 char *KHttpRequest::getUrl() {
@@ -667,14 +525,13 @@ char *KHttpRequest::getUrl() {
 std::string KHttpRequest::getInfo() {
 	KStringBuf s;
 	urlLock.Lock();
-/////////[167]
+/////////[208]
 	raw_url.getUrl(s,true);
-/////////[168]
+/////////[209]
 	urlLock.Unlock();
 	return s.getString();
 }
 void KHttpRequest::init() {
-	server->setdelay();
 	KHttpRequestData *data = static_cast<KHttpRequestData *>(this);
 	memset(data,0,sizeof(KHttpRequestData));
 	tmo = 0;
@@ -685,9 +542,8 @@ void KHttpRequest::init() {
 	parser.start();
 }
 void KHttpRequest::clean(bool keep_alive) {
-	if (keep_alive) {
-		server->setnodelay();
-		SET(workModel,WORK_MODEL_KA);
+	if (c) {
+		c->endResponse(this,keep_alive);
 	}
 	closeFetchObject();
 	while (sr) {
@@ -714,7 +570,7 @@ void KHttpRequest::clean(bool keep_alive) {
 		if_ctx = NULL;
 	}
 #endif
-/////////[169]
+/////////[210]
 	if (url) {
 		url->destroy();
 		delete url;
@@ -740,11 +596,11 @@ void KHttpRequest::clean(bool keep_alive) {
 		free(bind_ip);
 		bind_ip = NULL;
 	}
-	while (ch) {
-		KCleanHook *nch = ch->next;
-		ch->callBack(this,ch->data);
-		delete ch;
-		ch = nch;
+	while (ch_request) {
+		KCleanHook *nch = ch_request->next;
+		ch_request->callBack(ch_request->data);
+		delete ch_request;
+		ch_request = nch;
 	}
 	while (fh) {
 		KFlowInfoHelper *fh_next = fh->next;
@@ -755,57 +611,53 @@ void KHttpRequest::clean(bool keep_alive) {
 void KHttpRequest::releaseVirtualHost()
 {
 	if (svh) {
-#ifdef ENABLE_VH_RS_LIMIT
-		svh->vh->releaseConnection();
-#endif
-		svh->vh->destroy();
+		svh->release();
 		svh = NULL;
 	}
 }
-void KHttpRequest::close(bool reuse)
+void KHttpRequest::close()
 {
+#ifdef ENABLE_KSAPI_FILTER
+	/* http filter end connection hook */
+	if (svh && svh->vh->hfm) {
+		KHttpFilterHookCollect *end_connection = svh->vh->hfm->hook.end_connection;
+		if (end_connection) {
+			end_connection->process(this,KF_NOTIFY_END_CONNECT,NULL);
+		}
+	}
+	if (conf.gvm->globalVh.hfm) {
+		KHttpFilterHookCollect *end_connection = conf.gvm->globalVh.hfm->hook.end_connection;
+		if (end_connection) {
+			end_connection->process(this,KF_NOTIFY_END_CONNECT,NULL);
+		}
+	}
+#endif
 	if (list!=KGL_LIST_NONE) {
-		assert(selector);
-		selector->removeList(this);
+		assert(c->selector);
+		c->selector->removeList(this);
 	}
 	ctx->clean_obj(this);
 	clean(false);
 	while (ch_connect) {
 		KCleanHook *nch = ch_connect->next;
-		ch_connect->callBack(this,ch_connect->data);
+		ch_connect->callBack(ch_connect->data);
 		delete ch_connect;
 		ch_connect = nch;
 	}
-	if(!reuse){
-		xfree(readBuf);
-		if (auth) {
-			delete auth;
-		}
-		delete ctx;
-	} else {
-		sockop = 0;
+	
+	xfree(readBuf);
+	if (auth) {
+		delete auth;
 	}
+	delete ctx;
+	
 	freeUrl();
-	releaseVirtualHost();	
-	if (server) {
-#ifndef NDEBUG
-		//debug("client %s close connection\n",server->get_remote_ip().c_str());
-#endif
-		delRequest(this);
-		selector->removeSocket(this);
-		server->shutdown(SHUT_RDWR);
-		if (reuse) {
-			server->close();
-			workModel = 0;
-		} else {
-#ifdef KSOCKET_SSL
-			if (TEST(workModel,WORK_MODEL_SSL)) {
-				delete static_cast<KSSLSocket *>(server);
-			} else 
-#endif
-				delete server;
-		}
+	releaseVirtualHost();
+#ifdef ENABLE_KSAPI_FILTER
+	if (http_filter_ctx) {
+		delete http_filter_ctx;
 	}
+#endif
 }
 void KHttpRequest::endSubRequest()
 {
@@ -866,7 +718,7 @@ void KHttpRequest::beginSubRequest(KUrl *url,sub_request_call_back callBack,void
 	nsr->fetchObj = fetchObj;
 	nsr->file = file;
 	nsr->flags = flags;
-	CLR(flags,RQ_HAVE_RANGE|RQ_HAS_GZIP|RQ_URL_ENCODE|RQ_HAS_IF_MOD_SINCE|RQ_OBJ_STORED);
+	CLR(flags,RQ_HAVE_RANGE|RQ_HAS_GZIP|RQ_HAS_IF_MOD_SINCE|RQ_OBJ_STORED);
 	nsr->url = this->url;
 	nsr->ctx = ctx;
 	assert(ctx);
@@ -883,8 +735,9 @@ void KHttpRequest::beginSubRequest(KUrl *url,sub_request_call_back callBack,void
 	this->url = url;
 	sr = nsr;
 	//在调用子请求太多时，要切断堆栈调用,否则会堆栈溢出
-	handler = handleNextSubRequest;
-	selector->addRequest(this,KGL_LIST_RW,STAGE_OP_NEXT);
+	c->next(this,resultNextSubRequest);
+	//c->handler = handleNextSubRequest;
+	//c->selector->addRequest(this,KGL_LIST_RW,STAGE_OP_NEXT);
 }
 bool KHttpRequest::parseMeth(const char *src) {
 	meth = KHttpKeyValue::getMethod(src);
@@ -912,7 +765,42 @@ bool KHttpRequest::parseConnectUrl(char *src) {
 	raw_url.port = atoi(ss + 1);
 	return true;
 }
-int KHttpRequest::parseHeader(const char *attr, char *val, bool isFirst) {
+int KHttpRequest::parseHost(char *val)
+{
+	urlLock.Lock();
+	if (raw_url.host == NULL) {
+		char *p = NULL ;
+		if(*val == '['){
+			SET(raw_url.flags,KGL_URL_IPV6);
+			val++;
+			raw_url.host = strdup(val);
+			p = strchr(raw_url.host,']');				
+			if(p){
+				*p = '\0';
+				p = strchr(p+1,':');
+			}
+		}else{
+			raw_url.host = strdup(val);
+			p = strchr(raw_url.host, ':');
+			if(p){
+				*p = '\0';
+			}
+		}
+		if (p) {
+			raw_url.port = atoi(p+1);
+		} else {
+			if (TEST(workModel,WORK_MODEL_SSL)) {
+				raw_url.port = 443;
+			} else {
+				raw_url.port = 80;
+			}
+		}
+	}
+	urlLock.Unlock();
+	return PARSE_HEADER_SUCCESS;
+}
+int KHttpRequest::parseHeader(const char *attr, char *val,int &val_len, bool isFirst) {
+/////////[211]
 	if (isFirst) {
 		freeUrl();
 		if (!parseMeth(attr)) {
@@ -954,41 +842,10 @@ int KHttpRequest::parseHeader(const char *attr, char *val, bool isFirst) {
 		return 2;
 	}
 	if (!strcasecmp(attr, "Host")) {
-		urlLock.Lock();
-		if (raw_url.host == NULL) {
-			char *p = NULL ;
-			if(*val == '['){
-				SET(raw_url.proto,PROTO_IPV6);
-				val++;
-				raw_url.host = strdup(val);
-				p = strchr(raw_url.host,']');				
-				if(p){
-					*p = '\0';
-					p = strchr(p+1,':');
-				}
-			}else{
-				raw_url.host = strdup(val);
-				p = strchr(raw_url.host, ':');
-				if(p){
-					*p = '\0';
-				}
-			}
-			if(p){
-				raw_url.port = atoi(p+1);
-			} else {
-				if (TEST(workModel,WORK_MODEL_SSL)) {
-					raw_url.port = 443;
-				} else {
-					raw_url.port = 80;
-				}
-			}
-		}
-		urlLock.Unlock();
-		//flags |= RQ_HAS_HOST;
-		return PARSE_HEADER_SUCCESS;
+		return parseHost(val);
 	}
 	if (!strcasecmp(attr, "Connection")
-/////////[170]
+/////////[212]
 	)
 	{
 		if (!strncasecmp(val, "keep-alive", 10) && conf.keep_alive>0)
@@ -996,8 +853,9 @@ int KHttpRequest::parseHeader(const char *attr, char *val, bool isFirst) {
 		return PARSE_HEADER_SUCCESS;
 	}
 	if (!strcasecmp(attr, "Accept-Encoding")) {
+		/////////[213]
 		if (strstr(val, "gzip") != NULL) {
-				flags |= RQ_HAS_GZIP;
+			flags |= RQ_HAS_GZIP;
 		}
 		if (conf.removeAcceptEncoding) {
 			return PARSE_HEADER_NO_INSERT;
@@ -1020,7 +878,7 @@ int KHttpRequest::parseHeader(const char *attr, char *val, bool isFirst) {
 		content_length = string2int(val);
 		left_read = content_length;
 		//flags |= RQ_HAS_CONTENT_LEN;
-		return 1;
+		return PARSE_HEADER_NO_INSERT;
 	}
 	if (strcasecmp(attr, "Transfer-Encoding") == 0) {
 		if (strcasecmp(val, "chunked") == 0) {
@@ -1039,17 +897,12 @@ int KHttpRequest::parseHeader(const char *attr, char *val, bool isFirst) {
 			flags |= RQ_HAS_NO_CACHE;
 		return PARSE_HEADER_SUCCESS;
 	}
-	/*if (!strcasecmp(attr, "Proxy-Authorization")) {
-	 flags |= RQ_HAS_PROXY_AUTHORIZATION;
-	 return PARSE_HEADER_SUCCESS;
-	 }
-	 */
 	if (
-/////////[171]
+/////////[214]
 	!strcasecmp(attr, AUTH_REQUEST_HEADER)) {
-/////////[172]
+/////////[215]
 		flags |= RQ_HAS_AUTHORIZATION;
-/////////[173]
+/////////[216]
 #ifdef ENABLE_TPROXY
 		if (!TEST(workModel,WORK_MODEL_TPROXY)) {
 #endif
@@ -1078,7 +931,7 @@ int KHttpRequest::parseHeader(const char *attr, char *val, bool isFirst) {
 				delete auth;
 			}
 			auth = tauth;
-/////////[174]
+/////////[217]
 #ifdef ENABLE_TPROXY
 		}
 #endif
@@ -1091,14 +944,6 @@ int KHttpRequest::parseHeader(const char *attr, char *val, bool isFirst) {
 				flags |= RQ_HAS_NO_CACHE;
 			} else if (field.is("only-if-cached")) {
 				flags |= RQ_HAS_ONLY_IF_CACHED;
-		/*
-			} else if (field.is("max-age=", &max_age)) {
-				flags |= RQ_HAS_MAX_AGE;
-			} else if (field.is("min-fresh=", &min_fresh)) {
-				flags |= RQ_HAS_MIN_FRESH;
-			} else if (field.is("max-stale=", &max_stale)) {
-				flags |= RQ_HAS_MAX_STALE;
-		*/
 			}
 		} while (field.next());
 		return 1;
@@ -1192,6 +1037,86 @@ KOutputFilterContext *KHttpRequest::getOutputFilterContext()
 	}
 	return of_ctx;
 }
+#ifdef ENABLE_KSAPI_FILTER
+void KHttpRequest::init_http_filter()
+{
+	if (http_filter_ctx==NULL) {
+		http_filter_ctx = new KHttpFilterContext;
+		http_filter_ctx->init(this);
+	}
+}
+#endif
+bool KHttpRequest::responseHeader(const char *name,hlen_t name_len,const char *val,hlen_t val_len)
+{
+	/////////[218]
+	int len = name_len + val_len + 4;
+	char *buf = (char *)malloc(len);
+	char *hot = buf;
+	memcpy(hot,name,name_len);
+	hot += name_len;
+	memcpy(hot,": ",2);
+	hot += 2;
+	memcpy(hot,val,val_len);
+	hot += val_len;
+	memcpy(hot,"\r\n",2);
+	send_ctx.pushEnd(buf,len);
+	return true;
+}
+//发送完header开始发送body时调用
+void KHttpRequest::startResponseBody()
+{
+	assert(!TEST(flags,RQ_HAS_SEND_HEADER));
+	if (TEST(flags,RQ_HAS_SEND_HEADER)) {
+		return;
+	}
+	assert(send_size==0);
+	SET(flags,RQ_HAS_SEND_HEADER);
+	/////////[219]
+	kgl_str_t request_line;
+	getRequestLine(status_code,&request_line);
+	send_ctx.insert(request_line.data,request_line.len);
+	send_ctx.append("\r\n",2);
+	c->startResponse(this);
+	return;
+	
+}
+bool KHttpRequest::sync_send_buffer()
+{
+	for (;;) {
+		iovec iov[16];
+		int bufCount = 16;
+		buffer.getReadBuffer(iov, bufCount);
+		int got = c->write(this, iov, bufCount);
+		if (got <= 0) {
+			buffer.clean();
+			return false;
+		}
+		if (!buffer.readSuccess(got)) {
+			break;
+		}
+	}
+	buffer.clean();
+	return true;
+}
+bool KHttpRequest::sync_send_header()
+{
+	//同步模式发送header
+	for (;;) {
+		iovec iov[16];
+		int bufCount = 16;
+		send_ctx.getReadBuffer(iov, bufCount);
+		int got = c->write(this, iov, bufCount);
+		if (got <= 0) {
+			send_ctx.clean();
+			return false;
+		}
+		if (!send_ctx.readSuccess(got)) {
+			break;
+		}
+	}
+	send_ctx.clean();
+	return true;
+}
 KHttpRequest *RequestList::getHead() {
 	return head;
 }
@@ -1263,23 +1188,6 @@ KHttpRequest *RequestList::remove(KHttpRequest *rq) {
 		head = head->next;
 	}
 	return rqNext;
-#if 0
-	KHttpRequest *rqNext = rq->next;
-	assert(rq);
-	if (rq->next) {
-		rq->next->prev = rq->prev;
-	}
-	if (rq->prev) {
-		rq->prev->next = rq->next;
-	}
-	if (rq == end) {
-		end = end->prev;
-	}
-	if (rq == head) {
-		head = head->next;
-	}
-	return rqNext;
-#endif
 }
 RequestList::RequestList() {
 	head = end = NULL;

@@ -54,7 +54,7 @@ bool KRedirectMark::mark(KHttpRequest *rq, KHttpObject *obj,
 		rq->rewriteUrl(dst);
 	} else {
 		int status_code = code;
-		send_redirect(rq, dst,status_code, rq->buffer);
+		send_redirect(rq, dst,strlen(dst),status_code);
 		jumpType = JUMP_DENY;
 	}
 	return true;

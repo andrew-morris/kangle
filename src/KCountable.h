@@ -20,9 +20,9 @@
 #include "global.h"
 #include "KMutex.h"
 #include "malloc_debug.h"
-/////////[214]
+/////////[269]
 #define KAtomCountable KCountableEx
-/////////[215]
+/////////[270]
 /*
 @deprecated 
 «Î π”√KCountableEx
@@ -142,5 +142,5 @@ protected:
 	volatile int refs;
 	KMutex refsLock;
 };
-/////////[216]
+/////////[271]
 #endif /*KCOUNTABLE_H_*/

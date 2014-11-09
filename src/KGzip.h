@@ -32,7 +32,7 @@ class KHttpTransfer;
 enum {
 	GZIP_DECOMPRESS_ERROR, GZIP_DECOMPRESS_CONTINUE, GZIP_DECOMPRESS_END
 };
-class KGzipDecompress : public KWUpStream
+class KGzipDecompress : public KHttpStream
 {
 public:
 	KGzipDecompress(KWStream *st,bool autoDelete);
@@ -52,10 +52,10 @@ private:
 	bool fast;
 	int in_skip ;
 };
-class KGzipCompress : public KWUpStream
+class KGzipCompress : public KHttpStream
 {
 public:
-	KGzipCompress(KWStream *st,bool autoDelete);
+	KGzipCompress(bool use_deflate,KWStream *st,bool autoDelete);
 	~KGzipCompress();
 	StreamState write_all(const char *str,int len);
 	StreamState write_end();
@@ -75,34 +75,6 @@ private:
 	uLong crc;
 	bool fast;
 	bool isSuccess;
+	bool use_deflate;
 };
-/*
-老的压缩类，新的请使用KGzipCompress，使用流操作.
-* /
-class KGzip {
-public:
-	KGzip();
-	virtual ~KGzip();
-	unsigned getLen() {
-		return totalLen;
-	}
-	bool initCompress();
-	bool initDecompress();
-
-	int decompress(const char *str, int len, KHttpRequest *rq, KBuffer *buffer);
-	bool
-	compress(const char *str, int len, KWStream *st);
-	//compress data end
-	bool compressEnd(KWStream *st, bool fast = true);
-private:
-	bool compress(KWStream *st, bool flush);
-	z_stream strm;
-	char *out;
-	unsigned used;
-	uLong crc;
-	int model;
-	unsigned totalLen;
-};
-*/
-
 #endif /* KGZIP_H_ */

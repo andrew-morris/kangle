@@ -22,9 +22,8 @@
  *  Author: KangHongjiu <keengo99@gmail.com>
  */
 #include <string.h>
-#include "http.h"
-#include "KBuffer.h"
 #include "malloc_debug.h"
+#include "KBuffer.h"
 StreamState send_buff(KSendable *socket, buff *send_buffer , INT64 &start,INT64 &send_len)
 {
 	INT64 this_send_len;
@@ -180,6 +179,7 @@ void KBuffer::internelEnd(char *buf, int len, int addBytes) {
 		//      printf("addBytes=%d\n",addBytes);
 		hot_buf->data = (char *) xmalloc(len + addBytes);
 		hot_buf->next = NULL;
+		hot_buf->flags = 0;
 		if (len > 0) {
 			memcpy(hot_buf->data, buf, len);
 		}
@@ -205,6 +205,7 @@ buff *KBuffer::getAllBuf()
 	hot_buf->data = hotData;
 	hot_buf->next = NULL;
 	hot_buf->used = used;
+	hot_buf->flags = 0;
 	used = 0;
 	hotData = NULL;
 	return out_buf;
@@ -227,6 +228,7 @@ buff *KBuffer::stealBuffFast() {
 	hot_buf->data = hotData;
 	hot_buf->next = NULL;
 	hot_buf->used = used;
+	hot_buf->flags = 0;
 	hot_buf = out_buf;
 	out_buf = NULL;
 	hotData = NULL;
@@ -249,6 +251,7 @@ void KBuffer::internelAdd(char *buf, int len) {
 		hot_buf->next = (buff *) xmalloc(sizeof(buff));
 		hot_buf = hot_buf->next;
 	}
+	hot_buf->flags = 0;
 	hot_buf->data = buf;
 	hot_buf->next = NULL;
 	hot_buf->used = len;

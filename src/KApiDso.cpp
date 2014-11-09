@@ -95,7 +95,7 @@ bool KApiDso::init() {
 	info.hvcb.ServerFree = this->ServerFree;
 	info.hvcb.ServerSupportFunction = this->ServerSupportFunction;
 	if (GetExtensionVersion(&info) == FALSE) {
-		debug("call GetExtensionVersion return failed %d\n", GetLastError());
+		klog(KLOG_ERR,"call GetExtensionVersion return failed %s %d\n",path.c_str(), GetLastError());
 		unload();
 		return false;
 	}
@@ -112,16 +112,16 @@ bool KApiDso::load() {
 		return true;
 	}
 	state = STATE_LOAD_FAILED;
-/////////[181]
+/////////[234]
 	handle = LoadLibrary(path.c_str());
 	if (handle == NULL) {
-		debug("cann't LoadLibrary %s %s\n", path.c_str(), getError());
+		klog(KLOG_ERR,"cann't LoadLibrary %s %s\n", path.c_str(), getError());
 		return false;
 	}
-/////////[182]
+/////////[235]
 	DllMain = (DllMainf) GetProcAddress(handle, "DllMain");
 	attachProcess();
-/////////[183]
+/////////[236]
 	GetExtensionVersion = (GetExtensionVersionf) GetProcAddress(handle,
 			"GetExtensionVersion");
 	if (GetExtensionVersion == NULL) {

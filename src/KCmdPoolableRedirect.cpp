@@ -69,13 +69,13 @@ void KCmdPoolableRedirect::buildXML(std::stringstream &s) {
 	s << "\t</cmd>\n";
 }
 
-KPoolableSocket *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KListenPipeStream *st,std::string &unix_path,bool isSameRunning){
+KUpstreamSelectable *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KListenPipeStream *st,std::string &unix_path,bool isSameRunning){
 	vector<char *> args;
 	int rdst = RDSTD_NONE;
 	KExtendProgramString ds(name.c_str(),vh);
 	Token_t token = NULL;
 	bool result = false;
-	KPoolableSocket *socket = NULL;
+	KUpstreamSelectable *socket = NULL;
 	st->process.sig = sig;
 #ifdef KSOCKET_UNIX	
 	bool unix_socket = conf.unix_socket;
@@ -124,7 +124,7 @@ KPoolableSocket *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KListen
 		lockCommand();
 	}
 	int port2 = 0;
-	/////////[251]
+	/////////[314]
 	if (isSameRunning || preLoad(&ds)) {
 		KCmdEnv *env = makeEnv(&ds);
 		result = ::createProcess(st, token, arg, env, rdst);
@@ -160,7 +160,7 @@ KPoolableSocket *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KListen
 	#endif
 				}
 			} else {
-				/////////[252]
+				/////////[315]
 				port2 = port;
 			}	
 			if (port2==0) {
@@ -175,22 +175,23 @@ KPoolableSocket *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KListen
 				//debug("cmd port=%d\n",port);
 				//第一次连接，要点时间(10秒)
 				for (int i = 0; i < (int)conf.time_out; i++) {
-					socket = new KPoolableSocket;
+					socket = new KUpstreamSelectable();
+					socket->socket = new KClientSocket;
 					if (unix_path.size()>0) {
 #ifdef KSOCKET_UNIX	
-						if (socket->connect(unix_path.c_str(),1)) {
+						if (socket->socket->connect(unix_path.c_str(),1)) {
 							debug("connect to unix socket [%s] success\n",unix_path.c_str());
 							break;
 						}
 #endif
 					} else {
-						if (socket->connect("127.0.0.1", port2, 1)) {
+						if (socket->socket->connect("127.0.0.1", port2, 1)) {
 							//socket->set_time(60);
 							debug("connect to port %d success\n",port2);
 							break;
 						}
 					}
-					delete socket;
+					socket->destroy();
 					socket = NULL;
 					if (!st->process.isActive()) {
 						break;
@@ -218,7 +219,7 @@ KPoolableSocket *KCmdPoolableRedirect::createPipeStream(KVirtualHost *vh,KListen
 	}
 #ifndef _WIN32
 	if(socket){
-		socket->setnoblock();
+		socket->socket->setnoblock();
 	}
 #endif
 	return socket;

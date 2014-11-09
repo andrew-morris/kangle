@@ -41,12 +41,13 @@ public:
 	KSockPoolHelper();
 	virtual ~KSockPoolHelper();
 	void connect(KHttpRequest *rq);
-	KPoolableSocket *getConnection(KHttpRequest *rq,bool &half,bool &need_name_resolved,bool &isSSL);
-	void isBad(KPoolableSocket *st,BadStage stage)
+	KUpstreamSelectable *getConnection(KHttpRequest *rq,bool &half,bool &need_name_resolved);
+	KUpstreamSelectable *newConnection(KHttpRequest *rq, bool &need_name_resolved);
+	void isBad(KUpstreamSelectable *st,BadStage stage)
 	{
 		switch(stage){
 		case BadStage_Connect:
-		case BadStage_Send:
+		case BadStage_TrySend:
 			error_count++;
 			if (error_count>=max_error_count) {
 				disable();
@@ -84,13 +85,29 @@ public:
 		if (ip && strcmp(ip,sh->ip)!=0) {
 			return true;
 		}
+		if (lifeTime != sh->lifeTime) {
+			return true;
+		}
 		return false;
 	}
-	void isGood(KPoolableSocket *st)
+	void isGood(KUpstreamSelectable *st)
 	{
 		enable();
 	}
+	void start_monitor_call_back();
 	void syncCheckConnect();
+	void setErrorTryTime(int max_error_count, int error_try_time)
+	{
+		lock.Lock();
+		this->max_error_count = max_error_count;
+		this->error_try_time = error_try_time;
+		if (max_error_count > 0) {
+			internalStopMonitor();
+		} else {
+			startMonitor();
+		}
+		lock.Unlock();
+	}
 	void checkActive();
 	bool setHostPort(std::string host,int port,const char *ssl);
 	bool setHostPort(std::string host, const char *port);
@@ -103,7 +120,7 @@ public:
 			free(this->ip);
 			this->ip = NULL;
 		}
-		if (ip) {
+		if (ip && *ip) {
 			this->ip = strdup(ip);
 		}
 	}
@@ -113,11 +130,11 @@ public:
 	}
 	int hit;
 	int weight;
-	std::string host;
+	std::string host;	
 	int port;
 	bool isUnix;
 	bool isIp;
-	/////////[206]
+	/////////[261]
 	int error_try_time;
 	/*
 	 * 连续错误连接次数，如果超过MAX_ERROR_COUNT次，就会认为是问题的。
@@ -129,16 +146,30 @@ public:
 	 * 下次试连接时间，如果是0表示活跃的。
 	 */
 	time_t tryTime;
-	bool real_connect(KHttpRequest *rq,KPoolableSocket *socket,bool isSSL);
+	bool real_connect(KHttpRequest *rq,KUpstreamSelectable *socket);
 	void buildXML(std::stringstream &s);
 	bool parse(std::map<std::string,std::string> &attr);
+	void monitorConnectStage(KHttpRequest *rq, KUpstreamSelectable *socket);
+	void monitorNextTick();
+	void stopMonitor()
+	{
+		lock.Lock();
+		internalStopMonitor();
+		lock.Unlock();
+	}
 	KSockPoolHelper *next;
 	KSockPoolHelper *prev;
-private:
+private:	
+	void startMonitor();
+	void internalStopMonitor()
+	{
+		monitor = false;
+	}
 	char *ip;
 	bool auto_detected_ip;
+	bool monitor;
 	KMutex lock;
-/////////[207]
+/////////[262]
 };
 
 #endif /* KSOCKPOOLHELPER_H_ */

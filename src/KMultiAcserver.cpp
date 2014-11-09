@@ -25,6 +25,8 @@
 #include "lang.h"
 #include "malloc_debug.h"
 #include "KAsyncFetchObject.h"
+#include "KAcserverManager.h"
+#include "KConfig.h"
 using namespace std;
 #ifdef ENABLE_MULTI_SERVER
 KMultiAcserver::KMultiAcserver() {
@@ -34,15 +36,18 @@ KMultiAcserver::KMultiAcserver() {
 	cookie_stick = false;
 	errorTryTime = 20;
 	max_error_count = 5;
+	/////////[400]
 }
 KMultiAcserver::~KMultiAcserver() {
 	removeAllNode();
+	/////////[401]
 }
 void KMultiAcserver::removeAllNode()
 {
 	KSockPoolHelper *helper = nodes;
 	while (helper) {
 		KSockPoolHelper *n = helper->next;
+		helper->stopMonitor();
 		helper->release();
 		nodesCount--;
 		if (n==nodes) {
@@ -121,7 +126,7 @@ unsigned short KMultiAcserver::getNodeIndex(KHttpRequest *rq)
 			av = av->next;
 		}
 	}
-	unsigned short index = (unsigned short)((ip_hash?rq->server->addr.get_hash():rand()) % vnodes.size());
+	unsigned short index = (unsigned short)((ip_hash?rq->c->socket->addr.get_hash():rand()) % vnodes.size());
 	if (cookie_stick) {
 		rq->cookie_stick = index + 1;
 	}
@@ -176,6 +181,7 @@ void KMultiAcserver::connect(KHttpRequest *rq)
 			return;
 		}
 	}
+	/////////[402]
 	//reset all node
 	enableAllServer();
 	sockHelper->addRef();
@@ -183,7 +189,7 @@ void KMultiAcserver::connect(KHttpRequest *rq)
 	lock.Unlock();
 	sockHelper->connect(rq);
 	sockHelper->release();
-	return;
+	return;	
 }
 KSockPoolHelper *KMultiAcserver::nextActiveNode(KSockPoolHelper *node,unsigned short &index)
 {
@@ -218,6 +224,49 @@ KSockPoolHelper *KMultiAcserver::nextActiveNode(KSockPoolHelper *node,unsigned s
 unsigned KMultiAcserver::getPoolSize() {
 	return 0;
 }
+bool KMultiAcserver::addNode(std::map<std::string, std::string> &attr)
+{
+	KSockPoolHelper *sockHelper = new KSockPoolHelper;
+	if (!sockHelper->parse(attr)){
+		delete sockHelper;
+		return false;
+	}
+	unsigned weight = atoi(attr["weight"].c_str());
+	sockHelper->weight = weight;
+	sockHelper->setErrorTryTime(max_error_count, errorTryTime);
+	lock.Lock();
+	addNode(sockHelper);
+	buildVNode();
+	lock.Unlock();
+	return true;
+}
+bool KMultiAcserver::addNode(std::map<std::string, std::string> &attr, char *self_ip)
+{
+	char *to_ip = strchr(self_ip, '-');
+	if (to_ip) {
+		*to_ip = '\0';
+		to_ip++;
+		sockaddr_i min_addr;
+		sockaddr_i max_addr;
+		if (!KSocket::getaddr(self_ip, 0, &min_addr, AF_INET, AI_NUMERICHOST)) {			
+			return false;
+		}
+		if (!KSocket::getaddr(to_ip, 0, &max_addr, AF_INET, AI_NUMERICHOST)) {			
+			return false;
+		}
+		uint32_t min_ip = ntohl(min_addr.v4.sin_addr.s_addr);
+		uint32_t max_ip = ntohl(max_addr.v4.sin_addr.s_addr);
+		for (uint32_t ip = min_ip; ip <= max_ip; ip++) {
+			min_addr.v4.sin_addr.s_addr = htonl(ip);
+			char ips[MAXIPLEN];
+			KSocket::make_ip(&min_addr, ips, MAXIPLEN);
+			attr["self_ip"] = ips;
+			addNode(attr);
+		}
+		return true;
+	}
+	return false;
+}
 bool KMultiAcserver::editNode(std::map<std::string,std::string> &attr) {
 	string action = attr["action"];
 	if (action=="edit") {
@@ -231,19 +280,16 @@ bool KMultiAcserver::editNode(std::map<std::string,std::string> &attr) {
 		}
 		lock.Unlock();
 	} else {
-		KSockPoolHelper *sockHelper = new KSockPoolHelper;	
-		if(!sockHelper->parse(attr)){
-			delete sockHelper;
-			return false;
+		const char *self_ip = attr["self_ip"].c_str();
+		if (self_ip && *self_ip) {
+			char *buf = strdup(self_ip);
+			if (addNode(attr, buf)) {
+				free(buf);
+				return true;
+			}
+			free(buf);
 		}
-		unsigned weight = atoi(attr["weight"].c_str());
-		sockHelper->weight = weight;
-		sockHelper->error_try_time = errorTryTime;
-		sockHelper->max_error_count = max_error_count;
-		lock.Lock();
-		addNode(sockHelper);
-		buildVNode();
-		lock.Unlock();
+		return addNode(attr);
 	}
 	return true;
 }
@@ -286,14 +332,18 @@ std::string KMultiAcserver::nodeForm(std::string name, KMultiAcserver *as,
 	}
 	s  << "'>";
 	s << LANG_PORT << ": <input name='port' size='5' value='" << (helper ? helper->port:80) ;
-/////////[332]
+/////////[403]
 	s << "'>";
 	s << "<br>";
 	s << klang["lang_life_time"] << ": <input name='life_time' size=6 value='"	<< (helper ? helper->getLifeTime() : 0) << "'><br>";
-/////////[333]
+/////////[404]
 	s << klang["weight"] << ": <input name='weight' value='"
 			<< (helper ? helper->weight : 1) << "'><br>";
-
+	const char *self_ip = NULL;
+	if (helper) {
+		self_ip = helper->getIp();
+	}
+	s << "self_ip: <input name='self_ip' value='" << (self_ip ? self_ip : "") << "'><br>";
 	s << "<input type='submit' value='" << LANG_SUBMIT << "'>";
 	s << "</form>";
 	if (as) {
@@ -350,8 +400,8 @@ void KMultiAcserver::getHtml(std::stringstream &s) {
 	s << "<td rowspan='" << nodesCount << "'>" << (cookie_stick?LANG_ON:"&nbsp;") << "</td>";
 	s << "<td rowspan='" << nodesCount << "'>" << errorTryTime << "</td>";
 	s << "<td rowspan='" << nodesCount << "'>" << max_error_count << "</td>";
-	s << "<td rowspan='" << nodesCount << "'>" << getRefFast()
-			<< "</td>";
+	s << "<td rowspan='" << nodesCount << "'>" << getRefFast()	<< "</td>";
+	/////////[405]
 	KSockPoolHelper *node = nodes;
 	for (int i = 0; i < nodesCount; i++) {
 		assert(node);
@@ -370,18 +420,20 @@ void KMultiAcserver::getHtml(std::stringstream &s) {
 			s << "-";
 		else 
 			s << node->port ;
-		/////////[334]
+		/////////[406]
 		s << "</td>";
 		s << "<td>" << node->getLifeTime() << "</td>";
 		s << "<td>" << node->getSize() << "</td>";
 		s << "<td>" << node->weight << "</td>";
+		const char *ip = node->getIp();
+		s << "<td>" << (ip ? ip : "") << "</td>";
 		s << "<td>" << node->hit << "</td>";
 		s << "<td>" << (node->isEnable()?"<font color=green>OK</font>":"<font color=red>FAILED</font>") << "</td>";
 		s << "</tr>\n";
 		node = node->next;
 	}
 	if (nodesCount == 0) {
-		s << "<td colspan=7>&nbsp; </td></tr>";
+		s << "<td colspan=9>&nbsp; </td></tr>";
 	}
 	lock.Unlock();
 }
@@ -432,7 +484,7 @@ void KMultiAcserver::baseHtml(KMultiAcserver *mserver,std::stringstream &s)
 	s << ">" << klang["cookie_stick"] << "<br>";
 	s << klang["error_try_time"] << "<input name='error_try_time' value='" << (mserver?mserver->errorTryTime:30) << "' size='4'><br>";
 	s << klang["error_count"] << "<input name='max_error_count' value='" << (mserver?mserver->max_error_count:5) << "' size='4'><br>";
-
+	/////////[407]
 }
 std::string KMultiAcserver::form(KMultiAcserver *mserver)
 {
@@ -480,21 +532,27 @@ void KMultiAcserver::parseNode(const char *nodeString)
 		if (port) {
 			*port = '\0';
 			port ++;
+			KSockPoolHelper *sockHelper = new KSockPoolHelper;
+			sockHelper->setHostPort(hot, port);
 			char *lifeTime = strchr(port,':');
 			if (lifeTime) {
 				*lifeTime='\0';
 				lifeTime++;
+				sockHelper->setLifeTime(atoi(lifeTime));
 				char *weight = strchr(lifeTime,':');
 				if (weight) {
 					*weight = '\0';
 					weight ++;
-					KSockPoolHelper *sockHelper = new KSockPoolHelper;
-					sockHelper->setHostPort(hot,port);
-					sockHelper->setLifeTime(atoi(lifeTime));
 					sockHelper->weight = atoi(weight);
-					addNode(sockHelper);
+					char *ip = strchr(weight, ':');
+					if (ip) {
+						*ip = '\0';
+						ip++;
+						sockHelper->setIp(ip);
+					}
 				}
 			}
+			addNode(sockHelper);
 		}
 		if (p==NULL) {
 			break;
@@ -505,8 +563,34 @@ void KMultiAcserver::parseNode(const char *nodeString)
 	lock.Unlock();
 	free(buf);
 }
+void KMultiAcserver::setErrorTryTime(int max_error_count,int errorTryTime)
+{
+	if (errorTryTime > 600) {
+		errorTryTime = 600;
+	}
+	if (errorTryTime < 1) {
+		errorTryTime = 1;
+	}
+	lock.Lock();
+	this->max_error_count = max_error_count;
+	this->errorTryTime = errorTryTime;
+	KSockPoolHelper *helper = nodes;
+	while (helper) {
+		KSockPoolHelper *n = helper->next;
+		n->setErrorTryTime(max_error_count, errorTryTime);
+		helper->error_try_time = errorTryTime;
+		helper->max_error_count = max_error_count;
+		if (n == nodes) {
+			break;
+		}
+		helper = n;
+	}
+	lock.Unlock();
+}
+/////////[408]
 void KMultiAcserver::parse(std::map<std::string,std::string> &attribute)
 {
+	/////////[409]
 	lock.Lock();
 	if (name.size()==0) {
 		name = attribute["name"];
@@ -514,19 +598,8 @@ void KMultiAcserver::parse(std::map<std::string,std::string> &attribute)
 	ip_hash = attribute["ip_hash"]=="1";
 	cookie_stick = attribute["cookie_stick"]=="1";
 	proto = KPoolableRedirect::parseProto(attribute["proto"].c_str());
-	errorTryTime = atoi(attribute["error_try_time"].c_str());
-	max_error_count = atoi(attribute["max_error_count"].c_str());
-	KSockPoolHelper *helper = nodes;
-	while (helper) {
-		KSockPoolHelper *n = helper->next;
-		helper->error_try_time = errorTryTime;
-		helper->max_error_count = max_error_count;
-		if (n==nodes) {
-			break;
-		}
-		helper = n;
-	}
 	lock.Unlock();
+	setErrorTryTime(atoi(attribute["max_error_count"].c_str()), atoi(attribute["error_try_time"].c_str()));
 }
 bool KMultiAcserver::delNode(int nodeIndex) {
 	bool result = false;
@@ -551,6 +624,7 @@ bool KMultiAcserver::delNode(int nodeIndex) {
 			helper->prev->next = helper->next;
 			helper->next->prev = helper->prev;
 		}
+		helper->stopMonitor();
 		helper->release();
 		buildVNode();
 	}
@@ -584,7 +658,8 @@ void KMultiAcserver::buildAttribute(std::stringstream &s)
 	s << "' ip_hash='" << (ip_hash?1:0) << "' ";
 	s << "cookie_stick='" << (cookie_stick?1:0) << "' ";
 	s << "error_try_time='" << errorTryTime << "' ";
-	s << "max_error_count='" << max_error_count << "'";
+	s << "max_error_count='" << max_error_count << "' ";
+	/////////[410]
 }
 void KMultiAcserver::buildXML(std::stringstream &s) {
 	s << "\t<server name='" << name << "' ";
@@ -624,6 +699,7 @@ bool KMultiAcserver::isChanged(KPoolableRedirect *rd)
 			break;
 		}
 	}
-	return false;
+	/////////[411]
+	return true;
 }
 #endif

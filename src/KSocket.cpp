@@ -38,8 +38,8 @@
 //#include "KSockPoolHelper.h"
 //#include "ssl_utils.h"
 #include "malloc_debug.h"
-/////////[340]
-int kangle_ssl_conntion_index;
+/////////[419]
+
 #ifndef SUN_LEN
 #define SUN_LEN(su) \
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
@@ -78,12 +78,6 @@ bool waitForRW(SOCKET sockfd, bool isWrite, int timeo) {
 #endif
 	return true;
 }
-/* Make these what you want for cert & key files */
-
-//std::string KClientSocket::get_remote_ip() {
-//	return getipinfo(&addr);
-//}
-
 void KSocket::init_socket() {
 #ifdef _WIN32
 	WORD wVersionRequested;
@@ -92,7 +86,7 @@ void KSocket::init_socket() {
 	wVersionRequested = MAKEWORD(2,0);
 	err = WSAStartup(wVersionRequested, &wsaData );
 #endif
-/////////[341]
+/////////[420]
 
 }
 void KSocket::clean_socket() {
@@ -100,13 +94,6 @@ void KSocket::clean_socket() {
 	WSACleanup();
 #endif
 }
-/*
-std::string KSocket::make_ip(sockaddr_i *ip) {
-	char mip[MAXIPLEN];
-	make_ip(ip, mip, MAXIPLEN);
-	return mip;
-}
-*/
 bool KSocket::make_ip(sockaddr_i *ip, char *ips, int ips_len) {
         socklen_t addr_len = sizeof(sockaddr_i);
 #if defined(KSOCKET_IPV6)
@@ -138,11 +125,6 @@ bool KSocket::make_ip(ip_addr *ip,char *ips,int ips_len) {
 		memcpy(&a.v4.sin_addr, ip, sizeof(a.v4.sin_addr));
 	return make_ip(&a, ips, ips_len);
 }
-/*
-std::string KSocket::getipinfo(sockaddr_i *m_a) {
-	return make_ip(m_a);
-}
-*/
 u_short KSocket::getportinfo(sockaddr_i *m_a) {
 #ifdef KSOCKET_IPV6
 	if (m_a->v4.sin_family == PF_INET6) {
@@ -158,14 +140,6 @@ void KSocket::get_self_ip(char *ips,size_t ips_len)
         ::getsockname(sockfd, (struct sockaddr *) &s_sockaddr, &addr_len);
 	make_ip(&s_sockaddr,ips,ips_len);
 }
-/*
-std::string KSocket::get_self_ip() {
-	sockaddr_i s_sockaddr;
-	socklen_t addr_len = sizeof(sockaddr_i);
-	::getsockname(sockfd, (struct sockaddr *) &s_sockaddr, &addr_len);
-	return getipinfo(&s_sockaddr);
-}
-*/
 u_short KSocket::get_self_port() {
 	sockaddr_i s_sockaddr;
 	socklen_t addr_len = sizeof(s_sockaddr);
@@ -221,7 +195,7 @@ int KClientSocket::writev(iovec *v,int vc,bool isSSL)
 		while (len>0) {
 			int this_write = this->write(hot,len);
 			if (this_write<=0) {
-				return got;
+				return (got>0?got:this_write);
 			}
 			got += this_write;
 			len -= this_write;
@@ -255,6 +229,23 @@ bool KSocket::getaddr(const char *host, ip_addr *ip) {
 	freeaddrinfo(res);
 	return true;
 }
+static struct addrinfo *getaddr(const char *host, int port, int ai_family, int ai_flags)
+{
+	struct addrinfo *res;
+#ifndef KSOCKET_IPV6
+	ai_family = PF_INET;
+#endif
+	struct addrinfo f;
+	memset(&f, 0, sizeof(f));
+	f.ai_family = ai_family;
+	f.ai_flags = ai_flags;
+	int ret = getaddrinfo(host, NULL, &f, &res);
+	if (ret != 0 || res == NULL) {
+		debug("ret=%d,res=%x,errno=%d %s\n", ret, res, errno, strerror(errno));
+		return NULL;
+	}
+	return res;
+}
 bool KSocket::getaddr(const char *host, int port, sockaddr_i *m_a,int ai_family,int ai_flags) {
 	struct addrinfo *res;
 #ifndef KSOCKET_IPV6
@@ -279,21 +270,21 @@ bool KSocket::getaddr(const char *host, int port, sockaddr_i *m_a,int ai_family,
 	freeaddrinfo(res);
 	return true;
 }
-bool KClientSocket::connect(sockaddr_i &m_adr, int tmo) {
+bool KClientSocket::connect(sockaddr_i &m_adr, int tmo, sockaddr_i *bind_addr) {
 	if ((sockfd = socket(m_adr.v4.sin_family, SOCK_STREAM, 0))
 			== INVALID_SOCKET) {
 		return false;
 	}
 	setCloseOnExec();
-	memcpy(&addr, &m_adr, sizeof(addr));
-	int addr_len = sizeof(addr);
-#if defined(KSOCKET_IPV6) 
-	if (addr.v4.sin_family == PF_INET) {
-		addr_len = sizeof(addr.v4);
+	if (bind_addr) {
+		int addr_len = bind_addr->get_addr_len();
+		if (::bind(sockfd, (struct sockaddr *) bind_addr, addr_len) < 0) {
+			return false;
+		}
 	}
-#endif
+	memcpy(&addr, &m_adr, sizeof(addr));
+	int addr_len = addr.get_addr_len();
 	if (connect(sockfd, (struct sockaddr *) (&addr), addr_len, tmo) < 0) {
-
 		return false;
 	}
 	return true;
@@ -301,156 +292,98 @@ bool KClientSocket::connect(sockaddr_i &m_adr, int tmo) {
 #ifdef KSOCKET_UNIX
 bool KClientSocket::connect(const char *unixfile,int tmo)
 {
-	struct sockaddr_un sun;
+	struct sockaddr_un sun2;
         if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
                 return false;
 	setCloseOnExec();
-	memset(&sun, 0, sizeof(struct sockaddr_un));
-        sun.sun_family = AF_UNIX;
-        strncpy(sun.sun_path, unixfile, sizeof(sun.sun_path));
-	int addr_len = sizeof(sun);
-	if (connect(sockfd, (struct sockaddr *) (&sun), addr_len, tmo) < 0) {
+	memset(&sun2, 0, sizeof(struct sockaddr_un));
+        sun2.sun_family = AF_UNIX;
+        strncpy(sun2.sun_path, unixfile, sizeof(sun2.sun_path));
+	int addr_len = sizeof(sun2);
+	if (connect(sockfd, (struct sockaddr *) (&sun2), addr_len, tmo) < 0) {
                 return false;
         }
         return true;
 }
 bool KClientSocket::halfconnect(const char *unixfile)
 {
-	struct sockaddr_un sun;
+	struct sockaddr_un sun2;
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 		return false;
 	setCloseOnExec();
 	::setnoblock(sockfd);
-	memset(&sun, 0, sizeof(struct sockaddr_un));
-	sun.sun_family = AF_UNIX;
-	strncpy(sun.sun_path, unixfile, sizeof(sun.sun_path));
-	::connect(sockfd, (struct sockaddr *)&sun, SUN_LEN(&sun));
+	memset(&sun2, 0, sizeof(struct sockaddr_un));
+	sun2.sun_family = AF_UNIX;
+	strncpy(sun2.sun_path, unixfile, sizeof(sun2.sun_path));
+	::connect(sockfd, (struct sockaddr *)&sun2, SUN_LEN(&sun2));
 	return true;
 }
 #endif
+bool KClientSocket::halfconnect(sockaddr_i *bind_addr,bool tproxy)
+{
+	if ((sockfd = socket(addr.v4.sin_family, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+		return false;
+	}
+	setCloseOnExec();
+	if (bind_addr) {
+		int addr_len = bind_addr->get_addr_len();
+#ifdef IP_TRANSPARENT
+#ifdef KSOCKET_TPROXY
+		if (tproxy) {
+			int value = 1;
+			setsockopt(sockfd, SOL_IP, IP_TRANSPARENT, &value, sizeof(value));
+			set_mask(8);
+		}
+#endif
+#endif
+		if (::bind(sockfd, (struct sockaddr *) bind_addr, addr_len) < 0) {
+			return false;
+		}
+	}
+#ifdef _WIN32
+	else {
+		sockaddr_i bindaddr;
+		memset(&bindaddr,0,sizeof(bindaddr));
+		bindaddr.v4.sin_family = addr.v4.sin_family;
+		int addr_len = bindaddr.get_addr_len();
+		if (::bind(sockfd, (struct sockaddr *) &bindaddr, addr_len) < 0) {
+			int err = WSAGetLastError();
+			klog(KLOG_ERR,"cann't bind addr,errno=%d\n",err);
+			return false;
+		}
+	}
+#else
+	int addr_len = addr.get_addr_len();
+	::setnoblock(sockfd);
+	int rc = ::connect(sockfd, (struct sockaddr *) (&addr), addr_len);
+	if (rc==-1) {
+		int err = errno;
+		if (err!=EINPROGRESS) {
+			klog(KLOG_ERR,"cann't connect sockfd=%d,errno=%d\n",sockfd,errno);
+		}
+	}
+#endif
+	return true;
+}
 bool KClientSocket::halfconnect(const char *host, int port,int ai_family,sockaddr_i *bind_addr,bool tproxy)
 {
 	if (!getaddr(host, port, &addr,ai_family)) {
 		return false;
 	}
-	if ((sockfd = socket(addr.v4.sin_family, SOCK_STREAM, 0)) == INVALID_SOCKET) {
-		return false;
-	}
-	setCloseOnExec();
-#ifndef _WIN32
-	if (bind_addr) {
-		/*
-		sockaddr_i b_addr;
-		if (!getaddr(bind_ip,0,&b_addr,AF_UNSPEC,AI_NUMERICHOST)) {
-			return false;
-		}
-		*/
-		int addr_len = sizeof(sockaddr_i);
-#if defined(KSOCKET_IPV6) 
-		if (bind_addr->v4.sin_family == PF_INET) {
-			addr_len = sizeof(bind_addr->v4);
-		}
-#endif
-#ifdef IP_TRANSPARENT
-#ifdef KSOCKET_TPROXY
-		if (tproxy) {
-			int value = 1;
-			setsockopt(sockfd, SOL_IP, IP_TRANSPARENT, &value, sizeof(value));
-			set_mask(8);
-		}
-#endif
-#endif
-		if (::bind(sockfd, (struct sockaddr *) bind_addr, addr_len) < 0) {
-			return false;
-		}
-	}
-	int addr_len = sizeof(addr);
-#if defined(KSOCKET_IPV6) 
-	if (addr.v4.sin_family == PF_INET) {
-		addr_len = sizeof(addr.v4);
-	}
-#endif
-	::setnoblock(sockfd);
-	int rc = ::connect(sockfd, (struct sockaddr *) (&addr), addr_len);
-	if (rc==-1) {
-		int err = errno;
-		if (err!=EINPROGRESS) {
-			klog(KLOG_ERR,"cann't connect sockfd=%d,errno=%d\n",sockfd,errno);
-		}
-	}
-#endif
-	return true;
+	return halfconnect(bind_addr,tproxy);
 }
 bool KClientSocket::halfconnect(sockaddr_i &m_adr,sockaddr_i *bind_addr,bool tproxy)
 {
-	if ((sockfd = socket(m_adr.v4.sin_family, SOCK_STREAM, 0))
-			== INVALID_SOCKET) {
-		return false;
-	}
-	setCloseOnExec();
 	memcpy(&addr, &m_adr, sizeof(addr));
-#ifndef _WIN32
-	if (bind_addr) {
-		/*
-		sockaddr_i b_addr;
-		if (!getaddr(bind_ip,0,&b_addr,AF_UNSPEC,AI_NUMERICHOST)) {
-			return false;
-		}
-		*/
-		int addr_len = sizeof(sockaddr_i);
-#if defined(KSOCKET_IPV6) 
-		if (bind_addr->v4.sin_family == PF_INET) {
-			addr_len = sizeof(bind_addr->v4);
-		}
-#endif
-#ifdef IP_TRANSPARENT
-#ifdef KSOCKET_TPROXY
-		if (tproxy) {
-			int value = 1;
-			setsockopt(sockfd, SOL_IP, IP_TRANSPARENT, &value, sizeof(value));
-			set_mask(8);
-		}
-#endif
-#endif
-		if (::bind(sockfd, (struct sockaddr *) bind_addr, addr_len) < 0) {
-			return false;
-		}
-	}
-	int addr_len = sizeof(addr);
-#if defined(KSOCKET_IPV6) 
-	if (addr.v4.sin_family == PF_INET) {
-		addr_len = sizeof(addr.v4);
-	}
-#endif
-	::setnoblock(sockfd);
-	int rc = ::connect(sockfd, (struct sockaddr *) (&addr), addr_len);
-	if (rc==-1) {
-		int err = errno;
-		if (err!=EINPROGRESS) {
-			klog(KLOG_ERR,"cann't connect sockfd=%d,errno=%d\n",sockfd,errno);
-		}
-	}
-#endif
-	return true;
+	return halfconnect(bind_addr,tproxy);
+	
 }
-bool KClientSocket::connect(const char *host, int port, int tmo) {
-	if (!getaddr(host, port, &addr)) {
+bool KClientSocket::connect(const char *host, int port, int tmo, sockaddr_i *bind_addr) {
+	sockaddr_i sock_addr;
+	if (!getaddr(host, port, &sock_addr)) {
 		return false;
 	}
-	if ((sockfd = socket(addr.v4.sin_family, SOCK_STREAM, 0)) == INVALID_SOCKET) {
-		return false;
-	}
-	setCloseOnExec();
-	int addr_len = sizeof(addr);
-#if defined(KSOCKET_IPV6) 
-	if (addr.v4.sin_family == PF_INET) {
-		addr_len = sizeof(addr.v4);
-	}
-#endif
-	if (connect(sockfd, (struct sockaddr *) (&addr), addr_len, tmo) < 0) {
-		return false;
-	}
-	return true;
+	return connect(sock_addr, tmo, bind_addr);
 }
 int KClientSocket::connect(SOCKET sockfd, const struct sockaddr *serv_addr,
 		socklen_t addrlen, int tmo) {
@@ -539,12 +472,7 @@ bool KServerSocket::listen(int flag) {
 		setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (const char *) &n, sizeof(int));
 	}
 #endif
-	int addr_len = sizeof(addr);
-#if defined(KSOCKET_IPV6) 
-	if (addr.v4.sin_family == PF_INET) {
-		addr_len = sizeof(addr.v4);
-	}
-#endif
+	int addr_len = addr.get_addr_len();
 #ifdef IP_TRANSPARENT
 #ifdef KSOCKET_TPROXY
 	if (TEST(flag,KSOCKET_TPROXY) ){
@@ -569,16 +497,16 @@ bool KServerSocket::listen(int flag) {
 bool KUnixServerSocket::open(const char *path)
 {
 	int flags = 1;
-        struct sockaddr_un sun;
+        struct sockaddr_un sun2;
 	unlink(path);
         if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
                 return false;
 	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &flags, sizeof(flags));
-        memset(&sun, 0, sizeof(struct sockaddr_un));
-        sun.sun_family = AF_UNIX;
-        strncpy(sun.sun_path, path, sizeof(sun.sun_path));
-	int addr_len = sizeof(sun);
-	if (::bind(sockfd, (struct sockaddr *) &sun, addr_len) < 0) {
+        memset(&sun2, 0, sizeof(struct sockaddr_un));
+        sun2.sun_family = AF_UNIX;
+        strncpy(sun2.sun_path, path, sizeof(sun2.sun_path));
+	int addr_len = sizeof(sun2);
+	if (::bind(sockfd, (struct sockaddr *) &sun2, addr_len) < 0) {
 		return false;
 	}
 	if (::listen(sockfd, 4096) < 0) {

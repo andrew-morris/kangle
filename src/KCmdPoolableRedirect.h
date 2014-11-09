@@ -41,7 +41,7 @@ public:
 	KProcessManage *getProcessManage() {
 		return static_cast<KProcessManage *>(&pm);
 	}
-	KPoolableSocket *createPipeStream(KVirtualHost *vh, KListenPipeStream *st,std::string &unix_path,bool isSameRunning);
+	KUpstreamSelectable *createPipeStream(KVirtualHost *vh, KListenPipeStream *st,std::string &unix_path,bool isSameRunning);
 	bool parseEnv(std::map<std::string, std::string> &attribute);
 	void buildXML(std::stringstream &s);
 	const char *getType() {

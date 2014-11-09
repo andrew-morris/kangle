@@ -10,17 +10,17 @@ void KHmuxFetchObject::buildHead(KHttpRequest *rq)
 		addEnv(CSE_QUERY_STRING,rq->url->param);
 	}
 	addEnv(HMUX_SERVER_NAME, rq->url->host);
-	addEnv(CSE_SERVER_PORT, rq->server->get_self_port());
+	addEnv(CSE_SERVER_PORT, rq->c->socket->get_self_port());
 	if (rq->client_ip) {
 		addEnv(CSE_REMOTE_HOST,rq->client_ip);
 		addEnv(CSE_REMOTE_ADDR,rq->client_ip);
 	} else {
 		char ips[MAXIPLEN];
-		rq->server->get_remote_ip(ips,sizeof(ips));
+		rq->c->socket->get_remote_ip(ips,sizeof(ips));
 		addEnv(CSE_REMOTE_HOST,ips);
 		addEnv(CSE_REMOTE_ADDR,ips);
 	}
-	addEnv(CSE_REMOTE_PORT,rq->server->get_self_port());
+	addEnv(CSE_REMOTE_PORT,rq->c->socket->get_self_port());
 	KHttpHeader *av = rq->parser.getHeaders();
 	while (av) {
 		if (strncasecmp(av->attr, "Proxy-", 6) == 0) {
@@ -49,14 +49,14 @@ do_not_insert:
 		addEnv(HMUX_HEADER,"If-Modified-Since");
 		addEnv(HMUX_STRING, mk1123buff);
 	}
-	/////////[121]
-	if (rq->parser.bodyLen>0 && rq->left_read>0) {
+	/////////[159]
+	if (rq->pre_post_length>0) {
 		//处理pre loaded post数据
-		int pre_post_len = (int)MIN(rq->left_read,(INT64)rq->parser.bodyLen);
-		addEnv(CSE_DATA,rq->parser.body,pre_post_len);
-		rq->parser.body += pre_post_len;
-		rq->parser.bodyLen -= pre_post_len;
-		rq->left_read -= pre_post_len;
+		addEnv(CSE_DATA,rq->parser.body,rq->pre_post_length);
+		rq->parser.body += rq->pre_post_length;
+		rq->parser.bodyLen -= rq->pre_post_length;
+		rq->left_read -= rq->pre_post_length;
+		rq->pre_post_length = 0;
 	}
 	if (rq->left_read==0) {
 		buffer.write_byte(HMUX_QUIT);
@@ -65,7 +65,8 @@ do_not_insert:
 void KHmuxFetchObject::buildPost(KHttpRequest *rq)
 {
 	int length = (int)buffer.getLen();
-	nbuff *buf = (nbuff *)malloc(sizeof(nbuff) + 3);
+	buff *buf = (buff *)malloc(sizeof(buff));
+	buf->data = (char *)malloc(3);
 	buf->used = 3;
 	buf->data[0] = CSE_DATA;
 	buf->data[1] = 	(length >> 8) & 0xff;
@@ -82,6 +83,7 @@ Parse_Result KHmuxFetchObject::parseHead(KHttpRequest *rq,char *data,int len)
 	data = header + parsed_len;
 	len = hot - header - parsed_len;
 	hook.setProto(Proto_hmux);
+	int last_http_header_len = 0;
 	for (;;) {
 		int get_len = 0;
 		if (*data==CSE_DATA) {
@@ -102,6 +104,7 @@ Parse_Result KHmuxFetchObject::parseHead(KHttpRequest *rq,char *data,int len)
 			if(last_http_header){
 				break;
 			}
+			last_http_header_len = get_len;
 			last_http_header = (char *)malloc(get_len+1);
 			memcpy(last_http_header,msg,get_len);
 			last_http_header[get_len] = '\0';
@@ -113,8 +116,8 @@ Parse_Result KHmuxFetchObject::parseHead(KHttpRequest *rq,char *data,int len)
 			char *val = (char *)malloc(get_len+1);
 			memcpy(val,msg,get_len);
 			val[get_len] = '\0';
-			if(hook.parseHeader(last_http_header,val,false)==HTTP_PARSE_SUCCESS){
-				obj->insertHttpHeader2(last_http_header,val);
+			if(hook.parseHeader(last_http_header,val,get_len,false)==HTTP_PARSE_SUCCESS){
+				obj->insertHttpHeader2(last_http_header,last_http_header_len,val,get_len);
 			} else {
 				free(last_http_header);
 				free(val);

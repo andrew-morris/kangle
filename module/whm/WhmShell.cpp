@@ -143,7 +143,7 @@ int WhmShell::result(WhmShellContext *sc,WhmContext *context)
 	}
 	sc->lock.Lock();
 	KStringBuf s;
-	nbuff *buf = sc->out_buffer.getHead();
+	buff *buf = sc->out_buffer.getHead();
 	while (buf && buf->used>0) {
 		s.write_all(buf->data,buf->used);
 		buf = buf->next;

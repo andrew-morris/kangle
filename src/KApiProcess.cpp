@@ -9,7 +9,7 @@
 #include "KApiProcess.h"
 #include "malloc_debug.h"
 #include "lang.h"
-KPoolableSocket *KApiProcess::poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success)
+KUpstreamSelectable *KApiProcess::poweron(KVirtualHost *vh,KExtendProgram *erd,bool &success)
 {
 	bool unix_socket = false;
 #ifdef KSOCKET_UNIX

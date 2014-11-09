@@ -45,75 +45,113 @@ KPortSelector::KPortSelector() {
 KPortSelector::~KPortSelector() {
 	close(kdpfd);
 }
-bool KPortSelector::addListenSocket(KSelectable *st) {
-	addSocket(st,STAGE_OP_LISTEN);
-	return true;
-}
-
 void KPortSelector::select() {
-	port_event_t events; 
+	port_event_t events[MAXEVENT]; 
 	struct timespec tm;
 	tm.tv_sec = tmo_msec/1000;
-	tm.tv_nsec = tmo_msec * 1000 - tm.tv_sec * 1000000;
+	tm.tv_nsec = (tmo_msec % 1000) * 1000000;
+	uint_t ret=0;
+	uint_t n;
+	///*
 	for (;;) {
 		checkTimeOut();
-		int ret = port_get(kdpfd,&events,&tm);
+		int ret = port_get(kdpfd,events,&tm);
 		if(utm){
 			updateTime();
 		}
 		if(ret==-1){
 			continue;
+
 		}
-		KSelectable *st = (KSelectable *)events.portev_user;
+		KSelectable *st = (KSelectable *)events[0].portev_user;
 #ifndef NDEBUG
-		st->hs.clear();
+		klog(KLOG_DEBUG,"select st=%p,st_flags=%d,events=%d at %p\n",st,st->st_flags,events[0].portev_events,pthread_self());
 #endif
-		st->handler(st,0);
+		if (TEST(events[0].portev_events,POLLIN)) {
+			st->eventRead(st->e[OP_READ].arg,st->e[OP_READ].result,st->e[OP_READ].buffer);
+		} else {
+			assert(TEST(events[0].portev_events,POLLOUT));
+			st->eventWrite(st->e[OP_WRITE].arg,st->e[OP_WRITE].result,st->e[OP_WRITE].buffer);
+		}
+
 	}
+	/*//
+	port_getn not stable
+	for (;;) {
+		checkTimeOut();
+		ret = 1;
+		int result = port_getn(kdpfd,events,(uint_t)MAXEVENT,&ret,&tm);
+		if (utm) {
+			updateTime();
+		}
+		if (result==-1) {
+			continue;
+		}
+		printf("ret = %d\n",ret);
+		for (n=0;n<ret;n++) {
+			KSelectable *st = (KSelectable *)events[n].portev_user;
+			klog(KLOG_DEBUG,"select st=%p,st_flags=%d,events=%d at %p\n",st,st->st_flags,events[n].portev_events,pthread_self());
+			if (TEST(events[n].portev_events,POLLIN)) {
+				st->eventRead(st->e[OP_READ].arg,st->e[OP_READ].result,st->e[OP_READ].buffer);
+			} else {
+				assert(TEST(events[n].portev_events,POLLOUT));
+				st->eventWrite(st->e[OP_WRITE].arg,st->e[OP_WRITE].result,st->e[OP_WRITE].buffer);
+			}
+		}
+	}
+	//*/
 }
-bool KPortSelector::addSocket(KSelectable *st,int op) {
-        int ev = 0;
-        SOCKET sockfd = -1;
-	st->sockop = 0;
-	switch(op){
-        case STAGE_OP_LISTEN:
-        case STAGE_OP_READ:
-        case STAGE_OP_READ_POST:
-	case STAGE_OP_TF_READ:
-                sockfd = st->getSockfd();
-                st->client_read = 1;
-                ev = POLLIN;
-                break;
-        case STAGE_OP_WRITE:
-	case STAGE_OP_TF_WRITE:
-        case STAGE_OP_NEXT:
-		sockfd = st->getSockfd();
-                st->client_write = 1;
-                ev = POLLOUT;
-                break;
-	case STAGE_OP_UPSTREAM_CONNECT:
-        case STAGE_OP_UPSTREAM_WHEAD:
-        case STAGE_OP_WRITE_POST:
-		case STAGE_OP_UPSTREAM_SSLW:
-                sockfd = (static_cast<KUpstreamFetchObject *>(static_cast<KHttpRequest *>(st)->fetchObj)->getSocket())->get_socket();
-                st->upstream_write = 1;
-                ev = POLLOUT;
-                break;
-        case STAGE_OP_UPSTREAM_RHEAD:
-        case STAGE_OP_UPSTREAM_READ:
-		case STAGE_OP_UPSTREAM_SSLR:
-                sockfd = (static_cast<KUpstreamFetchObject *>(static_cast<KHttpRequest *>(st)->fetchObj)->getSocket())->get_socket();
-                st->upstream_read = 1;
-                ev = POLLIN;
-                break;
-/////////[27]
-	default:
-		assert(false); 
-               klog(KLOG_ERR,"BUG!!I cann't handle the op = %d\n",op);
-        }
-	return 0 == port_associate(kdpfd,PORT_SOURCE_FD, sockfd,ev,st);	
+bool KPortSelector::write(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg)
+{
+#ifndef NDEBUG
+	klog(KLOG_DEBUG,"write st=%p\n",st);
+#endif
+	st->e[OP_WRITE].arg = arg;
+	st->e[OP_WRITE].result = result;
+	st->e[OP_WRITE].buffer = buffer;
+	st->e[OP_READ].result = NULL;
+	SOCKET sockfd = st->getSocket()->get_socket();
+	if(0 == port_associate(kdpfd,PORT_SOURCE_FD, sockfd,POLLOUT,st)) {
+		SET(st->st_flags,STF_READ|STF_EV|STF_ONE_SHOT);
+		return true;
+	}
+	return false;
+}
+bool KPortSelector::read(KSelectable *st,resultEvent result,bufferEvent buffer,void *arg)
+{
+#ifndef NDEBUG
+	klog(KLOG_DEBUG,"read st=%p\n",st);
+#endif
+	st->e[OP_READ].arg = arg;
+	st->e[OP_READ].result = result;
+	st->e[OP_READ].buffer = buffer;
+	st->e[OP_WRITE].result = NULL;
+	SOCKET sockfd = st->getSocket()->get_socket();
+	if(0 == port_associate(kdpfd,PORT_SOURCE_FD, sockfd,POLLIN,st)) {
+		SET(st->st_flags,STF_READ|STF_EV|STF_ONE_SHOT);
+		return true;
+	}
+	klog(KLOG_ERR,"port_associate failed errno = %d\n",errno);
+	return false;
 }
 void KPortSelector::removeSocket(KSelectable *st) {
-	st->sockop = 0;
+	if (!TEST(st->st_flags,STF_EV)) {
+		return;
+	}
+	SOCKET sockfd = st->getSocket()->get_socket();
+	port_dissociate(kdpfd,PORT_SOURCE_FD,sockfd);
+	CLR(st->st_flags,STF_READ|STF_WRITE|STF_ONE_SHOT|STF_EV);
+}
+bool KPortSelector::connect(KSelectable *st,resultEvent result,void *arg)
+{
+	return write(st,result,NULL,arg);
+}
+bool KPortSelector::next(KSelectable *st,resultEvent result,void *arg)
+{
+	return write(st,result,NULL,arg);
+}
+bool KPortSelector::listen(KServer *st,resultEvent result)
+{
+	return read(st,result,NULL,st);
 }
 #endif

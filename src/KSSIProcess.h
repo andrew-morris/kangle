@@ -7,8 +7,9 @@
 
 #ifndef KSSIPROCESS_H_
 #define KSSIPROCESS_H_
-#include "utils.h"
 #include "KHttpTransfer.h"
+#include "utils.h"
+
 #include "KHttpRequest.h"
 #include "KHttpObject.h"
 #include "KSSIContext.h"

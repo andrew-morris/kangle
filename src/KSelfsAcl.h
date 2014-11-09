@@ -19,7 +19,7 @@ public:
 	}
 	bool match(KHttpRequest *rq, KHttpObject *obj) {
 		char ip[MAXIPLEN];
-		rq->server->get_self_ip(ip,sizeof(ip));
+		rq->c->socket->get_self_ip(ip,sizeof(ip));
 		return KMultiAcl::match(ip);
 	}
 protected:

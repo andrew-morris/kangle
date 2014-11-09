@@ -24,7 +24,7 @@ bool KIpVirtualHost::parseVirtualHost(KHttpRequest *rq, const char *site) {
 	sockaddr_i addr;
 	bool result = false;
 	std::map<sockaddr_i, KVirtualHostContainer *>::iterator it;
-	rq->server->get_self_addr(&addr);
+	rq->c->socket->get_self_addr(&addr);
 	lock.Lock();
 	it = vhs.find(addr);
 	if (it != vhs.end()) {
