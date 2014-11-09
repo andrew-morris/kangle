@@ -1,0 +1,23 @@
+<lang>
+	<include file="/etc/lang_en.xml" />
+	<include file="/etc/lang_zh.xml" />
+	<css name='en'>
+		<![CDATA[
+BODY {
+	FONT-SIZE: 9pt;
+}
+TABLE {
+ 	FONT-SIZE: 9pt; 
+}
+A:link {
+	COLOR: #0f0cbf; TEXT-DECORATION: none
+}
+A:visited {
+	TEXT-DECORATION: none
+}
+A:hover {
+	COLOR: red; TEXT-DECORATION: underline
+}	
+ 	]]>
+	</css>
+</lang>
