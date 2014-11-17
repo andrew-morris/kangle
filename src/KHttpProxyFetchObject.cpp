@@ -150,7 +150,7 @@ void KHttpProxyFetchObject::buildHead(KHttpRequest *rq)
 		s << av->attr << ": " << av->val << "\r\n";
 		do_not_insert: av = av->next;
 	}
-	if (rq->content_length > 0) {
+	if (TEST(rq->flags, RQ_HAS_CONTENT_LEN)) {
 		s.WSTR("Content-Length: ");
 		int2string(rq->content_length,tmpbuff);
 		s << tmpbuff;

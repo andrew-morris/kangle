@@ -877,7 +877,7 @@ int KHttpRequest::parseHeader(const char *attr, char *val,int &val_len, bool isF
 	if (!strcasecmp(attr, "Content-length")) {
 		content_length = string2int(val);
 		left_read = content_length;
-		//flags |= RQ_HAS_CONTENT_LEN;
+		flags |= RQ_HAS_CONTENT_LEN;
 		return PARSE_HEADER_NO_INSERT;
 	}
 	if (strcasecmp(attr, "Transfer-Encoding") == 0) {

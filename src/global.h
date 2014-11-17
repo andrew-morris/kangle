@@ -43,7 +43,7 @@
 #endif
 #endif
 #ifndef VERSION
-#define VERSION         "3.4.1"
+#define VERSION         "3.4.2"
 #endif
 #define VER_ID   VERSION
 #ifndef MAX
@@ -223,6 +223,7 @@
 #define RQ_HAS_PROXY_AUTHORIZATION (1<<10)
 #define RQ_HAS_KEEP_CONNECTION (1<<11)
 /////////[67]
+#define RQ_HAS_CONTENT_LEN     (1<<15)
 #define RQ_OBJ_VERIFIED        (1<<16)
 #define RQ_IF_RANGE            (1<<17)
 #define RQ_HAVE_RANGE          (1<<18)
